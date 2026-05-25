@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artic PTR — 페이 배분 대시보드</title>
+  <meta name="description" content="팀 프로젝트 외주 계약 입금액을 참여 인원별로 배분하고 급여 처리를 관리하는 내부 대시보드" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Sidebar Nav -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-mark">A</span>
+      <div class="logo-text">
+        <span class="logo-title">Artic PTR</span>
+        <span class="logo-sub">Pay Table</span>
+      </div>
+    </div>
+
+    <ul class="nav-menu">
+      <li class="nav-item active" data-tab="overview" onclick="switchTab('overview')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>개요</span>
+      </li>
+      <li class="nav-item" data-tab="episodes" onclick="switchTab('episodes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+        <span>에피소드 배분</span>
+      </li>
+      <li class="nav-item" data-tab="members" onclick="switchTab('members')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>인원별 정산</span>
+      </li>
+      <li class="nav-item" data-tab="roles" onclick="switchTab('roles')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 9H17v1.5c0 .83-.67 1.5-1.5 1.5S14 11.33 14 10.5V9"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 15H7v-1.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5V15"/></svg>
+        <span>역할 설정</span>
+      </li>
+      <li class="nav-item" data-tab="income" onclick="switchTab('income')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>입금 현황</span>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="project-badge">
+        <span class="badge-dot"></span>
+        <span>시즌 1 · 12EP</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content" id="main-content">
+
+    <!-- ============ TAB: 개요 ============ -->
+    <section class="tab-section active" id="tab-overview">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">페이 배분 개요</h1>
+          <p class="page-desc">외주 계약 입금액 현황 및 전체 인원별 정산 요약</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline" onclick="exportSummary()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            내보내기
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-primary">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">계약 입금 예정액</div>
+            <div class="kpi-value" id="kpi-contract">₩3,800,000</div>
+            <div class="kpi-sub">총 계약금</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-success">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">현재 입금액</div>
+            <div class="kpi-value" id="kpi-received">₩1,800,000</div>
+            <div class="kpi-sub">누적 수령액</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-warning">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">잔여 예정액</div>
+            <div class="kpi-value" id="kpi-remaining">₩2,000,000</div>
+            <div class="kpi-sub">미수금</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-info">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">투입 용역비용</div>
+            <div class="kpi-value" id="kpi-cost">₩1,276,560</div>
+            <div class="kpi-sub">총 지급 예정액</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-purple">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">PPL 추가 수입</div>
+            <div class="kpi-value" id="kpi-ppl">₩1,400,000</div>
+            <div class="kpi-sub">회차별 PPL 합산</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M9 9h6v6H9z"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">순이익</div>
+            <div class="kpi-value" id="kpi-profit">₩523,440</div>
+            <div class="kpi-sub">계약금 — 용역비</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="card progress-card">
+        <div class="card-header">
+          <h2 class="card-title">입금 진행률</h2>
+          <span class="badge badge-blue" id="progress-ep-badge">EP.1~6 입금 완료</span>
+        </div>
+        <div class="progress-info">
+          <span class="progress-current" id="progress-current-text">₩1,800,000</span>
+          <span class="progress-target">/ ₩3,800,000</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="overview-progress-bar" style="width: 47.37%">
+            <span class="progress-label">47.4%</span>
+          </div>
+        </div>
+        <div class="episode-dots" id="episode-dots"></div>
+      </div>
+
+      <!-- Member Summary Table -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">인원별 정산 요약</h2>
+          <span class="badge badge-green">자동 계산</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="member-summary-table">
+            <thead>
+              <tr>
+                <th>멤버</th>
+                <th class="text-right">리허설</th>
+                <th class="text-right">EP.1</th>
+                <th class="text-right">EP.2</th>
+                <th class="text-right">EP.3</th>
+                <th class="text-right">EP.4</th>
+                <th class="text-right">EP.5</th>
+                <th class="text-right">EP.6</th>
+                <th class="text-right">EP.7</th>
+                <th class="text-right highlight-col">합계</th>
+              </tr>
+            </thead>
+            <tbody id="member-summary-tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 에피소드 배분 ============ -->
+    <section class="tab-section" id="tab-episodes">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">에피소드별 배분</h1>
+          <p class="page-desc">각 에피소드에서 역할별 참여 인원을 체크하여 페이를 자동 계산합니다</p>
+        </div>
+        <div class="header-actions">
+          <div class="ep-selector">
+            <button class="ep-nav-btn" id="ep-prev" onclick="changeEpisode(-1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="ep-label" id="ep-current-label">리허설</span>
+            <button class="ep-nav-btn" id="ep-next" onclick="changeEpisode(1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Episode Overview Chips -->
+      <div class="ep-chips-wrap">
+        <div class="ep-chips" id="ep-chips"></div>
+      </div>
+
+      <!-- Episode Detail -->
+      <div class="ep-detail-grid">
+        <!-- Episode Artists -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">출연 아티스트</h2>
+          </div>
+          <div class="artist-list" id="ep-artist-display"></div>
+        </div>
+
+        <!-- PPL Info -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">PPL 정보</h2>
+          </div>
+          <div class="ppl-info" id="ep-ppl-info">
+            <div class="ppl-amount" id="ep-ppl-amount">₩0</div>
+            <div class="ppl-label" id="ep-ppl-label">PPL 없음</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Role Participation Table -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">역할별 참여 현황 및 페이 계산</h2>
+          <span class="badge badge-purple" id="ep-total-badge">계산 중...</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table role-table" id="ep-role-table">
+            <thead>
+              <tr>
+                <th>역할</th>
+                <th>설명</th>
+                <th class="text-right">역할 단가</th>
+                <th>참여 인원</th>
+                <th class="text-right">실수령액/인</th>
+                <th class="text-right">역할 소계</th>
+              </tr>
+            </thead>
+            <tbody id="ep-role-tbody">
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="5" class="text-right"><strong>에피소드 합계</strong></td>
+                <td class="text-right highlight-col" id="ep-grand-total">—</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Multi-role Notice -->
+      <div class="card notice-card" id="multi-role-notice" style="display:none">
+        <div class="notice-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="notice-content">
+          <strong>다중 역할 분배 안내</strong>
+          <p id="multi-role-detail"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 인원별 정산 ============ -->
+    <section class="tab-section" id="tab-members">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">인원별 정산</h1>
+          <p class="page-desc">각 멤버가 수령해야 할 총 금액과 입금 현황</p>
+        </div>
+      </div>
+
+      <div class="member-cards-grid" id="member-cards-grid"></div>
+
+      <!-- Detailed Breakdown -->
+      <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+          <h2 class="card-title">인원별 회차별 상세 내역</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="member-detail-table">
+            <thead>
+              <tr>
+                <th>멤버</th>
+                <th class="text-right">리허설</th>
+                <th class="text-right">EP.1</th>
+                <th class="text-right">EP.2</th>
+                <th class="text-right">EP.3</th>
+                <th class="text-right">EP.4</th>
+                <th class="text-right">EP.5</th>
+                <th class="text-right">EP.6</th>
+                <th class="text-right">EP.7</th>
+                <th class="text-right highlight-col">합계</th>
+              </tr>
+            </thead>
+            <tbody id="member-detail-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 역할 설정 ============ -->
+    <section class="tab-section" id="tab-roles">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">역할 설정</h1>
+          <p class="page-desc">각 역할의 단가와 구성을 확인하고 수정합니다</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="saveRoleSettings()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            저장
+          </button>
+        </div>
+      </div>
+
+      <div class="roles-grid" id="roles-grid"></div>
+
+      <!-- Role Summary -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <h2 class="card-title">역할 총괄 비용 요약</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>역할</th>
+                <th>담당 멤버</th>
+                <th class="text-right">1회 단가</th>
+                <th class="text-right">편당 횟수</th>
+                <th class="text-right">편당 총액</th>
+              </tr>
+            </thead>
+            <tbody id="role-summary-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 입금 현황 ============ -->
+    <section class="tab-section" id="tab-income">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">입금 현황</h1>
+          <p class="page-desc">회차별 입금 확인 및 PPL 수입 현황</p>
+        </div>
+      </div>
+
+      <!-- Income Status Cards -->
+      <div class="income-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">회차별 입금 확인</h2>
+          </div>
+          <div class="ep-income-list" id="ep-income-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">PPL 수입 현황</h2>
+          </div>
+          <div class="ppl-list" id="ppl-list"></div>
+          <div class="ppl-total-row">
+            <span>PPL 합계</span>
+            <span class="ppl-total-amount" id="ppl-total-display">₩1,400,000</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BlackMagic Cloud 정기지출 -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <h2 class="card-title">정기 지출 내역</h2>
+          <span class="badge badge-red">BlackMagic Cloud</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th class="text-right">1월</th>
+                <th class="text-right">2월</th>
+                <th class="text-right">3월</th>
+                <th class="text-right">합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="role-tag">BlackMagic Cloud</span></td>
+                <td class="text-right mono">₩21,153</td>
+                <td class="text-right mono">₩21,239</td>
+                <td class="text-right mono">₩21,633</td>
+                <td class="text-right mono highlight-col">₩64,025</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

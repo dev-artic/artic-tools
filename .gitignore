@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Excel 원본 파일 (내부용, 배포 제외)
+*.xlsx
+*.xls
+
+# 에디터
+.vscode/
+.idea/
+
+# 로컬 서버 로그
+*.log
