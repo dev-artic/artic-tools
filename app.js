@@ -882,6 +882,80 @@ function exportSummary() {
 }
 
 // ============================================================
+// LOGIN
+// ============================================================
+const CREDENTIALS = {
+  '민제':  '1211',
+  '광규':  '1211',
+  '경엽':  '0128',
+  '정호':  '0000',
+};
+
+function attemptLogin() {
+  const name = document.getElementById('login-name').value;
+  const pw   = document.getElementById('login-pw').value;
+  const errorEl = document.getElementById('login-error');
+  const card = document.getElementById('login-card');
+  const btn  = document.getElementById('login-btn');
+
+  // 빈 값 체크
+  if (!name) {
+    showLoginError('이름을 선택해주세요.');
+    shakeCard();
+    return;
+  }
+  if (!pw) {
+    showLoginError('비밀번호를 입력해주세요.');
+    shakeCard();
+    return;
+  }
+
+  // 인증
+  if (CREDENTIALS[name] && CREDENTIALS[name] === pw) {
+    // 성공 — 세션에 저장
+    sessionStorage.setItem('artic-auth', name);
+    // 버튼 로딩 상태
+    btn.disabled = true;
+    document.getElementById('login-btn-text').textContent = '인증 중...';
+    // 페이드 아웃 후 대시보드 표시
+    setTimeout(() => {
+      const overlay = document.getElementById('login-overlay');
+      overlay.classList.add('hide');
+      document.body.classList.remove('dashboard-hidden');
+      setTimeout(() => overlay.remove(), 500);
+    }, 300);
+  } else {
+    showLoginError('이름 또는 비밀번호가 올바르지 않습니다.');
+    shakeCard();
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+  }
+}
+
+function showLoginError(msg) {
+  const errorEl = document.getElementById('login-error');
+  document.getElementById('login-error-msg').textContent = msg;
+  errorEl.classList.add('show');
+  setTimeout(() => errorEl.classList.remove('show'), 3000);
+}
+
+function shakeCard() {
+  const card = document.getElementById('login-card');
+  card.classList.remove('shake');
+  void card.offsetWidth; // reflow
+  card.classList.add('shake');
+}
+
+function togglePw() {
+  const input = document.getElementById('login-pw');
+  const isText = input.type === 'text';
+  input.type = isText ? 'password' : 'text';
+  document.getElementById('pw-eye').innerHTML = isText
+    ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+    : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+}
+
+// ============================================================
 // INIT
 // ============================================================
 function init() {
@@ -891,6 +965,21 @@ function init() {
   renderMemberDetailTable();
   renderRolesGrid();
   renderIncomeTab();
+
+  // 로그인 체크
+  const authed = sessionStorage.getItem('artic-auth');
+  if (authed && CREDENTIALS[authed]) {
+    // 이미 인증된 세션 — 오버레이 즉시 제거
+    const overlay = document.getElementById('login-overlay');
+    if (overlay) overlay.remove();
+    document.body.classList.remove('dashboard-hidden');
+  } else {
+    // 로그인 화면 표시, 대시보드 숨김
+    document.body.classList.add('dashboard-hidden');
+    document.getElementById('login-pw').addEventListener('input', () => {
+      document.getElementById('login-error').classList.remove('show');
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

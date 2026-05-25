@@ -11,6 +11,59 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <!-- ============ LOGIN OVERLAY ============ -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-card" id="login-card">
+      <div class="login-logo">
+        <span class="logo-mark">A</span>
+        <div class="logo-text">
+          <span class="logo-title">Artic PTR</span>
+          <span class="logo-sub">Pay Table · Internal</span>
+        </div>
+      </div>
+
+      <h2 class="login-title">팀원 인증</h2>
+      <p class="login-desc">이름과 비밀번호를 입력해주세요</p>
+
+      <div class="login-form">
+        <div class="login-field">
+          <label for="login-name">이름</label>
+          <select id="login-name">
+            <option value="">이름을 선택하세요</option>
+            <option value="민제">김민제</option>
+            <option value="광규">박광규</option>
+            <option value="경엽">조경엽</option>
+            <option value="정호">정호</option>
+          </select>
+        </div>
+        <div class="login-field">
+          <label for="login-pw">비밀번호</label>
+          <div class="pw-wrap">
+            <input type="password" id="login-pw" maxlength="4" placeholder="생일 4자리 입력" autocomplete="off"
+              oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+              onkeydown="if(event.key==='Enter') attemptLogin()" />
+            <button class="pw-toggle" id="pw-toggle" onclick="togglePw()" type="button">
+              <svg id="pw-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-error" id="login-error">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="login-error-msg">이름 또는 비밀번호가 올바르지 않습니다.</span>
+        </div>
+
+        <button class="login-btn" id="login-btn" onclick="attemptLogin()">
+          <span id="login-btn-text">로그인</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+
+      <p class="login-hint">비밀번호는 본인 생일 4자리입니다</p>
+    </div>
+  </div>
+
   <!-- Sidebar Nav -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-logo">
