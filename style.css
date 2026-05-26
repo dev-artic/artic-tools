@@ -689,3 +689,237 @@ body {
   .sidebar { display: none; }
   .kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== Admin Settings ===== */
+.admin-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.admin-input:focus {
+  border-color: var(--accent-blue);
+  background: var(--bg-card-hover);
+}
+
+input:disabled, select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== Admin Episode Cards & Context Menu ===== */
+.admin-ep-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+  user-select: none;
+  cursor: default;
+}
+.admin-ep-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+}
+
+.context-menu {
+  background: #1e2333;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-sm);
+  padding: 6px 0;
+  min-width: 140px;
+}
+.context-menu button {
+  width: 100%;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.context-menu button:hover {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* ===== Sidebar Collapsing & Hamburger Toggle ===== */
+.sidebar {
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.main-content {
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed Sidebar Styles */
+.sidebar.collapsed {
+  width: 68px;
+}
+
+.sidebar.collapsed + .main-content {
+  margin-left: 68px;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .project-badge,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed #btn-logout span {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  padding: 0 0 24px !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+
+.sidebar.collapsed .sidebar-toggle-wrap {
+  padding: 0 0 16px !important;
+  justify-content: center !important;
+}
+
+.sidebar.collapsed .sidebar-toggle-wrap .toggle-label {
+  display: none;
+}
+
+.sidebar.collapsed .nav-menu {
+  padding: 0 8px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 16px 8px 0;
+}
+
+.sidebar.collapsed #btn-logout {
+  padding: 10px 0;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.sidebar.collapsed #sidebar-toggle {
+  justify-content: center;
+  width: 100%;
+}
+
+/* ===== Horizontal Admin Episode Cards (1-Column Row Layout) ===== */
+#admin-episodes-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  grid-template-columns: none !important; /* Override standard grid */
+}
+
+.admin-ep-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  padding: 20px 24px !important;
+  width: 100% !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-ep-card:hover {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 4px 20px rgba(79, 142, 247, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+.admin-ep-card-header {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  min-width: 140px !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+  border-right: 1px solid var(--border) !important;
+  padding-right: 24px !important;
+  margin-right: 8px !important;
+}
+
+.admin-ep-card-title {
+  font-size: 1.1rem !important;
+  color: var(--accent-blue) !important;
+}
+
+.admin-ep-paid-label {
+  margin-left: 0 !important;
+  margin-top: 4px !important;
+}
+
+.admin-ep-card-body {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+  margin-top: 0 !important;
+  flex: 1 !important;
+  align-items: center !important;
+}
+
+.admin-ep-card-body .role-field {
+  flex: 1 !important;
+  min-width: 140px !important;
+  margin-bottom: 0 !important;
+}
+
+.admin-ep-card-body .role-field label {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 6px !important;
+}
+
+/* ===== Save Button Premium Success Animation ===== */
+@keyframes saveSuccessPulse {
+  0% {
+    background-color: var(--accent-blue);
+    box-shadow: 0 0 0 0 rgba(79, 142, 247, 0.7);
+  }
+  20% {
+    background-color: var(--accent-green);
+    box-shadow: 0 0 0 12px rgba(62, 207, 142, 0);
+  }
+  100% {
+    background-color: var(--accent-green);
+    box-shadow: 0 0 0 0 rgba(62, 207, 142, 0);
+  }
+}
+
+.btn-save-success-pulse {
+  animation: saveSuccessPulse 2.0s cubic-bezier(0.24, 0, 0.38, 1) forwards !important;
+  background-color: var(--accent-green) !important;
+  border-color: var(--accent-green) !important;
+  color: #fff !important;
+}
+
+/* Spinner Rotate Animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+

@@ -1,0 +1,12 @@
+{
+  "name": "artic-ptr-paytable",
+  "version": "1.0.0",
+  "description": "Artic PTR Paytable Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
