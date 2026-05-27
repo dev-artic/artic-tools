@@ -4,6 +4,24 @@
 =================================== */
 
 // ============================================================
+// FIREBASE INITIALIZATION
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDeJrfj6Oz5yklVdTqZXPtbwE4Rz57AXrM",
+  authDomain: "artic-ptr-paytable.firebaseapp.com",
+  projectId: "artic-ptr-paytable",
+  storageBucket: "artic-ptr-paytable.firebasestorage.app",
+  messagingSenderId: "38387099281",
+  appId: "1:38387099281:web:ae82ec20509e5dc2bd8130",
+  measurementId: "G-L7X886BBW4"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const FIRESTORE_COL = 'paytable';
+const FIRESTORE_DOC = 'main';
+
+// ============================================================
 // DEFAULT DATA MODEL (Fallback if data.json is inaccessible)
 // ============================================================
 const DEFAULT_DATA = {
@@ -249,62 +267,88 @@ function isAdmin() {
 // ============================================================
 
 async function loadData(forceReload = false) {
-  let loadedData = null;
-
-  // 1. Unless forceReload, try to load from localStorage first for instant client persistence
+  // 1. localStorage 캐시로 즉시 렌더링 (화면 깜빡임 방지)
   if (!forceReload) {
     try {
       const cached = localStorage.getItem('artic-data');
       if (cached) {
-        loadedData = JSON.parse(cached);
-        console.log('Successfully restored data from localStorage.');
+        const parsedCache = JSON.parse(cached);
+        DATA = parsedCache;
+        normalizeData();
+        normalizeBlackmagicCosts();
+        recalculateProjectMetrics();
+        console.log('Rendered from localStorage cache (fast path).');
       }
     } catch (e) {
-      console.error('Failed to parse cached data from localStorage', e);
+      console.error('Failed to parse localStorage cache:', e);
     }
   }
 
-  // 2. Fetch from the local data.json server
-  if (!loadedData) {
-    try {
-      const res = await fetch('data.json');
-      if (res.ok) {
-        loadedData = await res.json();
-        console.log('Successfully loaded data from data.json.');
-      }
-    } catch (e) {
-      console.warn('Failed to load data.json from server, falling back to defaults.', e);
-    }
-  }
-
-  // 3. Fallback to DEFAULT_DATA
-  if (!loadedData) {
-    loadedData = JSON.parse(JSON.stringify(DEFAULT_DATA));
-  }
-
-  DATA = loadedData;
-
-  // 정규화: settled 속성이 없는 에피소드가 있다면 paid를 기본값으로 사용
-  if (DATA.episodes) {
-    for (const ep of DATA.episodes) {
-      if (ep.settled === undefined) {
-        ep.settled = ep.paid;
+  // 2. Firestore에서 최신 데이터 로드 (항상 최신 상태로 덮어씀)
+  try {
+    const docSnap = await db.collection(FIRESTORE_COL).doc(FIRESTORE_DOC).get();
+    if (docSnap.exists) {
+      DATA = docSnap.data();
+      console.log('Successfully loaded data from Firestore.');
+    } else {
+      // 최초 실행: data.json을 읽어 Firestore에 업로드
+      console.log('No Firestore document found. Initializing from data.json...');
+      try {
+        const res = await fetch('data.json');
+        if (res.ok) {
+          DATA = await res.json();
+          await db.collection(FIRESTORE_COL).doc(FIRESTORE_DOC).set(DATA);
+          console.log('Initialized Firestore from data.json.');
+        }
+      } catch (e) {
+        DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
+        await db.collection(FIRESTORE_COL).doc(FIRESTORE_DOC).set(DATA);
+        console.log('Initialized Firestore from DEFAULT_DATA.');
       }
     }
+  } catch (e) {
+    console.warn('Firestore load failed, using cached/default data.', e);
+    if (!DATA || !DATA.episodes) {
+      // Firestore도 실패하고 캐시도 없으면 data.json 시도
+      try {
+        const res = await fetch('data.json');
+        if (res.ok) DATA = await res.json();
+      } catch (_) {
+        DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      }
+    }
   }
 
+  normalizeData();
   normalizeBlackmagicCosts();
   recalculateProjectMetrics();
-  
-  // Clear Undo/Redo stack on reload/init
+
+  // localStorage 캐시 갱신
+  try {
+    localStorage.setItem('artic-data', JSON.stringify(DATA));
+  } catch (e) {}
+
+  // Undo/Redo 스택 초기화
   undoStack = [];
   redoStack = [];
   updateUndoRedoButtons();
 }
 
+function normalizeData() {
+  if (!DATA) return;
+  // settled 속성 정규화
+  if (DATA.episodes) {
+    for (const ep of DATA.episodes) {
+      if (ep.settled === undefined) ep.settled = ep.paid;
+    }
+  }
+}
+
 async function saveData(silent = false) {
-  // 1. Sync immediately to browser storage
-  localStorage.setItem('artic-data', JSON.stringify(DATA));
+  // localStorage 즉시 업데이트 (빠른 캐시)
+  try {
+    localStorage.setItem('artic-data', JSON.stringify(DATA));
+  } catch (e) {}
   isDirty = false;
 
   const adminBtn = document.getElementById('btn-save-admin');
@@ -318,43 +362,18 @@ async function saveData(silent = false) {
   if (!silent) {
     buttons.forEach(btn => {
       btn.disabled = true;
-      btn.style.transition = 'all 0.3s ease';
-      btn.innerHTML = `<svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite; margin-right: 6px;"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="10"/></svg> 저장 및 Push 중...`;
+      btn.innerHTML = `<svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite; margin-right: 6px;"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="10"/></svg> 저장 중...`;
     });
   }
 
   try {
-    const res = await fetch('/api/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(DATA)
-    });
-    const result = await res.json();
+    await db.collection(FIRESTORE_COL).doc(FIRESTORE_DOC).set(DATA);
+    console.log('Successfully saved to Firestore.');
 
     if (!silent) {
       buttons.forEach(btn => {
         btn.disabled = false;
-        if (result.success) {
-          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 6px;"><polyline points="20 6 9 17 4 12"/></svg> 저장 완료`;
-          btn.classList.add('btn-save-success-pulse');
-          if (!result.gitPushed) {
-            console.warn(result.message);
-          }
-        } else {
-          btn.innerHTML = `저장 실패`;
-        }
-        setTimeout(() => {
-          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 저장`;
-          btn.classList.remove('btn-save-success-pulse');
-        }, 2500);
-      });
-    }
-  } catch (err) {
-    console.warn('Server API not running. Saved to browser localStorage only.', err);
-    if (!silent) {
-      buttons.forEach(btn => {
-        btn.disabled = false;
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 6px;"><polyline points="20 6 9 17 4 12"/></svg> 로컬 저장 완료`;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 6px;"><polyline points="20 6 9 17 4 12"/></svg> 저장 완료`;
         btn.classList.add('btn-save-success-pulse');
         setTimeout(() => {
           btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 저장`;
@@ -362,8 +381,20 @@ async function saveData(silent = false) {
         }, 2500);
       });
     }
+  } catch (err) {
+    console.error('Firestore save failed:', err);
+    if (!silent) {
+      buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.innerHTML = `⚠️ 저장 실패 (재시도)`;
+        setTimeout(() => {
+          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 저장`;
+        }, 3000);
+      });
+    }
   }
 }
+
 
 // Exit prevention via beforeunload
 window.addEventListener('beforeunload', (e) => {
