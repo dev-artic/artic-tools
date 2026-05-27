@@ -1817,6 +1817,31 @@ function renderAdminTab() {
     `;
     grid.appendChild(div);
   }
+
+  // 2. 정기 지출 비용 인풋 카드 그리기
+  const costsGrid = document.getElementById('admin-costs-grid');
+  if (costsGrid) {
+    costsGrid.innerHTML = '';
+    normalizeBlackmagicCosts();
+
+    for (const item of DATA.blackmagicCosts) {
+      const card = document.createElement('div');
+      card.className = 'admin-cost-card';
+      card.innerHTML = `
+        <button class="btn-delete-cost" onclick="deleteCostItem('${item.id}')" title="지출 내역 삭제">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <input type="text" class="admin-cost-label-input" value="${item.label}" onchange="updateCostItemLabel('${item.id}', this.value)" placeholder="월 지출명 입력" />
+          <div class="role-field" style="margin-bottom:0;">
+            <label>지출액 (원)</label>
+            <input type="number" class="admin-input" value="${item.cost || 0}" onchange="updateCostItemCost('${item.id}', this.value)" />
+          </div>
+        </div>
+      `;
+      costsGrid.appendChild(card);
+    }
+  }
 }
 
 // ============================================================
@@ -1920,32 +1945,6 @@ function updatePplPaymentField(epIndex, pplId, field, value) {
   
   if (needAdminRef) {
     renderAdminTab();
-  }
-}
-
-  // 2. 정기 지출 비용 인풋 카드 그리기
-  const costsGrid = document.getElementById('admin-costs-grid');
-  if (costsGrid) {
-    costsGrid.innerHTML = '';
-    normalizeBlackmagicCosts();
-
-    for (const item of DATA.blackmagicCosts) {
-      const card = document.createElement('div');
-      card.className = 'admin-cost-card';
-      card.innerHTML = `
-        <button class="btn-delete-cost" onclick="deleteCostItem('${item.id}')" title="지출 내역 삭제">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <div style="display:flex; flex-direction:column; gap:10px;">
-          <input type="text" class="admin-cost-label-input" value="${item.label}" onchange="updateCostItemLabel('${item.id}', this.value)" placeholder="월 지출명 입력" />
-          <div class="role-field" style="margin-bottom:0;">
-            <label>지출액 (원)</label>
-            <input type="number" class="admin-input" value="${item.cost || 0}" onchange="updateCostItemCost('${item.id}', this.value)" />
-          </div>
-        </div>
-      `;
-      costsGrid.appendChild(card);
-    }
   }
 }
 
