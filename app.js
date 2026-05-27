@@ -915,11 +915,15 @@ function renderEpisodeTab() {
   const prevBtn = document.getElementById('ep-prev');
   const nextBtn = document.getElementById('ep-next');
   if (labelEl) {
-    if (ep.paid) {
-      labelEl.innerHTML = `${ep.label} <span class="badge badge-green" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 완료 ✓</span>`;
+    let badgeHtml = '';
+    if (ep.settled) {
+      badgeHtml = `<span class="badge badge-green" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 완료 ✓</span>`;
+    } else if (ep.paid) {
+      badgeHtml = `<span class="badge badge-blue" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: rgba(79, 142, 247, 0.15); color: #4f8ef7; border: 1px solid rgba(79, 142, 247, 0.25);">정산 대기</span>`;
     } else {
-      labelEl.innerHTML = `${ep.label} <span class="badge badge-yellow" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 대기</span>`;
+      badgeHtml = `<span class="badge badge-gray" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border); opacity:0.8;">입금 대기</span>`;
     }
+    labelEl.innerHTML = `${ep.label} ${badgeHtml}`;
   }
   if (prevBtn) prevBtn.disabled = currentEpIndex === 0;
   if (nextBtn) nextBtn.disabled = currentEpIndex >= DATA.episodes.length - 1;
@@ -1315,10 +1319,12 @@ function renderMemberDetailTable() {
   tbody.innerHTML = '';
   
   let baseColSums = {};
-  let pplColSums = {};
+  let settledPplColSums = {};
+  let unsettledPplColSums = {};
   let finalColSums = {};
   let baseGrandTotal = 0;
-  let pplGrandTotal = 0;
+  let settledPplGrandTotal = 0;
+  let unsettledPplGrandTotal = 0;
   let finalGrandTotal = 0;
   
   const shown = DATA.episodes.map(ep => ep.index);
@@ -1382,24 +1388,32 @@ function renderMemberDetailTable() {
         }
       }
 
-      let pplPay = 0;
+      let settledPplPay = 0;
+      let unsettledPplPay = 0;
       const ratio = epTotalBasePay > 0 ? (basePay / epTotalBasePay) : (1 / DATA.members.length);
       const ep = DATA.episodes.find(e => e.index === i);
       if (ep && ep.pplPayments && ep.pplPayments.length > 0) {
         const settledPplTotal = ep.pplPayments
           .filter(p => p.paid && p.settled)
           .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
-        pplPay = Math.round(settledPplTotal * ratio);
+        settledPplPay = Math.round(settledPplTotal * ratio);
+
+        const unsettledPplTotal = ep.pplPayments
+          .filter(p => !p.settled)
+          .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
+        unsettledPplPay = Math.round(unsettledPplTotal * ratio);
       }
 
       baseColSums[i] = (baseColSums[i] || 0) + basePay;
-      pplColSums[i] = (pplColSums[i] || 0) + pplPay;
-      finalColSums[i] = (finalColSums[i] || 0) + (basePay + pplPay);
+      settledPplColSums[i] = (settledPplColSums[i] || 0) + settledPplPay;
+      unsettledPplColSums[i] = (unsettledPplColSums[i] || 0) + unsettledPplPay;
+      finalColSums[i] = (finalColSums[i] || 0) + (basePay + settledPplPay);
     }
     
     // 이 멤버가 총 제작비와 PPL을 합쳐 최종적으로 지급받은 금액 (누계)
     let memberBaseSum = 0;
-    let memberPplSum = 0;
+    let memberSettledPplSum = 0;
+    let memberUnsettledPplSum = 0;
     for (const i of shown) {
       let basePay = 0;
       for (const role of DATA.roles) {
@@ -1417,20 +1431,28 @@ function renderMemberDetailTable() {
       }
       const ratio = epTotalBasePay > 0 ? (basePay / epTotalBasePay) : (1 / DATA.members.length);
       const ep = DATA.episodes.find(e => e.index === i);
-      let pplPay = 0;
+      let settledPplPay = 0;
+      let unsettledPplPay = 0;
       if (ep && ep.pplPayments && ep.pplPayments.length > 0) {
         const settledPplTotal = ep.pplPayments
           .filter(p => p.paid && p.settled)
           .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
-        pplPay = Math.round(settledPplTotal * ratio);
+        settledPplPay = Math.round(settledPplTotal * ratio);
+
+        const unsettledPplTotal = ep.pplPayments
+          .filter(p => !p.settled)
+          .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
+        unsettledPplPay = Math.round(unsettledPplTotal * ratio);
       }
       memberBaseSum += basePay;
-      memberPplSum += pplPay;
+      memberSettledPplSum += settledPplPay;
+      memberUnsettledPplSum += unsettledPplPay;
     }
     
     baseGrandTotal += memberBaseSum;
-    pplGrandTotal += memberPplSum;
-    finalGrandTotal += (memberBaseSum + memberPplSum);
+    settledPplGrandTotal += memberSettledPplSum;
+    unsettledPplGrandTotal += memberUnsettledPplSum;
+    finalGrandTotal += (memberBaseSum + memberSettledPplSum);
 
     cells += `<td class="text-right highlight-col mono" style="font-weight:700; vertical-align: top;">${formatKRW(totals[m])}</td>`;
     tr.innerHTML = cells;
@@ -1450,19 +1472,31 @@ function renderMemberDetailTable() {
   baseTr.innerHTML = baseCells;
   tbody.appendChild(baseTr);
 
-  // 2. PPL 소계 행 (정산 완료된 PPL 배분금 소계)
-  const pplTr = document.createElement('tr');
-  pplTr.className = 'total-row ppl-subtotal-row';
-  pplTr.style.background = 'rgba(167, 139, 250, 0.02)';
-  let pplCells = `<td><strong style="color:#a78bfa; font-size:0.75rem;">PPL 소계</strong></td>`;
+  // 2. 정산 완료된 PPL 소계 행 (정산 완료된 PPL 배분금 소계)
+  const settledPplTr = document.createElement('tr');
+  settledPplTr.className = 'total-row ppl-subtotal-row settled-ppl-row';
+  settledPplTr.style.background = 'rgba(167, 139, 250, 0.02)';
+  let settledPplCells = `<td><strong style="color:#a78bfa; font-size:0.75rem;">정산 완료된 PPL</strong></td>`;
   for (const i of shown) {
-    pplCells += `<td class="text-center mono" style="font-weight:600; font-size:0.75rem; color:#a78bfa;">${formatKRW(pplColSums[i] || 0)}</td>`;
+    settledPplCells += `<td class="text-center mono" style="font-weight:600; font-size:0.75rem; color:#a78bfa;">${formatKRW(settledPplColSums[i] || 0)}</td>`;
   }
-  pplCells += `<td class="text-right highlight-col mono" style="font-weight:700; font-size:0.75rem; color:#a78bfa;">${formatKRW(pplGrandTotal)}</td>`;
-  pplTr.innerHTML = pplCells;
-  tbody.appendChild(pplTr);
+  settledPplCells += `<td class="text-right highlight-col mono" style="font-weight:700; font-size:0.75rem; color:#a78bfa;">${formatKRW(settledPplGrandTotal)}</td>`;
+  settledPplTr.innerHTML = settledPplCells;
+  tbody.appendChild(settledPplTr);
 
-  // 3. 최종 합계 행 (기본 + PPL 총계)
+  // 3. 아직 정산 안 된 PPL 소계 행
+  const unsettledPplTr = document.createElement('tr');
+  unsettledPplTr.className = 'total-row ppl-subtotal-row unsettled-ppl-row';
+  unsettledPplTr.style.background = 'rgba(245, 200, 66, 0.02)';
+  let unsettledPplCells = `<td><strong style="color:#f5c842; font-size:0.75rem;">아직 정산 안 된 PPL</strong></td>`;
+  for (const i of shown) {
+    unsettledPplCells += `<td class="text-center mono" style="font-weight:600; font-size:0.75rem; color:#f5c842;">${formatKRW(unsettledPplColSums[i] || 0)}</td>`;
+  }
+  unsettledPplCells += `<td class="text-right highlight-col mono" style="font-weight:700; font-size:0.75rem; color:#f5c842;">${formatKRW(unsettledPplGrandTotal)}</td>`;
+  unsettledPplTr.innerHTML = unsettledPplCells;
+  tbody.appendChild(unsettledPplTr);
+
+  // 4. 최종 합계 행 (기본 + 정산 완료된 PPL 총계)
   const finalTr = document.createElement('tr');
   finalTr.className = 'total-row final-total-row';
   finalTr.style.borderTop = '2px solid rgba(79, 142, 247, 0.3)';
@@ -1999,10 +2033,10 @@ function renderAdminTab() {
               아틱팀 정산 예정
             </button>
           ` : `
-            <button type="button" class="btn-toggle-status paid active" disabled style="cursor: not-allowed;">
+            <button type="button" class="btn-toggle-status paid active" disabled style="cursor: not-allowed; opacity: 0.85;">
               보코스 입금 완료 ✓
             </button>
-            <button type="button" class="btn-toggle-status settled active" disabled style="cursor: not-allowed;">
+            <button type="button" class="btn-toggle-status settled active" onclick="updateEpisodeData(${ep.index}, 'settled', false)" title="클릭하면 정산 예정 상태로 되돌릴 수 있습니다.">
               아틱팀 정산 완료 ✓
             </button>
           `)}
@@ -2054,10 +2088,10 @@ function renderAdminTab() {
                         아틱팀 정산 예정
                       </button>
                     ` : `
-                      <button type="button" class="btn-toggle-status paid active" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; cursor: not-allowed;">
+                      <button type="button" class="btn-toggle-status paid active" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; cursor: not-allowed; opacity: 0.85;">
                         보코스 입금 완료 ✓
                       </button>
-                      <button type="button" class="btn-toggle-status settled active" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; cursor: not-allowed;">
+                      <button type="button" class="btn-toggle-status settled active" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', false)" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;" title="클릭하면 정산 예정 상태로 되돌릴 수 있습니다.">
                         아틱팀 정산 완료 ✓
                       </button>
                     `)}
