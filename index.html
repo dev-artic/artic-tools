@@ -42,8 +42,7 @@
         <div class="login-field">
           <label for="login-pw">비밀번호</label>
           <div class="pw-wrap">
-            <input type="password" id="login-pw" maxlength="4" placeholder="" autocomplete="off"
-              oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+            <input type="password" id="login-pw" placeholder="" autocomplete="off"
               onkeydown="if(event.key==='Enter') attemptLogin()" />
             <button class="pw-toggle" id="pw-toggle" onclick="togglePw()" type="button">
               <svg id="pw-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -632,22 +631,19 @@
           <div class="pw-change-row">
             <label class="pw-change-label">현재 비밀번호</label>
             <div class="pw-wrap">
-              <input type="password" id="pw-current" maxlength="4" placeholder="••••"
-                oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+              <input type="password" id="pw-current" placeholder="••••"/>
             </div>
           </div>
           <div class="pw-change-row">
             <label class="pw-change-label">새 비밀번호</label>
             <div class="pw-wrap">
-              <input type="password" id="pw-new" maxlength="4" placeholder="••••"
-                oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+              <input type="password" id="pw-new" placeholder="••••"/>
             </div>
           </div>
           <div class="pw-change-row">
             <label class="pw-change-label">새 비밀번호 확인</label>
             <div class="pw-wrap">
-              <input type="password" id="pw-confirm" maxlength="4" placeholder="••••"
-                oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+              <input type="password" id="pw-confirm" placeholder="••••"/>
             </div>
           </div>
           <div id="pw-change-msg" class="pw-change-msg" style="display:none;"></div>

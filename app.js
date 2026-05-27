@@ -2980,8 +2980,8 @@ async function changePassword() {
     showMsg('현재 비밀번호가 올바르지 않습니다.', true);
     return;
   }
-  if (!newVal || newVal.length < 4) {
-    showMsg('새 비밀번호는 4자리 숫자여야 합니다.', true);
+  if (!newVal) {
+    showMsg('새 비밀번호를 입력해주세요.', true);
     return;
   }
   if (newVal !== confirmVal) {
