@@ -1748,5 +1748,28 @@ body.light-theme .custom-confirm-popup {
   background: rgba(255, 255, 255, 0.04) !important;
 }
 
+/* ===== Pulsating Settlement Warning for Artic team ===== */
+@keyframes blueBlink {
+  0% { 
+    opacity: 0.8; 
+    border-color: rgba(79, 142, 247, 0.4) !important;
+    background: rgba(79, 142, 247, 0.04) !important;
+    box-shadow: 0 0 4px rgba(79, 142, 247, 0.15) !important;
+  }
+  100% { 
+    opacity: 1; 
+    border-color: rgba(79, 142, 247, 1) !important;
+    background: rgba(79, 142, 247, 0.15) !important;
+    box-shadow: 0 0 12px rgba(79, 142, 247, 0.4) !important;
+    color: #4f8ef7 !important;
+  }
+}
+.btn-toggle-status.blinking-blue {
+  animation: blueBlink 0.8s infinite alternate ease-in-out !important;
+  border-color: rgba(79, 142, 247, 0.6) !important;
+  color: #4f8ef7 !important;
+  font-weight: 700 !important;
+}
+
 
 

@@ -558,6 +558,25 @@ function getMemberToReceive(memberName) {
     if (ep.paid && !ep.settled) {
       total += matrix[memberName][ep.index] || 0;
     }
+
+    // PPL 중 보코스 입금 완료 & 아틱팀 정산 대기 상태인 항목 비율 배분하여 누적
+    if (ep.pplPayments && ep.pplPayments.length > 0) {
+      let basePay = 0;
+      let epTotalBasePay = 0;
+      for (const role of DATA.roles) {
+        const rolePay = calcEpisodeRolePay(role.id, ep.index);
+        basePay += (rolePay[memberName] || 0);
+        for (const val of Object.values(rolePay)) {
+          epTotalBasePay += val;
+        }
+      }
+      const ratio = epTotalBasePay > 0 ? (basePay / epTotalBasePay) : (1 / DATA.members.length);
+      
+      const toReceivePpl = ep.pplPayments
+        .filter(p => p.paid && !p.settled)
+        .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
+      total += Math.round(toReceivePpl * ratio);
+    }
   }
   return total;
 }
@@ -1766,8 +1785,12 @@ function recalculateProjectMetrics() {
     }
   }
 
-  // 1. 예정액 합계
-  DATA.project.contractAmount = DATA.episodes.reduce((sum, ep) => sum + (ep.targetAmount || 0), 0);
+  // 1. 예정액 합계 (에피소드 제작비 예정액 + 모든 PPL 예정액)
+  const baseTarget = DATA.episodes.reduce((sum, ep) => sum + (ep.targetAmount || 0), 0);
+  const pplTarget = DATA.episodes.reduce((sum, ep) => {
+    return sum + (ep.pplPayments || []).reduce((pSum, p) => pSum + (p.targetAmount || 0), 0);
+  }, 0);
+  DATA.project.contractAmount = baseTarget + pplTarget;
 
   // 2. 수령액 합계
   // 계약금 실 수령액 = 제작비 실제 입금액 + 모든 PPL 실제 입금액 합계
@@ -1819,11 +1842,17 @@ function renderAdminTab() {
         <span class="admin-ep-card-title" style="margin-bottom: 6px;">${ep.label}</span>
         <div style="display:flex; flex-direction:column; gap:6px; width: 100%;">
           <button type="button" class="btn-toggle-status paid ${ep.paid ? 'active' : ''}" onclick="updateEpisodeData(${ep.index}, 'paid', ${!ep.paid})">
-            ${ep.paid ? '입금 완료 ✓' : '입금 대기'}
+            ${ep.paid ? '보코스 입금 완료 ✓' : '보코스 입금 대기'}
           </button>
-          <button type="button" class="btn-toggle-status settled ${ep.settled ? 'active' : ''}" onclick="updateEpisodeData(${ep.index}, 'settled', ${!ep.settled})">
-            ${ep.settled ? '정산 완료 ✓' : '정산 대기'}
-          </button>
+          ${!ep.paid ? `
+            <button type="button" class="btn-toggle-status settled" disabled style="opacity: 0.5; cursor: not-allowed;">
+              아틱팀 정산 대기
+            </button>
+          ` : `
+            <button type="button" class="btn-toggle-status settled ${ep.settled ? 'active' : 'blinking-blue'}" onclick="updateEpisodeData(${ep.index}, 'settled', ${!ep.settled})">
+              ${ep.settled ? '아틱팀 정산 완료 ✓' : '아틱팀 정산 예정'}
+            </button>
+          `}
         </div>
       </div>
       <div class="admin-ep-card-body">
@@ -1854,11 +1883,17 @@ function renderAdminTab() {
                   <input type="text" class="admin-cost-label-input" value="${p.label}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'label', this.value)" placeholder="차수명 (예: PPL 1차)" style="font-size:0.72rem; padding:4px 6px; width:50%; font-weight:600; text-align:left; margin:0;" />
                   <div style="display:flex; gap:6px; margin-left: auto;">
                     <button type="button" class="btn-toggle-status paid ${p.paid ? 'active' : ''}" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', ${!p.paid})" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
-                      ${p.paid ? '입금 완료 ✓' : '입금 대기'}
+                      ${p.paid ? '보코스 입금 완료 ✓' : '보코스 입금 대기'}
                     </button>
-                    <button type="button" class="btn-toggle-status settled ${p.settled ? 'active' : ''}" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', ${!p.settled})" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
-                      ${p.settled ? '정산 완료 ✓' : '정산 대기'}
-                    </button>
+                    ${!p.paid ? `
+                      <button type="button" class="btn-toggle-status settled" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; opacity: 0.5; cursor: not-allowed;">
+                        아틱팀 정산 대기
+                      </button>
+                    ` : `
+                      <button type="button" class="btn-toggle-status settled ${p.settled ? 'active' : 'blinking-blue'}" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', ${!p.settled})" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                        ${p.settled ? '아틱팀 정산 완료 ✓' : '아틱팀 정산 예정'}
+                      </button>
+                    `}
                   </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
@@ -2194,13 +2229,14 @@ function addNewEpisode() {
   renderAdminTab();
 }
 
-function handleDeleteEpisodeDirect(epIndex) {
+async function handleDeleteEpisodeDirect(epIndex) {
   if (!isAdmin()) return;
   if (epIndex === 0) {
     alert("리허설 에피소드는 삭제할 수 없습니다.");
     return;
   }
-  if (confirm(`정말 해당 에피소드를 삭제하시겠습니까?`)) {
+  const confirmed = await showCustomConfirm('에피소드 삭제', '정말로 해당 에피소드를 삭제하시겠습니까?');
+  if (confirmed) {
     deleteEpisode(epIndex);
   }
 }
@@ -2237,14 +2273,15 @@ window.addEventListener('click', () => {
   }
 });
 
-function handleDeleteEpisodeClick() {
+async function handleDeleteEpisodeClick() {
   if (selectedEpIndexForDelete === null) return;
 
   // 컨텍스트 메뉴 닫기
   const menu = document.getElementById('custom-context-menu');
   if (menu) menu.style.display = 'none';
 
-  if (confirm(`정말 해당 에피소드를 삭제하시겠습니까?`)) {
+  const confirmed = await showCustomConfirm('에피소드 삭제', '정말로 해당 에피소드를 삭제하시겠습니까?');
+  if (confirmed) {
     deleteEpisode(selectedEpIndexForDelete);
   }
 
@@ -2463,12 +2500,13 @@ function addCostItem() {
   renderOverview();
 }
 
-function deleteCostItem(id) {
+async function deleteCostItem(id) {
   normalizeBlackmagicCosts();
   const idx = DATA.blackmagicCosts.findIndex(item => item.id === id);
   if (idx === -1) return;
 
-  if (confirm(`정말 해당 지출 내역을 삭제하시겠습니까?`)) {
+  const confirmed = await showCustomConfirm('지출 내역 삭제', '정말로 해당 지출 내역을 삭제하시겠습니까?');
+  if (confirmed) {
     pushState();
     DATA.blackmagicCosts.splice(idx, 1);
     isDirty = true;
@@ -2522,6 +2560,22 @@ window.addEventListener('keydown', (e) => {
       saveData();
     }
     return;
+  }
+
+  // Escape 단축키: 팝업 취소 처리
+  if (e.key === 'Escape') {
+    const navGuard = document.getElementById('nav-guard-popup');
+    if (navGuard && navGuard.classList.contains('show')) {
+      e.preventDefault();
+      cancelNavGuard();
+      return;
+    }
+    const customConfirm = document.getElementById('custom-confirm-popup');
+    if (customConfirm && customConfirm.classList.contains('show')) {
+      e.preventDefault();
+      hideCustomConfirm(false);
+      return;
+    }
   }
 
   // Enter 단축키: 네비게이션 가드(저장 경고 팝업) 활성화 시 저장 및 이동 처리
