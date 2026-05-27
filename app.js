@@ -106,18 +106,18 @@ const DEFAULT_DATA = {
   ],
   episodes: [
     { index: 0, label: '리허설', paid: true,  settled: true,  artists: [],         ppl: 0, targetAmount: 0, receivedAmount: 0 },
-    { index: 1, label: 'EP.1',   paid: true,  settled: true,  artists: ['자이언티'],  ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 2, label: 'EP.2',   paid: true,  settled: true,  artists: ['권기백'],   ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 3, label: 'EP.3',   paid: true,  settled: true,  artists: ['세이수미'],  ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 4, label: 'EP.4',   paid: true,  settled: true,  artists: ['주영'],     ppl: 600000, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 5, label: 'EP.5',   paid: true,  settled: true,  artists: ['제이클레프'], ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 6, label: 'EP.6',   paid: true,  settled: true,  artists: ['까xOL'],   ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 7, label: 'EP.7',   paid: false, settled: false, artists: ['차승우'],   ppl: 800000, targetAmount: 300000, receivedAmount: 0 },
-    { index: 8, label: 'EP.8',   paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 9, label: 'EP.9',   paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 10, label: 'EP.10', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 11, label: 'EP.11', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 12, label: 'EP.12', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 500000, receivedAmount: 0 },
+    { index: 1, label: 'EP.1',   paid: true,  settled: true,  artists: ['자이언티'],  ppl: 0, targetAmount: 200000, receivedAmount: 200000 },
+    { index: 2, label: 'EP.2',   paid: true,  settled: true,  artists: ['권기백'],   ppl: 0, targetAmount: 200000, receivedAmount: 200000 },
+    { index: 3, label: 'EP.3',   paid: true,  settled: true,  artists: ['세이수미'],  ppl: 0, targetAmount: 200000, receivedAmount: 200000 },
+    { index: 4, label: 'EP.4',   paid: true,  settled: true,  artists: ['주영'],     ppl: 600000, targetAmount: 200000, receivedAmount: 200000 },
+    { index: 5, label: 'EP.5',   paid: true,  settled: true,  artists: ['제이클레프'], ppl: 0, targetAmount: 200000, receivedAmount: 200000 },
+    { index: 6, label: 'EP.6',   paid: true,  settled: true,  artists: ['까xOL'],   ppl: 0, targetAmount: 200000, receivedAmount: 200000 },
+    { index: 7, label: 'EP.7',   paid: false, settled: false, artists: ['차승우'],   ppl: 800000, targetAmount: 200000, receivedAmount: 0 },
+    { index: 8, label: 'EP.8',   paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 200000, receivedAmount: 0 },
+    { index: 9, label: 'EP.9',   paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 200000, receivedAmount: 0 },
+    { index: 10, label: 'EP.10', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 200000, receivedAmount: 0 },
+    { index: 11, label: 'EP.11', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 200000, receivedAmount: 0 },
+    { index: 12, label: 'EP.12', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 200000, receivedAmount: 0 },
   ],
   blackmagicCosts: {
     jan: 21153,
@@ -420,11 +420,7 @@ function calcEpisodeRolePay(roleId, epIndex) {
 
   const result = {};
 
-  // 촬영 스태프 역할 소계는 선택된 인원수 관계없이 무조건 30,000원 고정
   let totalForRole = role.unitCostPerPerson * role.headcount;
-  if (roleId === 'camera_staff') {
-    totalForRole = 30000;
-  }
 
   let eligibleParticipants = allParticipants;
 
@@ -534,6 +530,36 @@ function getMemberToReceive(memberName) {
     }
   }
   return total;
+}
+
+/**
+ * 클라이언트로부터 입금 완료(paid: true)된 회차들에서 멤버가 수령하게 될 누적 수령 예정액 합산
+ * (이미 정산된 것 settled: true + 아직 정산 대기 중인 것 settled: false 전부 포함)
+ */
+function getMemberAccumulatedReceived(memberName) {
+  const matrix = buildPayMatrix();
+  let total = 0;
+  for (const ep of DATA.episodes) {
+    if (ep.paid) {
+      total += matrix[memberName][ep.index] || 0;
+    }
+  }
+  return total;
+}
+
+/**
+ * 특정 멤버가 특정 에피소드에서 어떤 역할로 참여했는지 그 역할명들의 배열 반환
+ */
+function getMemberRolesInEpisode(memberName, epIndex) {
+  const roles = [];
+  for (const role of DATA.roles) {
+    if (epIndex === 0 && !role.includesRehearsal) continue;
+    const epPart = DATA.participation[role.id];
+    if (epPart && epPart[memberName] && epPart[memberName][epIndex]) {
+      roles.push(role.name);
+    }
+  }
+  return roles;
 }
 
 /**
@@ -867,13 +893,20 @@ function renderEpisodeRoleTable() {
       const isEditable = isAdmin() && !ep.paid;
       const extraStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;filter:grayscale(0.3);"';
 
+      const staffDisabled = hasDop || !isEditable;
+      const staffStyle = staffDisabled ? 'style="opacity: 0.35; pointer-events: none; cursor: not-allowed;"' : '';
+      const dopStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;"';
+
       return `
         <div class="shoot-member-item" ${extraStyle}>
           <span class="shoot-member-name">${m}</span>
           <div class="shoot-member-actions">
             <button class="btn-shoot btn-shoot-staff ${hasStaff ? 'active' : ''}" 
-              onclick="toggleShootRole('${m}', 'staff', ${currentEpIndex})" title="${hasStaff ? '스태프 페이 대상' : '미참여'}">스태프</button>
+              ${staffStyle}
+              ${staffDisabled ? 'disabled' : ''}
+              onclick="toggleShootRole('${m}', 'staff', ${currentEpIndex})" title="${hasDop ? 'D.O.P. 감독은 촬영 스태프에 지정할 수 없습니다.' : (hasStaff ? '스태프 페이 대상' : '미참여')}">스태프</button>
             <button class="btn-shoot btn-shoot-dop ${hasDop ? 'active' : ''}" 
+              ${dopStyle}
               onclick="toggleShootRole('${m}', 'dop', ${currentEpIndex})" title="${hasDop ? 'D.O.P. 감독 페이 대상' : '미참여'}">👑 D.O.P.</button>
           </div>
         </div>
@@ -1051,7 +1084,6 @@ function changeEpisode(delta) {
 function renderMemberCards() {
   const grid = document.getElementById('member-cards-grid');
   if (!grid) return;
-  const matrix = buildPayMatrix();
   const colors = DATA.memberColors;
 
   grid.innerHTML = '';
@@ -1062,32 +1094,53 @@ function renderMemberCards() {
     '정호': ['기획', '촬영 스태프', '편집-B(어시)'],
   };
 
-  for (const m of DATA.members) {
-    const card = document.createElement('div');
-    card.className = 'member-card';
+  const currentUser = sessionStorage.getItem('artic-auth');
 
-    const miniEps = DATA.episodes.map(ep => {
-      const amt = matrix[m][ep.index] || 0;
-      return `<span class="member-ep-dot ${amt > 0 ? 'has-pay' : 'no-pay'}" title="${ep.label}: ${formatKRW(amt)}">
-        ${ep.label === '리허설' ? 'R' : ep.label.replace('EP.', '')}
-      </span>`;
-    }).join('');
+  // 로그인한 유저를 맨 앞으로 배치하여 정렬
+  const sortedMembers = [...DATA.members];
+  if (currentUser && sortedMembers.includes(currentUser)) {
+    sortedMembers.sort((a, b) => {
+      if (a === currentUser) return -1;
+      if (b === currentUser) return 1;
+      return 0;
+    });
+  }
+
+  for (const m of sortedMembers) {
+    const card = document.createElement('div');
+    const isCurrentUser = (m === currentUser);
+    card.className = `member-card ${isCurrentUser ? 'current-user-card' : ''}`;
+
+    const toReceive = getMemberToReceive(m);
+    const accumReceived = getMemberAccumulatedReceived(m);
+
+    const titleColor = m === '민제' ? '#4f8ef7' : m === '광규' ? '#3ecf8e' : m === '경엽' ? '#f5c842' : '#f87171';
 
     card.innerHTML = `
       <div class="member-card-header">
         <div class="member-avatar" style="background:${colors[m]}">${m[0]}</div>
         <div>
-          <div class="member-name">${m}</div>
+          <div class="member-name" style="display:flex; align-items:center; gap:6px;">
+            ${m}
+            ${isCurrentUser ? '<span class="badge badge-blue" style="font-size:0.6rem; padding:1px 6px;">나</span>' : ''}
+          </div>
           <div class="member-roles-list">${(memberRoleSummary[m] || []).join(' · ')}</div>
         </div>
       </div>
-      <div class="member-total" style="color:${m === '민제' ? '#4f8ef7' : m === '광규' ? '#3ecf8e' : m === '경엽' ? '#f5c842' : '#f87171'}">${formatKRW(getMemberToReceive(m))}</div>
-      <div class="member-total-label" style="margin-bottom: 6px;">이번에 입금될 금액</div>
-      <div class="member-sub-total-row" style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:var(--text-secondary); border-top:1px dashed var(--border); padding-top:10px; margin-top:10px; margin-bottom:12px;">
-        <span>누적 수령 예정액</span>
-        <strong style="color:var(--text-primary); font-family:'JetBrains Mono', monospace;">${formatKRW(getMemberUnpaidAccumulated(m))}</strong>
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 4px; flex-wrap:wrap; gap:8px;">
+        <div class="member-total" style="color:${titleColor}">${formatKRW(toReceive)}</div>
+        ${toReceive > 0 ? `
+          <div class="settle-pending-badge" title="클라이언트 입금 완료, 멤버 정산 대기 중">
+            <span class="pulse-dot"></span>
+            정산 진행중
+          </div>
+        ` : ''}
       </div>
-      <div class="member-ep-mini">${miniEps}</div>
+      <div class="member-total-label" style="margin-bottom: 14px;">미정산 금액 (입금 예정액)</div>
+      <div class="member-sub-total-row" style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:var(--text-secondary); border-top:1px dashed var(--border); padding-top:12px; margin-top:4px;">
+        <span>누적 수령 예정액</span>
+        <strong style="color:var(--text-primary); font-family:'JetBrains Mono', monospace;">${formatKRW(accumReceived)}</strong>
+      </div>
     `;
     grid.appendChild(card);
   }
@@ -1099,16 +1152,17 @@ function renderMemberDetailTable() {
   const matrix = buildPayMatrix();
   const totals = getMemberTotals();
 
-  // 동적 테이블 헤더 갱신
+  // 동적 테이블 헤더 갱신 (입금 여부 공통 병합)
   const table = document.getElementById('member-detail-table');
   if (table) {
     const thead = table.querySelector('thead');
     if (thead) {
-      let headCells = `<tr><th>멤버</th>`;
+      let headCells = `<tr><th style="vertical-align:middle;">멤버</th>`;
       for (const ep of DATA.episodes) {
-        headCells += `<th class="text-right">${ep.label}</th>`;
+        const statusLabel = ep.index === 0 ? '' : (ep.paid ? '<span style="color:#3ecf8e; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">입금완료</span>' : '<span style="color:var(--text-muted); font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">입금대기</span>');
+        headCells += `<th class="text-center" style="font-size:0.8rem; vertical-align:middle;">${ep.label}${statusLabel}</th>`;
       }
-      headCells += `<th class="text-right highlight-col">합계</th></tr>`;
+      headCells += `<th class="text-right highlight-col" style="vertical-align:middle;">합계</th></tr>`;
       thead.innerHTML = headCells;
     }
   }
@@ -1125,24 +1179,27 @@ function renderMemberDetailTable() {
       ${m}
     </span></td>`;
     for (const i of shown) {
+      const roles = getMemberRolesInEpisode(m, i);
+      const cellText = roles.length > 0 ? roles.join(', ') : '<span style="color:var(--text-muted)">—</span>';
+      cells += `<td class="text-center" style="font-size:0.75rem; max-width: 120px; white-space: normal; word-break: keep-all; line-height: 1.4; color:var(--text-primary); font-weight: 500;">${cellText}</td>`;
+      
       const amt = matrix[m][i] || 0;
       colSums[i] = (colSums[i] || 0) + amt;
-      cells += `<td class="text-right mono ${amt > 0 ? '' : ''}">${amt > 0 ? formatKRW(amt) : '<span style="color:var(--text-muted)">—</span>'}</td>`;
     }
     grandTotal += totals[m];
-    cells += `<td class="text-right highlight-col">${formatKRW(totals[m])}</td>`;
+    cells += `<td class="text-right highlight-col mono" style="font-weight:700;">${formatKRW(totals[m])}</td>`;
     tr.innerHTML = cells;
     tbody.appendChild(tr);
   }
 
-  // SUM
+  // SUM (하단 합계는 재무 정확도를 위해 원화 금액 유지)
   const sumTr = document.createElement('tr');
   sumTr.className = 'total-row';
   let sumCells = `<td><strong>합계</strong></td>`;
   for (const i of shown) {
-    sumCells += `<td class="text-right mono">${formatKRW(colSums[i] || 0)}</td>`;
+    sumCells += `<td class="text-right mono" style="font-weight:700;">${formatKRW(colSums[i] || 0)}</td>`;
   }
-  sumCells += `<td class="text-right highlight-col">${formatKRW(grandTotal)}</td>`;
+  sumCells += `<td class="text-right highlight-col mono" style="font-weight:800; font-size: 0.95rem;">${formatKRW(grandTotal)}</td>`;
   sumTr.innerHTML = sumCells;
   tbody.appendChild(sumTr);
 }
@@ -1645,10 +1702,34 @@ function updateEpisodeData(epIndex, field, value) {
 
   pushState();
 
+  let needAdminRef = false;
+
   if (field === 'paid') {
     ep.paid = value;
+    if (value) {
+      if ((ep.receivedAmount || 0) < (ep.targetAmount || 0)) {
+        ep.receivedAmount = ep.targetAmount;
+      }
+    } else {
+      ep.receivedAmount = 0;
+    }
+    needAdminRef = true;
   } else if (field === 'settled') {
     ep.settled = value;
+  } else if (field === 'receivedAmount') {
+    const val = parseInt(value) || 0;
+    ep.receivedAmount = val;
+    if (val >= (ep.targetAmount || 0) && ep.targetAmount > 0) {
+      if (!ep.paid) {
+        ep.paid = true;
+        needAdminRef = true;
+      }
+    } else if (val === 0) {
+      if (ep.paid) {
+        ep.paid = false;
+        needAdminRef = true;
+      }
+    }
   } else {
     ep[field] = parseInt(value) || 0;
   }
@@ -1663,6 +1744,9 @@ function updateEpisodeData(epIndex, field, value) {
   renderIncomeTab();
   renderMemberCards();
   renderMemberDetailTable();
+  if (needAdminRef) {
+    renderAdminTab();
+  }
 }
 
 function toggleSidebar() {
@@ -1702,7 +1786,7 @@ function addNewEpisode() {
     paid: false,
     artists: [],
     ppl: 0,
-    targetAmount: 300000,
+    targetAmount: 200000,
     receivedAmount: 0
   };
 
