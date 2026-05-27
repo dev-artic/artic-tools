@@ -400,7 +400,8 @@ body {
   border-radius: 100px;
   font-size: 0.72rem; font-weight: 600;
 }
-.ep-dot.paid { background: var(--accent-green-dim); color: var(--accent-green); }
+.ep-dot.settled { background: var(--accent-green-dim); color: var(--accent-green); }
+.ep-dot.paid { background: var(--accent-blue-dim); color: var(--accent-blue); }
 .ep-dot.pending { background: var(--bg-elevated); color: var(--text-muted); }
 
 /* ===== Badges ===== */
@@ -740,24 +741,24 @@ body {
   pointer-events: auto;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .mobile-header {
-    position: fixed;
-    top: 16px;
-    left: 16px;
+    position: sticky;
+    top: 0;
+    left: 0;
+    width: 100%;
     display: flex !important;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
     background: rgba(24, 28, 39, 0.8) !important;
     backdrop-filter: blur(12px);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    padding: 6px 12px 6px 6px;
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding: 14px 20px;
     z-index: 999;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    width: auto;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
     height: auto;
-    border-bottom: none;
   }
   
   body.light-theme .mobile-header {
@@ -765,7 +766,11 @@ body {
   }
 
   .mobile-header-logo .logo-title {
-    display: none !important;
+    display: block !important;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-left: 8px;
+    color: var(--text-primary);
   }
 
   .mobile-header-logo {
@@ -781,16 +786,13 @@ body {
   }
 
   .mobile-menu-toggle {
-    border-left: 1px solid var(--border);
-    padding-left: 10px;
+    border: none;
+    padding: 4px;
     color: var(--text-secondary);
     display: flex;
     align-items: center;
-    height: 24px;
+    height: auto;
     background: none;
-    border-top: none;
-    border-right: none;
-    border-bottom: none;
   }
   
   :root {
@@ -887,7 +889,7 @@ body {
   left: 16px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .mobile-theme-floating-btn {
     display: flex !important;
     position: fixed;
@@ -972,7 +974,7 @@ body {
   padding-left: 32px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .admin-grid {
     grid-template-columns: 1fr;
     gap: 24px;

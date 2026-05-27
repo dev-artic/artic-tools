@@ -105,19 +105,19 @@ const DEFAULT_DATA = {
     },
   ],
   episodes: [
-    { index: 0, label: '리허설', paid: true,  artists: [],         ppl: 0, targetAmount: 0, receivedAmount: 0 },
-    { index: 1, label: 'EP.1',   paid: true,  artists: ['자이언티'],  ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 2, label: 'EP.2',   paid: true,  artists: ['권기백'],   ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 3, label: 'EP.3',   paid: true,  artists: ['세이수미'],  ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 4, label: 'EP.4',   paid: true,  artists: ['주영'],     ppl: 600000, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 5, label: 'EP.5',   paid: true,  artists: ['제이클레프'], ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 6, label: 'EP.6',   paid: true,  artists: ['까xOL'],   ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
-    { index: 7, label: 'EP.7',   paid: false, artists: ['차승우'],   ppl: 800000, targetAmount: 300000, receivedAmount: 0 },
-    { index: 8, label: 'EP.8',   paid: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 9, label: 'EP.9',   paid: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 10, label: 'EP.10', paid: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 11, label: 'EP.11', paid: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
-    { index: 12, label: 'EP.12', paid: false, artists: [],          ppl: 0, targetAmount: 500000, receivedAmount: 0 },
+    { index: 0, label: '리허설', paid: true,  settled: true,  artists: [],         ppl: 0, targetAmount: 0, receivedAmount: 0 },
+    { index: 1, label: 'EP.1',   paid: true,  settled: true,  artists: ['자이언티'],  ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
+    { index: 2, label: 'EP.2',   paid: true,  settled: true,  artists: ['권기백'],   ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
+    { index: 3, label: 'EP.3',   paid: true,  settled: true,  artists: ['세이수미'],  ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
+    { index: 4, label: 'EP.4',   paid: true,  settled: true,  artists: ['주영'],     ppl: 600000, targetAmount: 300000, receivedAmount: 300000 },
+    { index: 5, label: 'EP.5',   paid: true,  settled: true,  artists: ['제이클레프'], ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
+    { index: 6, label: 'EP.6',   paid: true,  settled: true,  artists: ['까xOL'],   ppl: 0, targetAmount: 300000, receivedAmount: 300000 },
+    { index: 7, label: 'EP.7',   paid: false, settled: false, artists: ['차승우'],   ppl: 800000, targetAmount: 300000, receivedAmount: 0 },
+    { index: 8, label: 'EP.8',   paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
+    { index: 9, label: 'EP.9',   paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
+    { index: 10, label: 'EP.10', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
+    { index: 11, label: 'EP.11', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 300000, receivedAmount: 0 },
+    { index: 12, label: 'EP.12', paid: false, settled: false, artists: [],          ppl: 0, targetAmount: 500000, receivedAmount: 0 },
   ],
   blackmagicCosts: {
     jan: 21153,
@@ -283,6 +283,16 @@ async function loadData(forceReload = false) {
   }
 
   DATA = loadedData;
+
+  // 정규화: settled 속성이 없는 에피소드가 있다면 paid를 기본값으로 사용
+  if (DATA.episodes) {
+    for (const ep of DATA.episodes) {
+      if (ep.settled === undefined) {
+        ep.settled = ep.paid;
+      }
+    }
+  }
+
   normalizeBlackmagicCosts();
   recalculateProjectMetrics();
   
@@ -511,6 +521,36 @@ function getMemberTotals() {
   return totals;
 }
 
+/**
+ * 클라이언트로부터 입금 완료(paid: true) 되었으나 멤버에게 정산되지 않은(settled: false) 회차의 멤버별 금액 합계
+ * '이번에 입금될 금액'
+ */
+function getMemberToReceive(memberName) {
+  const matrix = buildPayMatrix();
+  let total = 0;
+  for (const ep of DATA.episodes) {
+    if (ep.paid && !ep.settled) {
+      total += matrix[memberName][ep.index] || 0;
+    }
+  }
+  return total;
+}
+
+/**
+ * 아직 클라이언트로부터 입금도 되지 않은(paid: false) 회차의 멤버별 수령 예정액 합계
+ * '누적 수령 예정액'
+ */
+function getMemberUnpaidAccumulated(memberName) {
+  const matrix = buildPayMatrix();
+  let total = 0;
+  for (const ep of DATA.episodes) {
+    if (!ep.paid && !ep.settled) {
+      total += matrix[memberName][ep.index] || 0;
+    }
+  }
+  return total;
+}
+
 // ============================================================
 // FORMAT UTILS
 // ============================================================
@@ -648,10 +688,19 @@ function renderOverview() {
     dotsEl.innerHTML = '';
     for (const ep of DATA.episodes) {
       const dot = document.createElement('div');
-      dot.className = `ep-dot ${ep.paid ? 'paid' : 'pending'}`;
+      let statusClass = 'pending';
+      let checkIcon = '';
+      if (ep.settled) {
+        statusClass = 'settled';
+        checkIcon = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      } else if (ep.paid) {
+        statusClass = 'paid';
+        checkIcon = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      }
+      dot.className = `ep-dot ${statusClass}`;
       dot.innerHTML = `
         <span>${ep.label}</span>
-        ${ep.paid ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        ${checkIcon}
       `;
       dotsEl.appendChild(dot);
     }
@@ -1003,7 +1052,6 @@ function renderMemberCards() {
   const grid = document.getElementById('member-cards-grid');
   if (!grid) return;
   const matrix = buildPayMatrix();
-  const totals = getMemberTotals();
   const colors = DATA.memberColors;
 
   grid.innerHTML = '';
@@ -1033,8 +1081,12 @@ function renderMemberCards() {
           <div class="member-roles-list">${(memberRoleSummary[m] || []).join(' · ')}</div>
         </div>
       </div>
-      <div class="member-total" style="color:${m === '민제' ? '#4f8ef7' : m === '광규' ? '#3ecf8e' : m === '경엽' ? '#f5c842' : '#f87171'}">${formatKRW(totals[m])}</div>
-      <div class="member-total-label">누적 수령 예정액</div>
+      <div class="member-total" style="color:${m === '민제' ? '#4f8ef7' : m === '광규' ? '#3ecf8e' : m === '경엽' ? '#f5c842' : '#f87171'}">${formatKRW(getMemberToReceive(m))}</div>
+      <div class="member-total-label" style="margin-bottom: 6px;">이번에 입금될 금액</div>
+      <div class="member-sub-total-row" style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:var(--text-secondary); border-top:1px dashed var(--border); padding-top:10px; margin-top:10px; margin-bottom:12px;">
+        <span>누적 수령 예정액</span>
+        <strong style="color:var(--text-primary); font-family:'JetBrains Mono', monospace;">${formatKRW(getMemberUnpaidAccumulated(m))}</strong>
+      </div>
       <div class="member-ep-mini">${miniEps}</div>
     `;
     grid.appendChild(card);
@@ -1505,12 +1557,18 @@ function renderAdminTab() {
 
     div.innerHTML = `
       ${deleteBtnHtml}
-      <div class="admin-ep-card-header">
+      <div class="admin-ep-card-header" style="align-items: flex-start; gap: 8px;">
         <span class="admin-ep-card-title">${ep.label}</span>
-        <label class="admin-ep-paid-label">
-          <input type="checkbox" ${ep.paid ? 'checked' : ''} onchange="updateEpisodeData(${ep.index}, 'paid', this.checked)" style="cursor:pointer;" />
-          정산 완료
-        </label>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label class="admin-ep-paid-label" style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-secondary); cursor:pointer;">
+            <input type="checkbox" ${ep.paid ? 'checked' : ''} onchange="updateEpisodeData(${ep.index}, 'paid', this.checked)" style="cursor:pointer;" />
+            클라이언트 입금 완료
+          </label>
+          <label class="admin-ep-paid-label" style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-secondary); cursor:pointer;">
+            <input type="checkbox" ${ep.settled ? 'checked' : ''} onchange="updateEpisodeData(${ep.index}, 'settled', this.checked)" style="cursor:pointer;" />
+            멤버 페이 정산 완료
+          </label>
+        </div>
       </div>
       <div class="admin-ep-card-body">
         <div class="role-field">
@@ -1589,6 +1647,8 @@ function updateEpisodeData(epIndex, field, value) {
 
   if (field === 'paid') {
     ep.paid = value;
+  } else if (field === 'settled') {
+    ep.settled = value;
   } else {
     ep[field] = parseInt(value) || 0;
   }
