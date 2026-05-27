@@ -1782,7 +1782,7 @@ body.light-theme .custom-confirm-popup {
 .my-members-dashboard-wrapper {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: stretch !important;
   gap: 24px;
   width: 100%;
 }
@@ -1799,6 +1799,9 @@ body.light-theme .custom-confirm-popup {
   position: relative;
   overflow: hidden;
   margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .member-card.my-large-card::before {
@@ -1862,6 +1865,8 @@ body.light-theme .custom-confirm-popup {
   gap: 24px;
   border-top: 1px dashed var(--border);
   padding-top: 20px;
+  align-items: center;
+  flex: 1;
 }
 
 .member-total.large {
