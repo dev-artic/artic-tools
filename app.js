@@ -989,7 +989,7 @@ function renderEpisodeRoleTable() {
       const hasDop = DATA.participation['dop'] && DATA.participation['dop'][m] && DATA.participation['dop'][m][currentEpIndex];
       const hasStaff = DATA.participation['camera_staff'] && DATA.participation['camera_staff'][m] && DATA.participation['camera_staff'][m][currentEpIndex];
 
-      const isEditable = isAdmin() && !ep.paid;
+      const isEditable = isAdmin() && !ep.settled;
       const extraStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;filter:grayscale(0.3);"';
 
       const staffDisabled = hasDop || !isEditable;
@@ -1076,7 +1076,7 @@ function renderEpisodeRoleTable() {
       const p = DATA.participation[role.id];
       const isChecked = p && p[m] && p[m][currentEpIndex];
       const payAmt = rolePay[m] || 0;
-      const isEditable = isAdmin() && !ep.paid;
+      const isEditable = isAdmin() && !ep.settled;
       const extraStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;filter:grayscale(0.3);"';
       return `<div class="participant-chip ${isChecked ? 'active' : ''}" ${extraStyle}
                 onclick="toggleParticipation('${role.id}', '${m}', ${currentEpIndex})"
@@ -1118,7 +1118,7 @@ function toggleParticipation(roleId, memberName, epIndex) {
     return;
   }
   const ep = DATA.episodes.find(e => e.index === epIndex);
-  if (ep && ep.paid) {
+  if (ep && ep.settled) {
     alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
     return;
   }
@@ -1193,56 +1193,84 @@ function renderMemberCards() {
     '정호': ['기획', '촬영 스태프', '편집-B(어시)'],
   };
 
-  const currentUser = sessionStorage.getItem('artic-auth');
+  const currentUser = sessionStorage.getItem('artic-auth') || '민제';
 
-  // 로그인한 유저를 맨 앞으로 배치하여 정렬
-  const sortedMembers = [...DATA.members];
-  if (currentUser && sortedMembers.includes(currentUser)) {
-    sortedMembers.sort((a, b) => {
-      if (a === currentUser) return -1;
-      if (b === currentUser) return 1;
-      return 0;
-    });
-  }
+  // '나' 카드 데이터 추출
+  const myToReceive = getMemberToReceive(currentUser);
+  const myAccumReceived = getMemberAccumulatedReceived(currentUser);
+  const myColor = colors[currentUser] || '#4f8ef7';
 
-  for (const m of sortedMembers) {
-    const card = document.createElement('div');
-    const isCurrentUser = (m === currentUser);
-    card.className = `member-card ${isCurrentUser ? 'current-user-card' : ''}`;
-
-    const toReceive = getMemberToReceive(m);
-    const accumReceived = getMemberAccumulatedReceived(m);
-
-    const titleColor = m === '민제' ? '#4f8ef7' : m === '광규' ? '#3ecf8e' : m === '경엽' ? '#f5c842' : '#f87171';
-
-    card.innerHTML = `
-      <div class="member-card-header">
-        <div class="member-avatar" style="background:${colors[m]}">${m[0]}</div>
+  // '나' 카드 HTML (가로 2배 프리미엄 대시보드 카드)
+  const myCardHtml = `
+    <div class="member-card my-large-card">
+      <div class="large-card-badge">MY ACCOUNT</div>
+      <div class="member-card-header large">
+        <div class="member-avatar large" style="background:${myColor}">${currentUser[0]}</div>
         <div>
-          <div class="member-name" style="display:flex; align-items:center; gap:6px;">
-            ${m}
-            ${isCurrentUser ? '<span class="badge badge-blue" style="font-size:0.6rem; padding:1px 6px;">나</span>' : ''}
+          <div class="member-name large">
+            ${currentUser}
+            <span class="badge badge-blue" style="font-size:0.65rem; padding:2px 8px; border-radius:100px;">나</span>
           </div>
-          <div class="member-roles-list">${(memberRoleSummary[m] || []).join(' · ')}</div>
+          <div class="member-roles-list large">${(memberRoleSummary[currentUser] || []).join(' · ')}</div>
         </div>
       </div>
-      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 4px; flex-wrap:wrap; gap:8px;">
-        <div class="member-total" style="color:${titleColor}">${formatKRW(toReceive)}</div>
-        ${toReceive > 0 ? `
-          <div class="settle-pending-badge" title="클라이언트 입금 완료, 멤버 정산 대기 중">
-            <span class="pulse-dot"></span>
-            정산 진행중
+      
+      <div class="large-card-body">
+        <div class="large-card-metric">
+          <div class="member-total-label" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">이번 정산 예정액 (미정산 잔액)</div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span class="member-total large" style="color:#4f8ef7">${formatKRW(myToReceive)}</span>
+            ${myToReceive > 0 ? `
+              <div class="settle-pending-badge large" title="클라이언트 입금 완료, 멤버 정산 대기 중">
+                <span class="pulse-dot"></span>
+                정산 예정
+              </div>
+            ` : ''}
           </div>
-        ` : ''}
+        </div>
+        
+        <div class="large-card-metric sub">
+          <div class="member-total-label" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">누적 수령 완료액</div>
+          <strong class="member-sub-total large" style="font-family:'JetBrains Mono', monospace; font-weight:700;">${formatKRW(myAccumReceived)}</strong>
+        </div>
       </div>
-      <div class="member-total-label" style="margin-bottom: 14px;">미정산 금액 (입금 예정액)</div>
-      <div class="member-sub-total-row" style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:var(--text-secondary); border-top:1px dashed var(--border); padding-top:12px; margin-top:4px;">
-        <span>누적 수령 예정액</span>
-        <strong style="color:var(--text-primary); font-family:'JetBrains Mono', monospace;">${formatKRW(accumReceived)}</strong>
+    </div>
+  `;
+
+  // 나머지 멤버들 카드 생성
+  const otherMembers = DATA.members.filter(m => m !== currentUser);
+  let otherCardsHtml = `<div class="other-members-container">`;
+
+  for (const m of otherMembers) {
+    const toReceive = getMemberToReceive(m);
+    const titleColor = m === '민제' ? '#4f8ef7' : m === '광규' ? '#3ecf8e' : m === '경엽' ? '#f5c842' : '#f87171';
+
+    otherCardsHtml += `
+      <div class="member-card other-mini-card">
+        <div class="member-card-header mini">
+          <div class="member-avatar mini" style="background:${colors[m]}">${m[0]}</div>
+          <div class="mini-user-info">
+            <div class="member-name mini">${m}</div>
+            <div class="member-roles-list mini">${(memberRoleSummary[m] || []).slice(0, 2).join(' · ')}</div>
+          </div>
+          <div class="mini-metrics-group">
+            <div class="member-total mini" style="color:${titleColor}">${formatKRW(toReceive)}</div>
+            <div class="member-total-label mini">정산 예정액</div>
+          </div>
+        </div>
       </div>
     `;
-    grid.appendChild(card);
   }
+  otherCardsHtml += `</div>`;
+
+  // 래퍼 컨테이너 생성 및 주입
+  const wrapper = document.createElement('div');
+  wrapper.className = 'my-members-dashboard-wrapper';
+  wrapper.innerHTML = `
+    ${myCardHtml}
+    ${otherCardsHtml}
+  `;
+  grid.appendChild(wrapper);
 }
 
 function renderMemberDetailTable() {
@@ -1258,7 +1286,13 @@ function renderMemberDetailTable() {
     if (thead) {
       let headCells = `<tr><th style="vertical-align:middle;">멤버</th>`;
       for (const ep of DATA.episodes) {
-        const statusLabel = ep.index === 0 ? '' : (ep.paid ? '<span style="color:#3ecf8e; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">입금완료</span>' : '<span style="color:var(--text-muted); font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">입금대기</span>');
+        const statusLabel = ep.index === 0 ? '' : (
+          ep.settled 
+            ? '<span style="color:#4f8ef7; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">정산완료 ✓</span>' 
+            : (ep.paid 
+                ? '<span style="color:#3ecf8e; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">정산대기</span>' 
+                : '<span style="color:var(--text-muted); font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">입금대기</span>')
+        );
         headCells += `<th class="text-center" style="font-size:0.8rem; vertical-align:middle;">${ep.label}${statusLabel}</th>`;
       }
       headCells += `<th class="text-right highlight-col" style="vertical-align:middle;">합계</th></tr>`;
@@ -1326,7 +1360,7 @@ function renderMemberDetailTable() {
   sumTr.className = 'total-row';
   let sumCells = `<td><strong>합계</strong></td>`;
   for (const i of shown) {
-    sumCells += `<td class="text-right mono" style="font-weight:700;">${formatKRW(colSums[i] || 0)}</td>`;
+    sumCells += `<td class="text-center mono" style="font-weight:700;">${formatKRW(colSums[i] || 0)}</td>`;
   }
   sumCells += `<td class="text-right highlight-col mono" style="font-weight:800; font-size: 0.95rem;">${formatKRW(grandTotal)}</td>`;
   sumTr.innerHTML = sumCells;
@@ -1841,18 +1875,28 @@ function renderAdminTab() {
       <div class="admin-ep-card-header" style="align-items: flex-start; gap: 8px; width: 160px; min-width: 160px;">
         <span class="admin-ep-card-title" style="margin-bottom: 6px;">${ep.label}</span>
         <div style="display:flex; flex-direction:column; gap:6px; width: 100%;">
-          <button type="button" class="btn-toggle-status paid ${ep.paid ? 'active' : ''}" onclick="updateEpisodeData(${ep.index}, 'paid', ${!ep.paid})">
-            ${ep.paid ? '보코스 입금 완료 ✓' : '보코스 입금 대기'}
-          </button>
           ${!ep.paid ? `
+            <button type="button" class="btn-toggle-status paid" onclick="updateEpisodeData(${ep.index}, 'paid', true)">
+              보코스 입금 대기
+            </button>
             <button type="button" class="btn-toggle-status settled" disabled style="opacity: 0.5; cursor: not-allowed;">
               아틱팀 정산 대기
             </button>
-          ` : `
-            <button type="button" class="btn-toggle-status settled ${ep.settled ? 'active' : 'blinking-blue'}" onclick="updateEpisodeData(${ep.index}, 'settled', ${!ep.settled})">
-              ${ep.settled ? '아틱팀 정산 완료 ✓' : '아틱팀 정산 예정'}
+          ` : ( !ep.settled ? `
+            <button type="button" class="btn-toggle-status paid active" disabled style="cursor: not-allowed;">
+              보코스 입금 완료 ✓
             </button>
-          `}
+            <button type="button" class="btn-toggle-status settled blinking-blue" onclick="updateEpisodeData(${ep.index}, 'settled', true)">
+              아틱팀 정산 예정
+            </button>
+          ` : `
+            <button type="button" class="btn-toggle-status paid active" disabled style="cursor: not-allowed;">
+              보코스 입금 완료 ✓
+            </button>
+            <button type="button" class="btn-toggle-status settled active" disabled style="cursor: not-allowed;">
+              아틱팀 정산 완료 ✓
+            </button>
+          `)}
         </div>
       </div>
       <div class="admin-ep-card-body">
@@ -1882,18 +1926,28 @@ function renderAdminTab() {
                 <div style="display:flex; gap:8px; align-items:center; width: 85%; min-height: 28px;">
                   <input type="text" class="admin-cost-label-input" value="${p.label}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'label', this.value)" placeholder="차수명 (예: PPL 1차)" style="font-size:0.72rem; padding:4px 6px; width:50%; font-weight:600; text-align:left; margin:0;" />
                   <div style="display:flex; gap:6px; margin-left: auto;">
-                    <button type="button" class="btn-toggle-status paid ${p.paid ? 'active' : ''}" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', ${!p.paid})" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
-                      ${p.paid ? '보코스 입금 완료 ✓' : '보코스 입금 대기'}
-                    </button>
                     ${!p.paid ? `
+                      <button type="button" class="btn-toggle-status paid" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', true)" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                        보코스 입금 대기
+                      </button>
                       <button type="button" class="btn-toggle-status settled" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; opacity: 0.5; cursor: not-allowed;">
                         아틱팀 정산 대기
                       </button>
-                    ` : `
-                      <button type="button" class="btn-toggle-status settled ${p.settled ? 'active' : 'blinking-blue'}" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', ${!p.settled})" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
-                        ${p.settled ? '아틱팀 정산 완료 ✓' : '아틱팀 정산 예정'}
+                    ` : ( !p.settled ? `
+                      <button type="button" class="btn-toggle-status paid active" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; cursor: not-allowed;">
+                        보코스 입금 완료 ✓
                       </button>
-                    `}
+                      <button type="button" class="btn-toggle-status settled blinking-blue" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', true)" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                        아틱팀 정산 예정
+                      </button>
+                    ` : `
+                      <button type="button" class="btn-toggle-status paid active" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; cursor: not-allowed;">
+                        보코스 입금 완료 ✓
+                      </button>
+                      <button type="button" class="btn-toggle-status settled active" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; cursor: not-allowed;">
+                        아틱팀 정산 완료 ✓
+                      </button>
+                    `)}
                   </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
@@ -2355,7 +2409,7 @@ function toggleShootRole(memberName, type, epIndex) {
     return;
   }
   const ep = DATA.episodes.find(e => e.index === epIndex);
-  if (ep && ep.paid) {
+  if (ep && ep.settled) {
     alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
     return;
   }
