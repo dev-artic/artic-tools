@@ -616,7 +616,7 @@ function getMemberUnpaidAccumulated(memberName) {
 
     if (ep.pplPayments && ep.pplPayments.length > 0) {
       const unpaidPpl = ep.pplPayments
-        .filter(p => !p.paid)
+        .filter(p => !p.settled)
         .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
       total += Math.round(unpaidPpl * ratio);
     }
@@ -634,6 +634,39 @@ function formatKRW(amount) {
 
 function formatKRWShort(amount) {
   return '₩' + amount.toLocaleString('ko-KR');
+}
+
+// 입력 콤마 실시간 포맷팅 헬퍼
+function formatMonetaryInput(input) {
+  let rawValue = input.value.replace(/[^\d]/g, '');
+  if (rawValue === '') {
+    input.value = '';
+    return;
+  }
+  let numericVal = parseInt(rawValue, 10);
+  if (isNaN(numericVal)) {
+    input.value = '';
+    return;
+  }
+  
+  let selectionStart = input.selectionStart;
+  let originalLength = input.value.length;
+  
+  let formatted = numericVal.toLocaleString('ko-KR');
+  input.value = formatted;
+  
+  let newLength = formatted.length;
+  let diff = newLength - originalLength;
+  input.setSelectionRange(selectionStart + diff, selectionStart + diff);
+}
+
+// 콤마 제거 후 숫자로 파싱하는 헬퍼
+function parseKRWString(val) {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  let clean = String(val).replace(/,/g, '');
+  let parsed = parseInt(clean, 10);
+  return isNaN(parsed) ? 0 : parsed;
 }
 
 // ============================================================
@@ -1221,20 +1254,50 @@ function renderMemberDetailTable() {
 
   for (const m of DATA.members) {
     const tr = document.createElement('tr');
-    let cells = `<td><span class="member-tag">
+    let cells = `<td style="white-space: nowrap;"><span class="member-tag">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
       ${m}
     </span></td>`;
     for (const i of shown) {
-      const roles = getMemberRolesInEpisode(m, i);
-      const cellText = roles.length > 0 ? roles.join(', ') : '<span style="color:var(--text-muted)">—</span>';
-      cells += `<td class="text-center" style="font-size:0.75rem; max-width: 120px; white-space: normal; word-break: keep-all; line-height: 1.4; color:var(--text-primary); font-weight: 500;">${cellText}</td>`;
+      // 이 에피소드에서 해당 멤버가 활성화한 역할들을 수집
+      const activeRoles = [];
+      for (const role of DATA.roles) {
+        if (i === 0 && !role.includesRehearsal) continue;
+        const epPart = DATA.participation[role.id];
+        if (epPart && epPart[m] && epPart[m][i]) {
+          activeRoles.push(role);
+        }
+      }
+
+      // D.O.P. 와 촬영 스태프가 동시에 참여된 경우, 촬영 스태프 배제
+      const hasDop = activeRoles.some(r => r.id === 'dop');
+      const filteredRoles = hasDop 
+        ? activeRoles.filter(r => r.id !== 'camera_staff')
+        : activeRoles;
+
+      let cellText = '<span style="color:var(--text-muted)">—</span>';
+      if (filteredRoles.length > 0) {
+        const areaBadgeColors = {
+          '기획': 'background:rgba(79,142,247,0.15); color:#4f8ef7; border: 1px solid rgba(79,142,247,0.25);',
+          '촬영': 'background:rgba(62,207,142,0.12); color:#3ecf8e; border: 1px solid rgba(62,207,142,0.25);',
+          '편집': 'background:rgba(167,139,250,0.12); color:#a78bfa; border: 1px solid rgba(167,139,250,0.25);',
+        };
+
+        cellText = `<div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+          ${filteredRoles.map(r => {
+            const badgeStyle = areaBadgeColors[r.area] || 'background:var(--bg-elevated); color:var(--text-secondary);';
+            return `<span class="table-role-badge" style="${badgeStyle} padding:2px 6px; border-radius:4px; font-size:0.68rem; font-weight:600; display:inline-block; white-space:nowrap;">${r.name}</span>`;
+          }).join('')}
+        </div>`;
+      }
+
+      cells += `<td class="text-center" style="font-size:0.75rem; max-width: 120px; white-space: normal; word-break: keep-all; line-height: 1.4; color:var(--text-primary); font-weight: 500; vertical-align: top;">${cellText}</td>`;
       
       const amt = matrix[m][i] || 0;
       colSums[i] = (colSums[i] || 0) + amt;
     }
     grandTotal += totals[m];
-    cells += `<td class="text-right highlight-col mono" style="font-weight:700;">${formatKRW(totals[m])}</td>`;
+    cells += `<td class="text-right highlight-col mono" style="font-weight:700; vertical-align: top;">${formatKRW(totals[m])}</td>`;
     tr.innerHTML = cells;
     tbody.appendChild(tr);
   }
@@ -1281,7 +1344,8 @@ function renderRolesGrid() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="role-field">
           <label>인당 단가 (원)</label>
-          <input type="number" value="${role.unitCostPerPerson}" 
+          <input type="text" inputmode="numeric" value="${Number(role.unitCostPerPerson || 0).toLocaleString('ko-KR')}" 
+            oninput="formatMonetaryInput(this)"
             onchange="updateRoleCost('${role.id}', this.value)" ${isAdmin() ? '' : 'disabled'} />
         </div>
         <div class="role-field">
@@ -1314,7 +1378,7 @@ function updateRoleCost(roleId, val) {
   const role = DATA.roles.find(r => r.id === roleId);
   if (role) {
     pushState();
-    role.unitCostPerPerson = parseInt(val) || 0;
+    role.unitCostPerPerson = parseKRWString(val);
     isDirty = true;
     renderRolesGrid();
     renderOverview();
@@ -1381,16 +1445,19 @@ function renderIncomeTab() {
 
       let statusHtml = '';
       if (ep.paid && ep.settled) {
+        item.classList.add('status-settled');
         statusHtml = `
           <span class="status-dot settled"></span>
-          <span style="color:var(--accent); font-weight:700;">정산 완료</span>
+          <span style="color:#4f8ef7; font-weight:700;">정산 완료</span>
         `;
       } else if (ep.paid) {
+        item.classList.add('status-paid');
         statusHtml = `
           <span class="status-dot blinking-green-dot"></span>
-          <span class="blinking-text-green" style="color:var(--accent-green); font-weight:700;">입금 확인 (정산 예정)</span>
+          <span class="blinking-text-green" style="color:#3ecf8e; font-weight:700;">입금 확인 (정산 예정)</span>
         `;
       } else {
+        item.classList.add('status-pending');
         statusHtml = `
           <span class="status-dot pending"></span>
           <span style="color:var(--text-muted);">대기 중</span>
@@ -1748,33 +1815,31 @@ function renderAdminTab() {
 
     div.innerHTML = `
       ${deleteBtnHtml}
-      <div class="admin-ep-card-header" style="align-items: flex-start; gap: 8px;">
-        <span class="admin-ep-card-title">${ep.label}</span>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label class="admin-ep-paid-label" style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-secondary); cursor:pointer;">
-            <input type="checkbox" ${ep.paid ? 'checked' : ''} onchange="updateEpisodeData(${ep.index}, 'paid', this.checked)" style="cursor:pointer;" />
-            클라이언트 입금 완료
-          </label>
-          <label class="admin-ep-paid-label" style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-secondary); cursor:pointer;">
-            <input type="checkbox" ${ep.settled ? 'checked' : ''} onchange="updateEpisodeData(${ep.index}, 'settled', this.checked)" style="cursor:pointer;" />
-            멤버 페이 정산 완료
-          </label>
+      <div class="admin-ep-card-header" style="align-items: flex-start; gap: 8px; width: 160px; min-width: 160px;">
+        <span class="admin-ep-card-title" style="margin-bottom: 6px;">${ep.label}</span>
+        <div style="display:flex; flex-direction:column; gap:6px; width: 100%;">
+          <button type="button" class="btn-toggle-status paid ${ep.paid ? 'active' : ''}" onclick="updateEpisodeData(${ep.index}, 'paid', ${!ep.paid})">
+            ${ep.paid ? '입금 완료 ✓' : '입금 대기'}
+          </button>
+          <button type="button" class="btn-toggle-status settled ${ep.settled ? 'active' : ''}" onclick="updateEpisodeData(${ep.index}, 'settled', ${!ep.settled})">
+            ${ep.settled ? '정산 완료 ✓' : '정산 대기'}
+          </button>
         </div>
       </div>
       <div class="admin-ep-card-body">
         <div class="role-field">
           <label>입금 예정액 (원)</label>
-          <input type="number" class="admin-input" value="${ep.targetAmount || 0}" onchange="updateEpisodeData(${ep.index}, 'targetAmount', this.value)" />
+          <input type="text" inputmode="numeric" class="admin-input" value="${Number(ep.targetAmount || 0).toLocaleString('ko-KR')}" oninput="formatMonetaryInput(this)" onchange="updateEpisodeData(${ep.index}, 'targetAmount', this.value)" />
         </div>
         <div class="role-field">
           <label>실제 입금액 (원)</label>
-          <input type="number" class="admin-input" value="${ep.receivedAmount || 0}" onchange="updateEpisodeData(${ep.index}, 'receivedAmount', this.value)" />
+          <input type="text" class="admin-input" value="${Number(ep.receivedAmount || 0).toLocaleString('ko-KR')}" disabled style="background: var(--bg-hover); cursor: not-allowed; opacity: 0.85;" />
         </div>
         <div class="role-field">
           <label>출연 아티스트 (게스트)</label>
-          <input type="text" class="admin-input" value="${ep.artists ? ep.artists.join(', ') : ''}" onchange="updateEpisodeArtists(${ep.index}, this.value)" placeholder="쉼표(,)로 구분" style="text-align:left;" />
+          <input type="text" class="admin-input" value="${ep.artists && ep.artists.length > 0 ? ep.artists[0] : ''}" onchange="updateEpisodeArtists(${ep.index}, this.value)" placeholder="게스트 이름 입력" style="text-align:left;" />
         </div>
-        <div class="admin-ppl-section" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); grid-column: span 2;">
+        <div class="admin-ppl-section" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); grid-column: span 2; width: 100%;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <span style="font-size:0.75rem; font-weight:700; color:var(--text-secondary);">PPL 입금 차수 관리</span>
             <button class="btn btn-outline" onclick="addPplPayment(${ep.index})" style="font-size:0.68rem; padding:2px 8px; height:24px; border-radius:4px; font-weight:700; width:auto;">+ PPL 차수 추가</button>
@@ -1785,27 +1850,25 @@ function renderAdminTab() {
                 <button class="btn-delete-cost" onclick="deletePplPayment(${ep.index}, '${p.id}')" style="top:6px; right:6px; background:none; border:none; color:var(--text-muted); cursor:pointer;" title="차수 삭제">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
-                <div style="display:flex; gap:8px; align-items:center; width: 85%;">
-                  <input type="text" class="admin-cost-label-input" value="${p.label}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'label', this.value)" placeholder="차수명 (예: PPL 1차)" style="font-size:0.72rem; padding:4px 6px; width:65%; font-weight:600; text-align:left; margin:0;" />
-                  <div style="display:flex; flex-direction:column; gap:4px; margin-left: auto;">
-                    <label style="display:flex; align-items:center; gap:4px; font-size:0.65rem; color:var(--text-secondary); cursor:pointer;">
-                      <input type="checkbox" ${p.paid ? 'checked' : ''} onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', this.checked)" style="cursor:pointer; transform:scale(0.85);" />
-                      입금완료
-                    </label>
-                    <label style="display:flex; align-items:center; gap:4px; font-size:0.65rem; color:var(--text-secondary); cursor:pointer;">
-                      <input type="checkbox" ${p.settled ? 'checked' : ''} onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', this.checked)" style="cursor:pointer; transform:scale(0.85);" />
-                      정산완료
-                    </label>
+                <div style="display:flex; gap:8px; align-items:center; width: 85%; min-height: 28px;">
+                  <input type="text" class="admin-cost-label-input" value="${p.label}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'label', this.value)" placeholder="차수명 (예: PPL 1차)" style="font-size:0.72rem; padding:4px 6px; width:50%; font-weight:600; text-align:left; margin:0;" />
+                  <div style="display:flex; gap:6px; margin-left: auto;">
+                    <button type="button" class="btn-toggle-status paid ${p.paid ? 'active' : ''}" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', ${!p.paid})" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                      ${p.paid ? '입금 완료 ✓' : '입금 대기'}
+                    </button>
+                    <button type="button" class="btn-toggle-status settled ${p.settled ? 'active' : ''}" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', ${!p.settled})" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                      ${p.settled ? '정산 완료 ✓' : '정산 대기'}
+                    </button>
                   </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
                   <div class="role-field" style="margin-bottom:0;">
                     <label style="font-size:0.65rem; margin-bottom:2px; color:var(--text-muted);">입금 예정액 (원)</label>
-                    <input type="number" class="admin-input" value="${p.targetAmount || 0}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'targetAmount', this.value)" style="font-size:0.72rem; padding:4px 6px;" />
+                    <input type="text" inputmode="numeric" class="admin-input" value="${Number(p.targetAmount || 0).toLocaleString('ko-KR')}" oninput="formatMonetaryInput(this)" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'targetAmount', this.value)" style="font-size:0.72rem; padding:4px 6px;" />
                   </div>
                   <div class="role-field" style="margin-bottom:0;">
                     <label style="font-size:0.65rem; margin-bottom:2px; color:var(--text-muted);">실제 입금액 (원)</label>
-                    <input type="number" class="admin-input" value="${p.receivedAmount || 0}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'receivedAmount', this.value)" style="font-size:0.72rem; padding:4px 6px;" />
+                    <input type="text" class="admin-input" value="${Number(p.receivedAmount || 0).toLocaleString('ko-KR')}" disabled style="background: var(--bg-hover); cursor: not-allowed; opacity: 0.85; font-size:0.72rem; padding:4px 6px;" />
                   </div>
                 </div>
               </div>
@@ -1835,7 +1898,7 @@ function renderAdminTab() {
           <input type="text" class="admin-cost-label-input" value="${item.label}" onchange="updateCostItemLabel('${item.id}', this.value)" placeholder="월 지출명 입력" />
           <div class="role-field" style="margin-bottom:0;">
             <label>지출액 (원)</label>
-            <input type="number" class="admin-input" value="${item.cost || 0}" onchange="updateCostItemCost('${item.id}', this.value)" />
+            <input type="text" inputmode="numeric" class="admin-input" value="${Number(item.cost || 0).toLocaleString('ko-KR')}" oninput="formatMonetaryInput(this)" onchange="updateCostItemCost('${item.id}', this.value)" />
           </div>
         </div>
       `;
@@ -1874,11 +1937,56 @@ function addPplPayment(epIndex) {
   renderMemberDetailTable();
 }
 
-function deletePplPayment(epIndex, pplId) {
+let customConfirmResolve = null;
+
+function showCustomConfirm(title, desc, confirmText = '삭제') {
+  return new Promise((resolve) => {
+    customConfirmResolve = resolve;
+    const popup = document.getElementById('custom-confirm-popup');
+    const titleEl = document.getElementById('custom-confirm-title');
+    const descEl = document.getElementById('custom-confirm-desc');
+    const okBtn = document.getElementById('custom-confirm-ok-btn');
+    
+    if (titleEl) titleEl.textContent = title;
+    if (descEl) descEl.textContent = desc;
+    if (okBtn) {
+      okBtn.textContent = confirmText;
+      if (confirmText === '삭제') {
+        okBtn.className = 'btn btn-danger btn-sm';
+      } else {
+        okBtn.className = 'btn btn-primary btn-sm';
+      }
+    }
+    
+    if (popup) {
+      popup.classList.add('show');
+    }
+  });
+}
+
+function hideCustomConfirm(result) {
+  const popup = document.getElementById('custom-confirm-popup');
+  if (popup) {
+    popup.classList.remove('show');
+  }
+  if (customConfirmResolve) {
+    customConfirmResolve(result);
+    customConfirmResolve = null;
+  }
+}
+
+// 이벤트 바인딩
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('custom-confirm-cancel-btn')?.addEventListener('click', () => hideCustomConfirm(false));
+  document.getElementById('custom-confirm-ok-btn')?.addEventListener('click', () => hideCustomConfirm(true));
+});
+
+async function deletePplPayment(epIndex, pplId) {
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
 
-  if (!confirm('정말 이 PPL 차수를 삭제하시겠습니까?')) return;
+  const confirmed = await showCustomConfirm('PPL 차수 삭제', '정말로 이 PPL 차수를 삭제하시겠습니까?');
+  if (!confirmed) return;
 
   pushState();
   ep.pplPayments = (ep.pplPayments || []).filter(p => p.id !== pplId);
@@ -1916,7 +2024,7 @@ function updatePplPaymentField(epIndex, pplId, field, value) {
   } else if (field === 'settled') {
     p.settled = value;
   } else if (field === 'receivedAmount') {
-    const val = parseInt(value) || 0;
+    const val = parseKRWString(value);
     p.receivedAmount = val;
     if (val >= (p.targetAmount || 0) && p.targetAmount > 0) {
       if (!p.paid) {
@@ -1930,7 +2038,7 @@ function updatePplPaymentField(epIndex, pplId, field, value) {
       }
     }
   } else if (field === 'targetAmount') {
-    p.targetAmount = parseInt(value) || 0;
+    p.targetAmount = parseKRWString(value);
   } else if (field === 'label') {
     p.label = value;
   }
@@ -1959,10 +2067,8 @@ function updateEpisodeArtists(epIndex, rawValue) {
 
   pushState();
 
-  // 쉼표로 파싱
-  ep.artists = rawValue.split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+  // 게스트는 1명이므로 쉼표 파싱 제외
+  ep.artists = rawValue.trim() ? [rawValue.trim()] : [];
 
   isDirty = true; // Mark unsaved changes
   renderOverview();
@@ -1990,7 +2096,7 @@ function updateEpisodeData(epIndex, field, value) {
   } else if (field === 'settled') {
     ep.settled = value;
   } else if (field === 'receivedAmount') {
-    const val = parseInt(value) || 0;
+    const val = parseKRWString(value);
     ep.receivedAmount = val;
     if (val >= (ep.targetAmount || 0) && ep.targetAmount > 0) {
       if (!ep.paid) {
@@ -2004,7 +2110,7 @@ function updateEpisodeData(epIndex, field, value) {
       }
     }
   } else {
-    ep[field] = parseInt(value) || 0;
+    ep[field] = parseKRWString(value);
   }
 
   isDirty = true; // Mark unsaved changes
@@ -2390,7 +2496,7 @@ function updateCostItemCost(id, val) {
   const item = DATA.blackmagicCosts.find(item => item.id === id);
   if (item) {
     pushState();
-    item.cost = parseInt(val) || 0;
+    item.cost = parseKRWString(val);
     isDirty = true;
     recalculateProjectMetrics();
     renderIncomeTab();
@@ -2405,6 +2511,29 @@ function updateCostItemCost(id, val) {
 window.addEventListener('keydown', (e) => {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+
+  // Cmd+S / Ctrl+S 단축키 통합 바인딩
+  if (cmdKey && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    const navGuard = document.getElementById('nav-guard-popup');
+    if (navGuard && navGuard.classList.contains('show')) {
+      confirmNavGuardSave();
+    } else {
+      saveData();
+    }
+    return;
+  }
+
+  // Enter 단축키: 네비게이션 가드(저장 경고 팝업) 활성화 시 저장 및 이동 처리
+  if (e.key === 'Enter') {
+    const navGuard = document.getElementById('nav-guard-popup');
+    if (navGuard && navGuard.classList.contains('show')) {
+      e.preventDefault();
+      confirmNavGuardSave();
+      return;
+    }
+  }
+
   if (cmdKey && e.key.toLowerCase() === 'z') {
     e.preventDefault();
     if (e.shiftKey) {

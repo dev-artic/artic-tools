@@ -461,7 +461,7 @@ body {
   padding: 11px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   color: var(--text-primary);
-  vertical-align: middle;
+  vertical-align: top;
 }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: rgba(255,255,255,0.02); }
@@ -480,6 +480,7 @@ body {
   background: var(--bg-elevated); border-radius: 6px;
   padding: 3px 8px; font-size: 0.78rem; font-weight: 600;
   margin: 2px;
+  white-space: nowrap;
 }
 .role-tag {
   display: inline-block;
@@ -721,6 +722,7 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px; border-radius: var(--radius-sm);
   background: var(--bg-elevated);
+  border: 1px solid transparent;
   transition: all 0.15s;
 }
 .ep-income-item:hover { background: var(--bg-card-hover); }
@@ -1245,7 +1247,7 @@ input:disabled, select:disabled, button:disabled {
   position: relative !important;
   display: flex !important;
   flex-direction: row !important;
-  align-items: center !important;
+  align-items: flex-start !important;
   justify-content: space-between !important;
   gap: 24px !important;
   background: var(--bg-card) !important;
@@ -1293,7 +1295,7 @@ input:disabled, select:disabled, button:disabled {
   gap: 16px !important;
   margin-top: 0 !important;
   flex: 1 !important;
-  align-items: center !important;
+  align-items: flex-start !important;
 }
 
 .admin-ep-card-body .role-field {
@@ -1608,6 +1610,142 @@ body.light-theme .login-theme-btn {
 /* Light theme support */
 body.light-theme .nav-guard-popup {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Custom Status Toggle Buttons ===== */
+.btn-toggle-status {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  text-align: center;
+}
+.btn-toggle-status:hover {
+  border-color: var(--accent-blue);
+  background: rgba(79, 142, 247, 0.05);
+  color: var(--text-primary);
+}
+.btn-toggle-status.active.paid {
+  background: rgba(62, 207, 142, 0.15) !important;
+  border-color: #3ecf8e !important;
+  color: #3ecf8e !important;
+}
+.btn-toggle-status.active.settled {
+  background: rgba(79, 142, 247, 0.15) !important;
+  border-color: #4f8ef7 !important;
+  color: #4f8ef7 !important;
+}
+
+/* ===== Custom Confirm Popup (Bottom-Right Slide) ===== */
+.custom-confirm-popup {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  width: 340px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transform: translateY(120px) scale(0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.custom-confirm-popup.show {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.custom-confirm-content {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.custom-confirm-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.custom-confirm-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-confirm-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.custom-confirm-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.custom-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.custom-confirm-actions .btn-sm {
+  padding: 7px 12px;
+  font-size: 0.78rem;
+}
+
+body.light-theme .custom-confirm-popup {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Ambient Deposit & Settlement Cards in Income Tab ===== */
+.ep-income-item.status-settled {
+  background: rgba(79, 142, 247, 0.08) !important;
+  border: 1px solid rgba(79, 142, 247, 0.25) !important;
+}
+.ep-income-item.status-settled:hover {
+  background: rgba(79, 142, 247, 0.12) !important;
+}
+
+.ep-income-item.status-paid {
+  background: rgba(62, 207, 142, 0.08) !important;
+  border: 1px solid rgba(62, 207, 142, 0.25) !important;
+}
+.ep-income-item.status-paid:hover {
+  background: rgba(62, 207, 142, 0.12) !important;
+}
+
+.ep-income-item.status-pending {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.ep-income-item.status-pending:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
 }
 
 
