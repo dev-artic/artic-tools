@@ -444,29 +444,59 @@ function calcEpisodeRolePay(roleId, epIndex) {
   return result;
 }
 
-/**
- * 특정 에피소드에서 한 멤버가 받을 전체 금액을 계산
- * 모든 역할의 합산
- */
 function calcMemberEpisodePay(memberName, epIndex) {
-  let total = 0;
+  const ep = DATA.episodes.find(e => e.index === epIndex);
+  if (!ep) return 0;
+
+  // 1. 제작비 역할 페이 계산
+  let basePay = 0;
   for (const role of DATA.roles) {
     const rolePay = calcEpisodeRolePay(role.id, epIndex);
-    total += (rolePay[memberName] || 0);
+    basePay += (rolePay[memberName] || 0);
   }
-  return total;
+
+  // 2. 이 에피소드에 참여한 모든 인원의 총 제작비 페이 합산
+  let epTotalBasePay = 0;
+  for (const role of DATA.roles) {
+    const rolePay = calcEpisodeRolePay(role.id, epIndex);
+    for (const val of Object.values(rolePay)) {
+      epTotalBasePay += val;
+    }
+  }
+
+  // 3. PPL 지분 계산 (제작비 비례 정산)
+  let pplPay = 0;
+  const ratio = epTotalBasePay > 0 ? (basePay / epTotalBasePay) : (1 / DATA.members.length);
+
+  // 이 에피소드 내 PPL 중 '입금 및 정산 완료된' ppl 항목 합산
+  if (ep.pplPayments && ep.pplPayments.length > 0) {
+    const settledPplTotal = ep.pplPayments
+      .filter(p => p.paid && p.settled)
+      .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
+    pplPay = Math.round(settledPplTotal * ratio);
+  }
+
+  return basePay + pplPay;
 }
 
-/**
- * 특정 에피소드에서 전체 금액 계산 (모든 멤버, 모든 역할)
- */
 function calcEpisodeTotalPay(epIndex) {
-  let total = 0;
+  const ep = DATA.episodes.find(e => e.index === epIndex);
+  if (!ep) return 0;
+
+  let baseTotal = 0;
   for (const role of DATA.roles) {
     const rolePay = calcEpisodeRolePay(role.id, epIndex);
-    for (const v of Object.values(rolePay)) total += v;
+    for (const v of Object.values(rolePay)) baseTotal += v;
   }
-  return total;
+
+  let pplTotal = 0;
+  if (ep.pplPayments && ep.pplPayments.length > 0) {
+    pplTotal = ep.pplPayments
+      .filter(p => p.paid && p.settled)
+      .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
+  }
+
+  return baseTotal + pplTotal;
 }
 
 /**
@@ -567,11 +597,28 @@ function getMemberRolesInEpisode(memberName, epIndex) {
  * '누적 수령 예정액'
  */
 function getMemberUnpaidAccumulated(memberName) {
-  const matrix = buildPayMatrix();
   let total = 0;
   for (const ep of DATA.episodes) {
+    let basePay = 0;
+    let epTotalBasePay = 0;
+    for (const role of DATA.roles) {
+      const rolePay = calcEpisodeRolePay(role.id, ep.index);
+      basePay += (rolePay[memberName] || 0);
+      for (const val of Object.values(rolePay)) {
+        epTotalBasePay += val;
+      }
+    }
+    const ratio = epTotalBasePay > 0 ? (basePay / epTotalBasePay) : (1 / DATA.members.length);
+
     if (!ep.paid && !ep.settled) {
-      total += matrix[memberName][ep.index] || 0;
+      total += basePay;
+    }
+
+    if (ep.pplPayments && ep.pplPayments.length > 0) {
+      const unpaidPpl = ep.pplPayments
+        .filter(p => !p.paid)
+        .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
+      total += Math.round(unpaidPpl * ratio);
     }
   }
   return total;
@@ -1328,35 +1375,72 @@ function renderIncomeTab() {
   if (epList) {
     epList.innerHTML = '';
     for (const ep of DATA.episodes) {
-      if (ep.index > 7) continue;
+      if (ep.index === 0) continue; // 리허설 회차 스킵 (제작비 0원이므로)
       const item = document.createElement('div');
       item.className = 'ep-income-item';
+
+      let statusHtml = '';
+      if (ep.paid && ep.settled) {
+        statusHtml = `
+          <span class="status-dot settled"></span>
+          <span style="color:var(--accent); font-weight:700;">정산 완료</span>
+        `;
+      } else if (ep.paid) {
+        statusHtml = `
+          <span class="status-dot blinking-green-dot"></span>
+          <span class="blinking-text-green" style="color:var(--accent-green); font-weight:700;">입금 확인 (정산 예정)</span>
+        `;
+      } else {
+        statusHtml = `
+          <span class="status-dot pending"></span>
+          <span style="color:var(--text-muted);">대기 중</span>
+        `;
+      }
+
       item.innerHTML = `
         <div class="ep-income-ep">${ep.label}</div>
-        <div class="ep-income-status">
-          <span class="status-dot ${ep.paid ? 'paid' : 'pending'}"></span>
-          <span style="color:${ep.paid ? 'var(--accent-green)' : 'var(--text-muted)'}">${ep.paid ? '입금 확인' : '대기 중'}</span>
-        </div>
+        <div class="ep-income-status">${statusHtml}</div>
       `;
       epList.appendChild(item);
     }
   }
 
-  // PPL list
+  // PPL list (다차수 분납 렌더링)
   const pplList = document.getElementById('ppl-list');
   if (pplList) {
     pplList.innerHTML = '';
-    const pplEps = DATA.episodes.filter(ep => ep.ppl > 0);
-    for (const ep of pplEps) {
-      const item = document.createElement('div');
-      item.className = 'ppl-item';
-      item.innerHTML = `
-        <div class="ppl-ep">${ep.label}</div>
-        <div class="ppl-amount-sm">${formatKRW(ep.ppl)}</div>
-      `;
-      pplList.appendChild(item);
+    let hasPpl = false;
+    for (const ep of DATA.episodes) {
+      if (ep.pplPayments && ep.pplPayments.length > 0) {
+        hasPpl = true;
+        for (const p of ep.pplPayments) {
+          const item = document.createElement('div');
+          item.className = 'ppl-item';
+
+          let pplStatusHtml = '';
+          if (p.paid && p.settled) {
+            pplStatusHtml = `<span style="font-size:0.7rem; color:var(--accent); font-weight:700; margin-right:8px;">[정산 완료]</span>`;
+          } else if (p.paid) {
+            pplStatusHtml = `<span class="blinking-text-green" style="font-size:0.7rem; color:var(--accent-green); font-weight:700; margin-right:8px;">[입금 완료]</span>`;
+          } else {
+            pplStatusHtml = `<span style="font-size:0.7rem; color:var(--text-muted); margin-right:8px;">[입금 대기]</span>`;
+          }
+
+          item.innerHTML = `
+            <div class="ppl-ep">
+              <strong>${ep.label}</strong>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:6px; font-weight:500;">${p.label}</span>
+            </div>
+            <div style="display:flex; align-items:center;">
+              ${pplStatusHtml}
+              <div class="ppl-amount-sm" style="font-weight:600;">${formatKRW(p.targetAmount)}</div>
+            </div>
+          `;
+          pplList.appendChild(item);
+        }
+      }
     }
-    if (pplEps.length === 0) {
+    if (!hasPpl) {
       pplList.innerHTML = '<span style="color:var(--text-muted);font-size:0.82rem">PPL 수입 없음</span>';
     }
   }
@@ -1501,11 +1585,49 @@ function togglePw() {
 // ============================================================
 // INIT
 // ============================================================
+/**
+ * PPL 데이터 마이그레이션
+ * 기존 단일 ppl 숫자를 pplPayments 배열 구조로 안전하게 전환
+ */
+function migratePplData() {
+  if (DATA.episodes) {
+    for (const ep of DATA.episodes) {
+      if (ep.pplPayments === undefined) {
+        if (ep.ppl && ep.ppl > 0) {
+          ep.pplPayments = [
+            {
+              id: 'migrated_' + ep.index,
+              label: 'PPL 1차',
+              targetAmount: ep.ppl,
+              receivedAmount: ep.paid ? ep.ppl : 0,
+              paid: ep.paid,
+              settled: ep.settled
+            }
+          ];
+        } else {
+          ep.pplPayments = [];
+        }
+      }
+    }
+  }
+}
+
 async function init() {
   initTheme();
 
+  // Cmd+S (Mac) or Ctrl+S (Windows) global key listener
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveData();
+    }
+  });
+
   // Load data dynamically
   await loadData();
+
+  // Migrate PPL data format for multi-stage support
+  migratePplData();
 
   // Normalize blackmagicCosts structure
   normalizeBlackmagicCosts();
@@ -1570,11 +1692,23 @@ document.addEventListener('DOMContentLoaded', init);
 // ADMIN LOGIC (Dynamic Data Update)
 // ============================================================
 function recalculateProjectMetrics() {
+  // 0. 각 에피소드의 PPL 예정액 합계를 ep.ppl에 덮어씌워 하위 호환성 유지
+  if (DATA.episodes) {
+    for (const ep of DATA.episodes) {
+      ep.ppl = (ep.pplPayments || []).reduce((sum, p) => sum + (p.targetAmount || 0), 0);
+    }
+  }
+
   // 1. 예정액 합계
   DATA.project.contractAmount = DATA.episodes.reduce((sum, ep) => sum + (ep.targetAmount || 0), 0);
 
   // 2. 수령액 합계
-  DATA.project.receivedAmount = DATA.episodes.reduce((sum, ep) => sum + (ep.receivedAmount || 0), 0);
+  // 계약금 실 수령액 = 제작비 실제 입금액 + 모든 PPL 실제 입금액 합계
+  const baseReceived = DATA.episodes.reduce((sum, ep) => sum + (ep.receivedAmount || 0), 0);
+  const pplReceived = DATA.episodes.reduce((sum, ep) => {
+    return sum + (ep.pplPayments || []).reduce((pSum, p) => pSum + (p.receivedAmount || 0), 0);
+  }, 0);
+  DATA.project.receivedAmount = baseReceived + pplReceived;
 
   // 3. PPL 합계
   DATA.project.pplTotal = DATA.episodes.reduce((sum, ep) => sum + (ep.ppl || 0), 0);
@@ -1640,14 +1774,154 @@ function renderAdminTab() {
           <label>출연 아티스트 (게스트)</label>
           <input type="text" class="admin-input" value="${ep.artists ? ep.artists.join(', ') : ''}" onchange="updateEpisodeArtists(${ep.index}, this.value)" placeholder="쉼표(,)로 구분" style="text-align:left;" />
         </div>
-        <div class="role-field">
-          <label>PPL 수입 (원)</label>
-          <input type="number" class="admin-input" value="${ep.ppl || 0}" onchange="updateEpisodeData(${ep.index}, 'ppl', this.value)" />
+        <div class="admin-ppl-section" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); grid-column: span 2;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-secondary);">PPL 입금 차수 관리</span>
+            <button class="btn btn-outline" onclick="addPplPayment(${ep.index})" style="font-size:0.68rem; padding:2px 8px; height:24px; border-radius:4px; font-weight:700; width:auto;">+ PPL 차수 추가</button>
+          </div>
+          <div class="admin-ppl-list" style="display:flex; flex-direction:column; gap:8px;">
+            ${(ep.pplPayments || []).map(p => `
+              <div class="admin-ppl-item" style="display:flex; flex-direction:column; gap:6px; background:var(--bg-elevated); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border); position:relative;">
+                <button class="btn-delete-cost" onclick="deletePplPayment(${ep.index}, '${p.id}')" style="top:6px; right:6px; background:none; border:none; color:var(--text-muted); cursor:pointer;" title="차수 삭제">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div style="display:flex; gap:8px; align-items:center; width: 85%;">
+                  <input type="text" class="admin-cost-label-input" value="${p.label}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'label', this.value)" placeholder="차수명 (예: PPL 1차)" style="font-size:0.72rem; padding:4px 6px; width:65%; font-weight:600; text-align:left; margin:0;" />
+                  <div style="display:flex; flex-direction:column; gap:4px; margin-left: auto;">
+                    <label style="display:flex; align-items:center; gap:4px; font-size:0.65rem; color:var(--text-secondary); cursor:pointer;">
+                      <input type="checkbox" ${p.paid ? 'checked' : ''} onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', this.checked)" style="cursor:pointer; transform:scale(0.85);" />
+                      입금완료
+                    </label>
+                    <label style="display:flex; align-items:center; gap:4px; font-size:0.65rem; color:var(--text-secondary); cursor:pointer;">
+                      <input type="checkbox" ${p.settled ? 'checked' : ''} onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', this.checked)" style="cursor:pointer; transform:scale(0.85);" />
+                      정산완료
+                    </label>
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                  <div class="role-field" style="margin-bottom:0;">
+                    <label style="font-size:0.65rem; margin-bottom:2px; color:var(--text-muted);">입금 예정액 (원)</label>
+                    <input type="number" class="admin-input" value="${p.targetAmount || 0}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'targetAmount', this.value)" style="font-size:0.72rem; padding:4px 6px;" />
+                  </div>
+                  <div class="role-field" style="margin-bottom:0;">
+                    <label style="font-size:0.65rem; margin-bottom:2px; color:var(--text-muted);">실제 입금액 (원)</label>
+                    <input type="number" class="admin-input" value="${p.receivedAmount || 0}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'receivedAmount', this.value)" style="font-size:0.72rem; padding:4px 6px;" />
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+            ${(ep.pplPayments || []).length === 0 ? `<div style="font-size:0.72rem; color:var(--text-muted); text-align:center; padding:6px 0; border:1px dashed var(--border); border-radius:4px;">등록된 PPL 차수가 없습니다.</div>` : ''}
+          </div>
         </div>
       </div>
     `;
     grid.appendChild(div);
   }
+}
+
+// ============================================================
+// ADMIN ACTIONS FOR MULTI-STAGE PPL
+// ============================================================
+function addPplPayment(epIndex) {
+  const ep = DATA.episodes.find(e => e.index === epIndex);
+  if (!ep) return;
+
+  pushState();
+  if (!ep.pplPayments) ep.pplPayments = [];
+
+  const newId = 'ppl_' + Date.now() + Math.random().toString(36).substr(2, 5);
+  const nextOrder = ep.pplPayments.length + 1;
+  ep.pplPayments.push({
+    id: newId,
+    label: `PPL ${nextOrder}차`,
+    targetAmount: 0,
+    receivedAmount: 0,
+    paid: false,
+    settled: false
+  });
+
+  isDirty = true;
+  recalculateProjectMetrics();
+  renderAdminTab();
+  renderOverview();
+  renderIncomeTab();
+  renderMemberCards();
+  renderMemberDetailTable();
+}
+
+function deletePplPayment(epIndex, pplId) {
+  const ep = DATA.episodes.find(e => e.index === epIndex);
+  if (!ep) return;
+
+  if (!confirm('정말 이 PPL 차수를 삭제하시겠습니까?')) return;
+
+  pushState();
+  ep.pplPayments = (ep.pplPayments || []).filter(p => p.id !== pplId);
+
+  isDirty = true;
+  recalculateProjectMetrics();
+  renderAdminTab();
+  renderOverview();
+  renderIncomeTab();
+  renderMemberCards();
+  renderMemberDetailTable();
+}
+
+function updatePplPaymentField(epIndex, pplId, field, value) {
+  const ep = DATA.episodes.find(e => e.index === epIndex);
+  if (!ep) return;
+
+  const p = (ep.pplPayments || []).find(x => x.id === pplId);
+  if (!p) return;
+
+  pushState();
+
+  let needAdminRef = false;
+
+  if (field === 'paid') {
+    p.paid = value;
+    if (value) {
+      if ((p.receivedAmount || 0) < (p.targetAmount || 0)) {
+        p.receivedAmount = p.targetAmount;
+      }
+    } else {
+      p.receivedAmount = 0;
+    }
+    needAdminRef = true;
+  } else if (field === 'settled') {
+    p.settled = value;
+  } else if (field === 'receivedAmount') {
+    const val = parseInt(value) || 0;
+    p.receivedAmount = val;
+    if (val >= (p.targetAmount || 0) && p.targetAmount > 0) {
+      if (!p.paid) {
+        p.paid = true;
+        needAdminRef = true;
+      }
+    } else if (val === 0) {
+      if (p.paid) {
+        p.paid = false;
+        needAdminRef = true;
+      }
+    }
+  } else if (field === 'targetAmount') {
+    p.targetAmount = parseInt(value) || 0;
+  } else if (field === 'label') {
+    p.label = value;
+  }
+
+  isDirty = true;
+  recalculateProjectMetrics();
+
+  renderOverview();
+  renderIncomeTab();
+  renderMemberCards();
+  renderMemberDetailTable();
+  
+  if (needAdminRef) {
+    renderAdminTab();
+  }
+}
 
   // 2. 정기 지출 비용 인풋 카드 그리기
   const costsGrid = document.getElementById('admin-costs-grid');

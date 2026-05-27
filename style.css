@@ -732,6 +732,21 @@ body {
 .status-dot { width: 7px; height: 7px; border-radius: 50%; }
 .status-dot.paid { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
 .status-dot.pending { background: var(--text-muted); }
+.status-dot.settled { background: var(--accent) !important; box-shadow: 0 0 6px var(--accent) !important; }
+
+@keyframes greenBlink {
+  0% { opacity: 0.45; }
+  100% { opacity: 1; }
+}
+.blinking-green-dot {
+  background-color: var(--accent-green) !important;
+  box-shadow: 0 0 8px var(--accent-green) !important;
+  animation: greenBlink 0.8s infinite alternate;
+}
+.blinking-text-green {
+  animation: greenBlink 0.8s infinite alternate;
+  display: inline-block;
+}
 
 .ppl-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .ppl-item {
