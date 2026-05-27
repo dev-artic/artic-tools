@@ -740,9 +740,57 @@ body {
   pointer-events: auto;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .mobile-header {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    background: rgba(24, 28, 39, 0.8) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 12px 6px 6px;
+    z-index: 999;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    width: auto;
+    height: auto;
+    border-bottom: none;
+  }
+  
+  body.light-theme .mobile-header {
+    background: rgba(255, 255, 255, 0.8) !important;
+  }
+
+  .mobile-header-logo .logo-title {
+    display: none !important;
+  }
+
+  .mobile-header-logo {
     display: flex;
+    align-items: center;
+  }
+
+  .mobile-header .logo-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  .mobile-menu-toggle {
+    border-left: 1px solid var(--border);
+    padding-left: 10px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    height: 24px;
+    background: none;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
   }
   
   :root {
@@ -760,6 +808,10 @@ body {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1000;
     box-shadow: 10px 0 40px rgba(0,0,0,0.6);
+  }
+  
+  .sidebar .theme-toggle-wrap {
+    display: none !important; /* Hide duplicate theme switcher on mobile */
   }
   
   .sidebar.active {
@@ -814,8 +866,8 @@ body {
   
   .main-content {
     margin-left: 0 !important;
-    padding: 20px 16px !important;
-    height: calc(100vh - 59px); /* Sticky mobile header height adjustment */
+    padding: 80px 16px 80px 16px !important; /* Spacing so that floating elements do not cover content */
+    height: 100vh !important;
     overflow-y: auto;
   }
   
@@ -824,6 +876,45 @@ body {
   }
   .ep-detail-grid, .income-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Mobile Floating Theme Switcher ===== */
+.mobile-theme-floating-btn {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .mobile-theme-floating-btn {
+    display: flex;
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 999;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(24, 28, 39, 0.8) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    outline: none;
+  }
+  
+  body.light-theme .mobile-theme-floating-btn {
+    background: rgba(255, 255, 255, 0.8) !important;
+    color: var(--text-secondary);
+  }
+  
+  .mobile-theme-floating-btn:hover {
+    color: var(--text-primary);
+    transform: scale(1.05);
   }
 }
 
