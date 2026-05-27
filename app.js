@@ -176,6 +176,66 @@ const DEFAULT_DATA = {
 let DATA = {};
 let isDirty = false;
 let currentEpIndex = 0; // 0 = 리허설
+let pendingTargetTabId = null;
+
+// Undo / Redo History System State
+let undoStack = [];
+let redoStack = [];
+const MAX_HISTORY = 50;
+
+function pushState() {
+  undoStack.push(JSON.parse(JSON.stringify(DATA)));
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack = [];
+  updateUndoRedoButtons();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(JSON.parse(JSON.stringify(DATA)));
+  DATA = undoStack.pop();
+  isDirty = true;
+  recalculateProjectMetrics();
+  refreshAllViews();
+  updateUndoRedoButtons();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(JSON.parse(JSON.stringify(DATA)));
+  DATA = redoStack.pop();
+  isDirty = true;
+  recalculateProjectMetrics();
+  refreshAllViews();
+  updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById('btn-undo');
+  const redoBtn = document.getElementById('btn-redo');
+  const undoAdminBtn = document.getElementById('btn-undo-admin');
+  const redoAdminBtn = document.getElementById('btn-redo-admin');
+  const undoEpBtn = document.getElementById('btn-undo-episodes');
+  const redoEpBtn = document.getElementById('btn-redo-episodes');
+  const hasUndo = undoStack.length > 0;
+  const hasRedo = redoStack.length > 0;
+  if (undoBtn) undoBtn.disabled = !hasUndo;
+  if (redoBtn) redoBtn.disabled = !hasRedo;
+  if (undoAdminBtn) undoAdminBtn.disabled = !hasUndo;
+  if (redoAdminBtn) redoAdminBtn.disabled = !hasRedo;
+  if (undoEpBtn) undoEpBtn.disabled = !hasUndo;
+  if (redoEpBtn) redoEpBtn.disabled = !hasRedo;
+}
+
+function refreshAllViews() {
+  renderOverview();
+  renderEpisodeTab();
+  renderMemberCards();
+  renderMemberDetailTable();
+  renderRolesGrid();
+  renderIncomeTab();
+  renderAdminTab();
+}
 
 /**
  * 관리자 여부 확인 헬퍼 함수
@@ -223,7 +283,13 @@ async function loadData(forceReload = false) {
   }
 
   DATA = loadedData;
+  normalizeBlackmagicCosts();
   recalculateProjectMetrics();
+  
+  // Clear Undo/Redo stack on reload/init
+  undoStack = [];
+  redoStack = [];
+  updateUndoRedoButtons();
 }
 
 async function saveData(silent = false) {
@@ -233,9 +299,11 @@ async function saveData(silent = false) {
 
   const adminBtn = document.getElementById('btn-save-admin');
   const rolesBtn = document.getElementById('btn-save-roles');
+  const episodesBtn = document.getElementById('btn-save-episodes');
   const buttons = [];
   if (adminBtn) buttons.push(adminBtn);
   if (rolesBtn) buttons.push(rolesBtn);
+  if (episodesBtn) buttons.push(episodesBtn);
 
   if (!silent) {
     buttons.forEach(btn => {
@@ -342,12 +410,28 @@ function calcEpisodeRolePay(roleId, epIndex) {
 
   const result = {};
 
-  // 모든 역할(기획, DOP, 촬영 스태프, 편집 카테고리 등)은
-  // 역할 총 예산(unitCostPerPerson * headcount)을 참여 인원수로 나누어 균등 배분
-  const totalForRole = role.unitCostPerPerson * role.headcount;
-  const perPersonAmount = Math.round(totalForRole / allParticipants.length);
+  // 촬영 스태프 역할 소계는 선택된 인원수 관계없이 무조건 30,000원 고정
+  let totalForRole = role.unitCostPerPerson * role.headcount;
+  if (roleId === 'camera_staff') {
+    totalForRole = 30000;
+  }
 
-  for (const member of allParticipants) {
+  let eligibleParticipants = allParticipants;
+
+  // 중요 비즈니스 룰: 촬영 스태프(camera_staff) 역할 배분 시, DOP에 체크되어 있는 멤버는 스태프 페이 수령에서 전격 배제한다!
+  if (roleId === 'camera_staff') {
+    const dopParticipants = DATA.members.filter(m => {
+      const dopPart = DATA.participation['dop'];
+      return dopPart && dopPart[m] && dopPart[m][epIndex];
+    });
+    eligibleParticipants = allParticipants.filter(m => !dopParticipants.includes(m));
+  }
+
+  if (eligibleParticipants.length === 0) return {};
+
+  const perPersonAmount = Math.round(totalForRole / eligibleParticipants.length);
+
+  for (const member of eligibleParticipants) {
     result[member] = perPersonAmount;
   }
 
@@ -443,18 +527,23 @@ function formatKRWShort(amount) {
 // TAB NAVIGATION (Dirty check exit alert implemented)
 // ============================================================
 async function switchTab(tabId) {
-  // If changes are unsaved, alert user
-  if (isDirty) {
-    const save = confirm("변경된 사항이 있습니다. 저장하시겠습니까?");
-    if (save) {
-      await saveData(true); // Silent save in background
-    } else {
-      // Revert to last saved data from localStorage/server
-      await loadData(true);
-      isDirty = false;
-    }
+  const adminTabs = ['admin', 'roles', 'episodes'];
+  if (adminTabs.includes(tabId) && !isAdmin()) {
+    alert('해당 페이지는 관리자(김민제)만 접근 가능합니다.');
+    return;
   }
 
+  // 변경사항이 있을 때 시스템 confirm 팝업 대신 커스텀 우하단 그래픽 팝업을 띄우고 원래 탭 유지
+  if (isDirty) {
+    pendingTargetTabId = tabId;
+    showNavGuardPopup();
+    return;
+  }
+
+  executeTabSwitch(tabId);
+}
+
+function executeTabSwitch(tabId) {
   // 모바일 드로어 메뉴 및 오버레이 닫기
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebar-overlay');
@@ -477,6 +566,37 @@ async function switchTab(tabId) {
   if (tabId === 'roles') renderRolesGrid();
   if (tabId === 'income') renderIncomeTab();
   if (tabId === 'admin') renderAdminTab();
+}
+
+function showNavGuardPopup() {
+  const popup = document.getElementById('nav-guard-popup');
+  if (popup) {
+    popup.classList.add('show');
+  }
+}
+
+function hideNavGuardPopup() {
+  const popup = document.getElementById('nav-guard-popup');
+  if (popup) {
+    popup.classList.remove('show');
+  }
+}
+
+function cancelNavGuard() {
+  hideNavGuardPopup();
+  pendingTargetTabId = null;
+  // 원래 탭이 고스란히 그대로 유지됩니다 (저장되지 않은 작업 유지)
+}
+
+async function confirmNavGuardSave() {
+  hideNavGuardPopup();
+  if (pendingTargetTabId) {
+    await saveData();
+    isDirty = false;
+    const target = pendingTargetTabId;
+    pendingTargetTabId = null;
+    executeTabSwitch(target);
+  }
 }
 
 // ============================================================
@@ -510,12 +630,23 @@ function renderOverview() {
     targetText.textContent = ` / ${formatKRW(DATA.project.contractAmount)}`;
   }
 
+  // 입금 완료 배지 동적 업데이트
+  const paidEps = DATA.episodes.filter(ep => ep.index > 0 && ep.paid);
+  const progressEpBadge = document.getElementById('progress-ep-badge');
+  if (progressEpBadge) {
+    if (paidEps.length > 0) {
+      const labels = paidEps.map(ep => ep.label.replace('EP.', ''));
+      progressEpBadge.textContent = `EP.${labels.join(',')} 입금 완료`;
+    } else {
+      progressEpBadge.textContent = '입금 완료 회차 없음';
+    }
+  }
+
   // Episode dots in progress bar
   const dotsEl = document.getElementById('episode-dots');
   if (dotsEl) {
     dotsEl.innerHTML = '';
     for (const ep of DATA.episodes) {
-      if (ep.index > 7) continue; // 실제 활성 EP만
       const dot = document.createElement('div');
       dot.className = `ep-dot ${ep.paid ? 'paid' : 'pending'}`;
       dot.innerHTML = `
@@ -535,9 +666,24 @@ function renderMemberSummaryTable(tbodyId, tableId) {
   if (!tbody) return;
   const matrix = buildPayMatrix();
 
+  // 동적 테이블 헤더 갱신
+  const table = document.getElementById(tableId);
+  if (table) {
+    const thead = table.querySelector('thead');
+    if (thead) {
+      let headCells = `<tr><th>멤버</th>`;
+      for (const ep of DATA.episodes) {
+        headCells += `<th class="text-right">${ep.label}</th>`;
+      }
+      headCells += `<th class="text-right highlight-col">합계</th></tr>`;
+      thead.innerHTML = headCells;
+    }
+  }
+
   tbody.innerHTML = '';
   const totals = getMemberTotals();
   let colSums = new Array(DATA.episodes.length).fill(0);
+  const shown = DATA.episodes.map(ep => ep.index);
 
   for (const m of DATA.members) {
     const tr = document.createElement('tr');
@@ -546,8 +692,6 @@ function renderMemberSummaryTable(tbodyId, tableId) {
       ${m}
     </span></td>`;
 
-    // Rehearsal + EP.1~7 (8 episodes shown)
-    const shown = [0,1,2,3,4,5,6,7];
     for (const i of shown) {
       const amt = matrix[m][i] || 0;
       colSums[i] += amt;
@@ -563,9 +707,9 @@ function renderMemberSummaryTable(tbodyId, tableId) {
   sumTr.className = 'total-row';
   let sumCells = `<td><strong>합계</strong></td>`;
   let grandTotal = 0;
-  for (const i of [0,1,2,3,4,5,6,7]) {
-    grandTotal += colSums[i];
-    sumCells += `<td class="text-right mono">${formatKRW(colSums[i])}</td>`;
+  for (const i of shown) {
+    grandTotal += (colSums[i] || 0);
+    sumCells += `<td class="text-right mono">${formatKRW(colSums[i] || 0)}</td>`;
   }
   sumCells += `<td class="text-right highlight-col">${formatKRW(grandTotal)}</td>`;
   sumTr.innerHTML = sumCells;
@@ -580,7 +724,6 @@ function renderEpisodeChips() {
   if (!el) return;
   el.innerHTML = '';
   for (const ep of DATA.episodes) {
-    if (ep.index > 7) continue; // 현재 활성 에피소드만 (확장 가능)
     const chip = document.createElement('div');
     chip.className = `ep-chip ${ep.index === currentEpIndex ? 'active' : ''} ${ep.paid ? 'paid-chip' : ''}`;
     chip.textContent = ep.label + (ep.paid ? ' ✓' : '');
@@ -597,70 +740,52 @@ function renderEpisodeTab() {
   const labelEl = document.getElementById('ep-current-label');
   const prevBtn = document.getElementById('ep-prev');
   const nextBtn = document.getElementById('ep-next');
-  if (labelEl) labelEl.textContent = ep.label;
+  if (labelEl) {
+    if (ep.paid) {
+      labelEl.innerHTML = `${ep.label} <span class="badge badge-green" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 완료 ✓</span>`;
+    } else {
+      labelEl.innerHTML = `${ep.label} <span class="badge badge-yellow" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 대기</span>`;
+    }
+  }
   if (prevBtn) prevBtn.disabled = currentEpIndex === 0;
-  if (nextBtn) nextBtn.disabled = currentEpIndex >= 7;
+  if (nextBtn) nextBtn.disabled = currentEpIndex >= DATA.episodes.length - 1;
 
   renderEpisodeChips();
 
   // Artists
   const artistEl = document.getElementById('ep-artist-display');
   if (artistEl) {
+    artistEl.innerHTML = '';
     if (ep.artists && ep.artists.length > 0) {
-      artistEl.innerHTML = ep.artists.map(a => `
-        <div class="artist-chip">
-          <span class="artist-dot"></span>
-          <span>${a}</span>
-        </div>
-      `).join('');
+      ep.artists.forEach(art => {
+        const span = document.createElement('span');
+        span.className = 'artist-badge';
+        span.textContent = art;
+        artistEl.appendChild(span);
+      });
     } else {
-      artistEl.innerHTML = `<span style="color:var(--text-muted);font-size:0.82rem">출연 아티스트 없음</span>`;
+      artistEl.innerHTML = '<span class="text-muted" style="font-size:0.85rem">게스트 없음</span>';
     }
   }
 
   // PPL
-  const pplAmountEl = document.getElementById('ep-ppl-amount');
+  const pplEl = document.getElementById('ep-ppl-amount');
   const pplLabelEl = document.getElementById('ep-ppl-label');
-  if (pplAmountEl && pplLabelEl) {
-    if (ep.ppl > 0) {
-      pplAmountEl.textContent = formatKRW(ep.ppl);
-      pplAmountEl.style.color = '';
-      pplLabelEl.textContent = `PPL 수입 발생`;
-    } else {
-      pplAmountEl.textContent = '₩0';
-      pplAmountEl.style.color = 'var(--text-muted)';
-      pplLabelEl.textContent = 'PPL 없음';
-    }
+  if (pplEl) {
+    pplEl.textContent = formatKRW(ep.ppl || 0);
+  }
+  if (pplLabelEl) {
+    pplLabelEl.textContent = ep.ppl > 0 ? 'PPL 수입 있음' : 'PPL 없음';
   }
 
-  // Role table
+  // Render role table
   renderEpisodeRoleTable();
-
-  // Multi-role notice
-  const multiRoles = getMultiRoleMembers(currentEpIndex);
-  const noticeEl = document.getElementById('multi-role-notice');
-  const detailEl = document.getElementById('multi-role-detail');
-  if (noticeEl && detailEl) {
-    if (multiRoles.length > 0) {
-      noticeEl.style.display = 'flex';
-      const lines = multiRoles.map(mr => {
-        const memberRoles = DATA.roles
-          .filter(r => {
-            if (currentEpIndex === 0 && !r.includesRehearsal) return false;
-            const p = DATA.participation[r.id];
-            return p && p[mr.name] && p[mr.name][currentEpIndex];
-          })
-          .map(r => r.name);
-        return `${mr.name}: ${memberRoles.join(' + ')} (${mr.count}개 역할 → 각 역할 페이 수령)`;
-      });
-      detailEl.innerHTML = lines.join('<br>');
-    } else {
-      noticeEl.style.display = 'none';
-    }
-  }
 }
 
 function renderEpisodeRoleTable() {
+  const ep = DATA.episodes[currentEpIndex];
+  if (!ep) return;
+
   const tbody = document.getElementById('ep-role-tbody');
   const totalEl = document.getElementById('ep-grand-total');
   const badgeEl = document.getElementById('ep-total-badge');
@@ -668,9 +793,88 @@ function renderEpisodeRoleTable() {
   if (!tbody) return;
   tbody.innerHTML = '';
   let grandTotal = 0;
+  let shootRendered = false;
+
+  // Local helper to render the integrated Shooting row
+  function renderIntegratedShootRow() {
+    const dopRole = DATA.roles.find(r => r.id === 'dop');
+    const staffRole = DATA.roles.find(r => r.id === 'camera_staff');
+
+    const dopPay = calcEpisodeRolePay('dop', currentEpIndex);
+    const staffPay = calcEpisodeRolePay('camera_staff', currentEpIndex);
+
+    const dopTotal = Object.values(dopPay).reduce((a, b) => a + b, 0);
+    const staffTotal = Object.values(staffPay).reduce((a, b) => a + b, 0);
+    const shootTotal = dopTotal + staffTotal;
+    grandTotal += shootTotal;
+
+    const isDopApplicable = !(currentEpIndex === 0 && !dopRole.includesRehearsal);
+    const isStaffApplicable = !(currentEpIndex === 0 && !staffRole.includesRehearsal);
+
+    const participantHtml = DATA.members.map(m => {
+      const hasDop = DATA.participation['dop'] && DATA.participation['dop'][m] && DATA.participation['dop'][m][currentEpIndex];
+      const hasStaff = DATA.participation['camera_staff'] && DATA.participation['camera_staff'][m] && DATA.participation['camera_staff'][m][currentEpIndex];
+
+      const isEditable = isAdmin() && !ep.paid;
+      const extraStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;filter:grayscale(0.3);"';
+
+      return `
+        <div class="shoot-member-item" ${extraStyle}>
+          <span class="shoot-member-name">${m}</span>
+          <div class="shoot-member-actions">
+            <button class="btn-shoot btn-shoot-staff ${hasStaff ? 'active' : ''}" 
+              onclick="toggleShootRole('${m}', 'staff', ${currentEpIndex})" title="${hasStaff ? '스태프 페이 대상' : '미참여'}">스태프</button>
+            <button class="btn-shoot btn-shoot-dop ${hasDop ? 'active' : ''}" 
+              onclick="toggleShootRole('${m}', 'dop', ${currentEpIndex})" title="${hasDop ? 'D.O.P. 감독 페이 대상' : '미참여'}">👑 D.O.P.</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    let ratesHtml = '';
+    if (isDopApplicable) ratesHtml += `<div style="font-size:0.75rem">D.O.P. ₩20,000</div>`;
+    if (isStaffApplicable) ratesHtml += `<div style="font-size:0.75rem;margin-top:2px;">스태프 ₩15,000 (기준)</div>`;
+    if (ratesHtml === '') ratesHtml = '<span style="color:var(--text-muted)">—</span>';
+
+    let paysHtml = '';
+    if (isDopApplicable && dopTotal > 0) {
+      paysHtml += `<div style="font-size:0.75rem">D.O.P. ${formatKRW(20000)}</div>`;
+    }
+    if (isStaffApplicable && staffTotal > 0) {
+      const activeStaffCount = Object.keys(staffPay).length;
+      const perStaffPay = activeStaffCount > 0 ? Math.round(30000 / activeStaffCount) : 0;
+      if (perStaffPay > 0) {
+        paysHtml += `<div style="font-size:0.75rem;margin-top:2px;">스태프 ${formatKRW(perStaffPay)}</div>`;
+      }
+    }
+    if (paysHtml === '') paysHtml = '<span style="color:var(--text-muted)">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:600;margin-bottom:3px">촬영 역할</div>
+        <span class="role-area-badge" style="background:rgba(62,207,142,0.12);color:#3ecf8e;padding:2px 7px;border-radius:100px;font-size:0.7rem;font-weight:600">촬영</span>
+      </td>
+      <td style="color:var(--text-secondary);font-size:0.8rem;max-width:200px">
+        [리허설 포함] D.O.P. 1인 한정 및 현장 촬영 스태프 배분 (D.O.P.는 스태프 페이 자동 제외)
+      </td>
+      <td class="text-right mono" style="font-size:0.8rem;line-height:1.4">${ratesHtml}</td>
+      <td><div class="shoot-member-group">${participantHtml}</div></td>
+      <td class="text-right mono" style="font-size:0.8rem;line-height:1.4">${paysHtml}</td>
+      <td class="text-right highlight-col">${shootTotal > 0 ? formatKRW(shootTotal) : '<span style="color:var(--text-muted)">—</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
 
   for (const role of DATA.roles) {
-    // 리허설 없는 역할은 리허설 에피소드에서 표시만 다르게
+    if (role.id === 'dop' || role.id === 'camera_staff') {
+      if (!shootRendered) {
+        shootRendered = true;
+        renderIntegratedShootRow();
+      }
+      continue;
+    }
+
     const isApplicable = !(currentEpIndex === 0 && !role.includesRehearsal);
     const rolePay = calcEpisodeRolePay(role.id, currentEpIndex);
     const participants = DATA.members.filter(m => {
@@ -680,7 +884,6 @@ function renderEpisodeRoleTable() {
     const roleTotal = Object.values(rolePay).reduce((a, b) => a + b, 0);
     grandTotal += roleTotal;
 
-    // Area badge color
     const areaColors = {
       '기획': 'background:rgba(79,142,247,0.15);color:#4f8ef7',
       '촬영': 'background:rgba(62,207,142,0.12);color:#3ecf8e',
@@ -692,7 +895,8 @@ function renderEpisodeRoleTable() {
       const p = DATA.participation[role.id];
       const isChecked = p && p[m] && p[m][currentEpIndex];
       const payAmt = rolePay[m] || 0;
-      const extraStyle = isAdmin() ? '' : 'style="pointer-events:none;opacity:0.85;cursor:not-allowed;"';
+      const isEditable = isAdmin() && !ep.paid;
+      const extraStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;filter:grayscale(0.3);"';
       return `<div class="participant-chip ${isChecked ? 'active' : ''}" ${extraStyle}
                 onclick="toggleParticipation('${role.id}', '${m}', ${currentEpIndex})"
                 title="${isChecked ? payAmt.toLocaleString() + '원 지급' : '미참여'}">
@@ -702,10 +906,9 @@ function renderEpisodeRoleTable() {
       </div>`;
     }).join('');
 
-    // Per-person amount (from calculation)
     let perPerson = 0;
     if (participants.length > 0 && isApplicable) {
-      const totalForRole = role.unitCostPerPerson * role.headcount;
+      let totalForRole = role.unitCostPerPerson * role.headcount;
       perPerson = Math.round(totalForRole / participants.length);
     }
 
@@ -733,8 +936,15 @@ function toggleParticipation(roleId, memberName, epIndex) {
     alert('관리자(민제)만 에피소드 참여 설정을 수정할 수 있습니다.');
     return;
   }
+  const ep = DATA.episodes.find(e => e.index === epIndex);
+  if (ep && ep.paid) {
+    alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
+    return;
+  }
   const p = DATA.participation[roleId];
   if (!p || !p[memberName]) return;
+
+  pushState();
 
   const willBeChecked = !p[memberName][epIndex];
 
@@ -781,7 +991,7 @@ function toggleParticipation(roleId, memberName, epIndex) {
 
 function changeEpisode(delta) {
   const newIdx = currentEpIndex + delta;
-  if (newIdx < 0 || newIdx > 7) return;
+  if (newIdx < 0 || newIdx >= DATA.episodes.length) return;
   currentEpIndex = newIdx;
   renderEpisodeTab();
 }
@@ -808,10 +1018,10 @@ function renderMemberCards() {
     const card = document.createElement('div');
     card.className = 'member-card';
 
-    const miniEps = [0,1,2,3,4,5,6,7].map(i => {
-      const amt = matrix[m][i] || 0;
-      return `<span class="member-ep-dot ${amt > 0 ? 'has-pay' : 'no-pay'}" title="${DATA.episodes[i].label}: ${formatKRW(amt)}">
-        ${DATA.episodes[i].label === '리허설' ? 'R' : DATA.episodes[i].label.replace('EP.', '')}
+    const miniEps = DATA.episodes.map(ep => {
+      const amt = matrix[m][ep.index] || 0;
+      return `<span class="member-ep-dot ${amt > 0 ? 'has-pay' : 'no-pay'}" title="${ep.label}: ${formatKRW(amt)}">
+        ${ep.label === '리허설' ? 'R' : ep.label.replace('EP.', '')}
       </span>`;
     }).join('');
 
@@ -837,9 +1047,24 @@ function renderMemberDetailTable() {
   const matrix = buildPayMatrix();
   const totals = getMemberTotals();
 
+  // 동적 테이블 헤더 갱신
+  const table = document.getElementById('member-detail-table');
+  if (table) {
+    const thead = table.querySelector('thead');
+    if (thead) {
+      let headCells = `<tr><th>멤버</th>`;
+      for (const ep of DATA.episodes) {
+        headCells += `<th class="text-right">${ep.label}</th>`;
+      }
+      headCells += `<th class="text-right highlight-col">합계</th></tr>`;
+      thead.innerHTML = headCells;
+    }
+  }
+
   tbody.innerHTML = '';
   let colSums = {};
   let grandTotal = 0;
+  const shown = DATA.episodes.map(ep => ep.index);
 
   for (const m of DATA.members) {
     const tr = document.createElement('tr');
@@ -847,7 +1072,7 @@ function renderMemberDetailTable() {
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
       ${m}
     </span></td>`;
-    for (const i of [0,1,2,3,4,5,6,7]) {
+    for (const i of shown) {
       const amt = matrix[m][i] || 0;
       colSums[i] = (colSums[i] || 0) + amt;
       cells += `<td class="text-right mono ${amt > 0 ? '' : ''}">${amt > 0 ? formatKRW(amt) : '<span style="color:var(--text-muted)">—</span>'}</td>`;
@@ -862,7 +1087,7 @@ function renderMemberDetailTable() {
   const sumTr = document.createElement('tr');
   sumTr.className = 'total-row';
   let sumCells = `<td><strong>합계</strong></td>`;
-  for (const i of [0,1,2,3,4,5,6,7]) {
+  for (const i of shown) {
     sumCells += `<td class="text-right mono">${formatKRW(colSums[i] || 0)}</td>`;
   }
   sumCells += `<td class="text-right highlight-col">${formatKRW(grandTotal)}</td>`;
@@ -923,6 +1148,7 @@ function renderRolesGrid() {
 function updateRoleDesc(roleId, val) {
   const role = DATA.roles.find(r => r.id === roleId);
   if (role) {
+    pushState();
     role.description = val;
     isDirty = true;
   }
@@ -931,6 +1157,7 @@ function updateRoleDesc(roleId, val) {
 function updateRoleCost(roleId, val) {
   const role = DATA.roles.find(r => r.id === roleId);
   if (role) {
+    pushState();
     role.unitCostPerPerson = parseInt(val) || 0;
     isDirty = true;
     renderRolesGrid();
@@ -943,6 +1170,7 @@ function updateRoleCost(roleId, val) {
 function updateRoleHeadcount(roleId, val) {
   const role = DATA.roles.find(r => r.id === roleId);
   if (role) {
+    pushState();
     role.headcount = parseInt(val) || 1;
     isDirty = true;
     renderRolesGrid();
@@ -1030,17 +1258,32 @@ function renderIncomeTab() {
     pplTotalEl.textContent = formatKRW(DATA.project.pplTotal);
   }
 
-  // 정기 지출 테이블 갱신 (1월, 2월, 3월, 합계 td)
-  const costJanEl = document.getElementById('income-cost-jan');
-  const costFebEl = document.getElementById('income-cost-feb');
-  const costMarEl = document.getElementById('income-cost-mar');
-  const costTotalEl = document.getElementById('income-cost-total');
-
-  if (costJanEl && costFebEl && costMarEl && costTotalEl) {
-    costJanEl.textContent = formatKRW(DATA.blackmagicCosts.jan);
-    costFebEl.textContent = formatKRW(DATA.blackmagicCosts.feb);
-    costMarEl.textContent = formatKRW(DATA.blackmagicCosts.mar);
-    costTotalEl.textContent = formatKRW(DATA.project.blackmagicCost);
+  // 정기 지출 테이블 동적 갱신
+  const tableWrap = document.getElementById('income-cost-table-wrap');
+  if (tableWrap) {
+    normalizeBlackmagicCosts();
+    
+    let ths = `<th>항목</th>`;
+    let tds = `<td><span class="role-tag">BlackMagic Cloud</span></td>`;
+    
+    for (const item of DATA.blackmagicCosts) {
+      ths += `<th class="text-right">${item.label}</th>`;
+      tds += `<td class="text-right mono">${formatKRW(item.cost)}</td>`;
+    }
+    
+    ths += `<th class="text-right highlight-col">합계</th>`;
+    tds += `<td class="text-right mono highlight-col">${formatKRW(DATA.project.blackmagicCost)}</td>`;
+    
+    tableWrap.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>${ths}</tr>
+        </thead>
+        <tbody>
+          <tr>${tds}</tr>
+        </tbody>
+      </table>
+    `;
   }
 }
 
@@ -1150,18 +1393,34 @@ function togglePw() {
 // INIT
 // ============================================================
 async function init() {
+  initTheme();
+
   // Load data dynamically
   await loadData();
 
-  // Roles 저장 버튼 및 관리자 메뉴 제어
+  // Normalize blackmagicCosts structure
+  normalizeBlackmagicCosts();
+
+  // Roles/Episodes 저장 버튼 및 관리자 메뉴 제어
+  const showAdmin = isAdmin();
   const saveBtn = document.getElementById('btn-save-roles');
+  const saveEpBtn = document.getElementById('btn-save-episodes');
   if (saveBtn) {
-    saveBtn.style.display = isAdmin() ? 'flex' : 'none';
+    saveBtn.style.display = showAdmin ? 'flex' : 'none';
   }
-  const adminNav = document.getElementById('nav-admin');
-  if (adminNav) {
-    adminNav.style.display = isAdmin() ? 'flex' : 'none';
+  if (saveEpBtn) {
+    saveEpBtn.style.display = showAdmin ? 'flex' : 'none';
   }
+  
+  const adminHeader = document.getElementById('nav-admin-group-header');
+  const adminTab = document.getElementById('nav-admin-tab');
+  const rolesTab = document.getElementById('nav-roles-tab');
+  const episodesTab = document.getElementById('nav-episodes-tab');
+  
+  if (adminHeader) adminHeader.style.display = showAdmin ? 'block' : 'none';
+  if (adminTab) adminTab.style.display = showAdmin ? 'flex' : 'none';
+  if (rolesTab) rolesTab.style.display = showAdmin ? 'flex' : 'none';
+  if (episodesTab) episodesTab.style.display = showAdmin ? 'flex' : 'none';
 
   // 로그인 체크
   const authed = sessionStorage.getItem('artic-auth');
@@ -1192,6 +1451,8 @@ async function init() {
       });
     }
   }
+
+  updateUndoRedoButtons();
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -1210,12 +1471,11 @@ function recalculateProjectMetrics() {
   DATA.project.pplTotal = DATA.episodes.reduce((sum, ep) => sum + (ep.ppl || 0), 0);
 
   // 4. BlackMagic 비용 합계
-  DATA.project.blackmagicCost = (DATA.blackmagicCosts ? Object.values(DATA.blackmagicCosts).reduce((sum, c) => sum + c, 0) : 64025);
+  DATA.project.blackmagicCost = (DATA.blackmagicCosts ? DATA.blackmagicCosts.reduce((sum, item) => sum + (item.cost || 0), 0) : 64025);
 
   // 5. 총 용역 비용
   let totalLabor = 0;
   for (const ep of DATA.episodes) {
-    if (ep.index > 7) continue; // 활성 에피소드만
     totalLabor += calcEpisodeTotalPay(ep.index);
   }
   DATA.project.laborCost = totalLabor;
@@ -1237,10 +1497,14 @@ function renderAdminTab() {
     div.className = 'admin-ep-card';
     div.setAttribute('data-ep-index', ep.index);
 
-    // 우클릭 삭제 이벤트
-    div.addEventListener('contextmenu', handleEpisodeCardContextMenu);
+    const deleteBtnHtml = ep.index === 0 ? '' : `
+      <button class="btn-delete-cost" onclick="handleDeleteEpisodeDirect(${ep.index})" title="에피소드 삭제">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
 
     div.innerHTML = `
+      ${deleteBtnHtml}
       <div class="admin-ep-card-header">
         <span class="admin-ep-card-title">${ep.label}</span>
         <label class="admin-ep-paid-label">
@@ -1270,14 +1534,29 @@ function renderAdminTab() {
     grid.appendChild(div);
   }
 
-  // 2. 정기 지출 비용 인풋 채우기
-  const janInput = document.getElementById('admin-cost-jan');
-  const febInput = document.getElementById('admin-cost-feb');
-  const marInput = document.getElementById('admin-cost-mar');
-  if (janInput && febInput && marInput) {
-    janInput.value = DATA.blackmagicCosts.jan;
-    febInput.value = DATA.blackmagicCosts.feb;
-    marInput.value = DATA.blackmagicCosts.mar;
+  // 2. 정기 지출 비용 인풋 카드 그리기
+  const costsGrid = document.getElementById('admin-costs-grid');
+  if (costsGrid) {
+    costsGrid.innerHTML = '';
+    normalizeBlackmagicCosts();
+
+    for (const item of DATA.blackmagicCosts) {
+      const card = document.createElement('div');
+      card.className = 'admin-cost-card';
+      card.innerHTML = `
+        <button class="btn-delete-cost" onclick="deleteCostItem('${item.id}')" title="지출 내역 삭제">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <input type="text" class="admin-cost-label-input" value="${item.label}" onchange="updateCostItemLabel('${item.id}', this.value)" placeholder="월 지출명 입력" />
+          <div class="role-field" style="margin-bottom:0;">
+            <label>지출액 (원)</label>
+            <input type="number" class="admin-input" value="${item.cost || 0}" onchange="updateCostItemCost('${item.id}', this.value)" />
+          </div>
+        </div>
+      `;
+      costsGrid.appendChild(card);
+    }
   }
 }
 
@@ -1289,6 +1568,8 @@ function logout() {
 function updateEpisodeArtists(epIndex, rawValue) {
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
+
+  pushState();
 
   // 쉼표로 파싱
   ep.artists = rawValue.split(',')
@@ -1303,6 +1584,8 @@ function updateEpisodeArtists(epIndex, rawValue) {
 function updateEpisodeData(epIndex, field, value) {
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
+
+  pushState();
 
   if (field === 'paid') {
     ep.paid = value;
@@ -1333,6 +1616,7 @@ function updateAdminCost(month, value) {
   if (!DATA.blackmagicCosts) {
     DATA.blackmagicCosts = { jan: 21153, feb: 21239, mar: 21633 };
   }
+  pushState();
   DATA.blackmagicCosts[month] = parseInt(value) || 0;
   isDirty = true; // Mark unsaved changes
 
@@ -1348,6 +1632,7 @@ function updateAdminCost(month, value) {
 let selectedEpIndexForDelete = null;
 
 function addNewEpisode() {
+  pushState();
   // 현재 최대 인덱스를 찾아 새 인덱스 지정
   const maxIdx = DATA.episodes.length > 0 ? Math.max(...DATA.episodes.map(e => e.index)) : 0;
   const newIndex = maxIdx + 1;
@@ -1384,6 +1669,17 @@ function addNewEpisode() {
   renderMemberDetailTable();
   renderIncomeTab();
   renderAdminTab();
+}
+
+function handleDeleteEpisodeDirect(epIndex) {
+  if (!isAdmin()) return;
+  if (epIndex === 0) {
+    alert("리허설 에피소드는 삭제할 수 없습니다.");
+    return;
+  }
+  if (confirm(`정말 해당 에피소드를 삭제하시겠습니까?`)) {
+    deleteEpisode(epIndex);
+  }
 }
 
 function handleEpisodeCardContextMenu(e) {
@@ -1438,6 +1734,8 @@ function deleteEpisode(epIndex) {
   const targetIdx = DATA.episodes.findIndex(e => e.index === epIndex);
   if (targetIdx === -1) return;
 
+  pushState();
+
   // 1. 에피소드 삭제
   DATA.episodes.splice(targetIdx, 1);
   isDirty = true; // Mark unsaved changes
@@ -1487,3 +1785,215 @@ function toggleMobileSidebar() {
     overlay.classList.toggle('active');
   }
 }
+
+// ============================================================
+// SHOOT ROLE DUAL TOGGLE INTERACTION (EXCLUSIVE D.O.P)
+// ============================================================
+function toggleShootRole(memberName, type, epIndex) {
+  if (!isAdmin()) {
+    alert('관리자(민제)만 에피소드 참여 설정을 수정할 수 있습니다.');
+    return;
+  }
+  const ep = DATA.episodes.find(e => e.index === epIndex);
+  if (ep && ep.paid) {
+    alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
+    return;
+  }
+
+  const dopPart = DATA.participation['dop'];
+  const staffPart = DATA.participation['camera_staff'];
+
+  if (!dopPart || !staffPart) return;
+
+  pushState();
+
+  isDirty = true;
+
+  if (type === 'dop') {
+    const isCurrentlyDop = dopPart[memberName][epIndex];
+    
+    // 1. 모든 멤버의 DOP 해제 (Exclusive 라디오 토글)
+    for (const m of DATA.members) {
+      dopPart[m][epIndex] = false;
+    }
+    
+    // 2. 이미 DOP였다면 끄고, 아니었다면 D.O.P.로 지정
+    if (!isCurrentlyDop) {
+      dopPart[memberName][epIndex] = true;
+      // D.O.P.가 되는 즉시 촬영 스태프 참여는 자동 비활성화
+      staffPart[memberName][epIndex] = false;
+    }
+  } else if (type === 'staff') {
+    // 스태프 토글
+    staffPart[memberName][epIndex] = !staffPart[memberName][epIndex];
+    
+    // 스태프가 켜지는 경우 이 멤버의 D.O.P.는 자동 비활성화
+    if (staffPart[memberName][epIndex] && dopPart[memberName][epIndex]) {
+      dopPart[memberName][epIndex] = false;
+    }
+  }
+
+  // 글로벌 수치 재계산 및 뷰 강제 리렌더링
+  recalculateProjectMetrics();
+  renderEpisodeRoleTable();
+  renderOverview();
+  renderMemberCards();
+  renderMemberDetailTable();
+}
+
+// ============================================================
+// THEME SWITCHER LOGIC
+// ============================================================
+function initTheme() {
+  const savedTheme = localStorage.getItem('artic-theme') || 'dark';
+  setTheme(savedTheme);
+}
+
+function setTheme(theme) {
+  if (theme === 'light') {
+    document.body.classList.add('light-theme');
+  } else {
+    document.body.classList.remove('light-theme');
+  }
+  localStorage.setItem('artic-theme', theme);
+  updateThemeUI(theme);
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.contains('light-theme');
+  setTheme(isLight ? 'dark' : 'light');
+}
+
+function updateThemeUI(theme) {
+  const icon = document.getElementById('theme-icon');
+  const text = document.getElementById('theme-text');
+  if (icon && text) {
+    if (theme === 'light') {
+      // Show Moon icon (switch to dark option)
+      icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+      text.textContent = '다크 모드';
+    } else {
+      // Show Sun icon (switch to light option)
+      icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+      text.textContent = '라이트 모드';
+    }
+  }
+
+  // Update active state on login theme buttons if they exist
+  const darkBtn = document.getElementById('login-theme-dark');
+  const lightBtn = document.getElementById('login-theme-light');
+  if (darkBtn && lightBtn) {
+    if (theme === 'light') {
+      lightBtn.classList.add('active');
+      darkBtn.classList.remove('active');
+    } else {
+      darkBtn.classList.add('active');
+      lightBtn.classList.remove('active');
+    }
+  }
+}
+
+// ============================================================
+// DYNAMIC COST ITEMS HELPER & HANDLERS
+// ============================================================
+function normalizeBlackmagicCosts() {
+  if (!DATA.blackmagicCosts) {
+    DATA.blackmagicCosts = [
+      { id: 'jan', label: '1월', cost: 21153 },
+      { id: 'feb', label: '2월', cost: 21239 },
+      { id: 'mar', label: '3월', cost: 21633 }
+    ];
+    return;
+  }
+  if (!Array.isArray(DATA.blackmagicCosts)) {
+    const arr = [];
+    const labels = { jan: '1월', feb: '2월', mar: '3월' };
+    for (const [key, val] of Object.entries(DATA.blackmagicCosts)) {
+      arr.push({
+        id: key,
+        label: labels[key] || key,
+        cost: parseInt(val) || 0
+      });
+    }
+    DATA.blackmagicCosts = arr;
+  }
+}
+
+function addCostItem() {
+  normalizeBlackmagicCosts();
+  pushState();
+
+  const nextNum = DATA.blackmagicCosts.length + 1;
+  DATA.blackmagicCosts.push({
+    id: `cost_${Date.now()}`,
+    label: `${nextNum}월`,
+    cost: 0
+  });
+
+  isDirty = true;
+  recalculateProjectMetrics();
+  renderAdminTab();
+  renderIncomeTab();
+  renderOverview();
+}
+
+function deleteCostItem(id) {
+  normalizeBlackmagicCosts();
+  const idx = DATA.blackmagicCosts.findIndex(item => item.id === id);
+  if (idx === -1) return;
+
+  if (confirm(`정말 해당 지출 내역을 삭제하시겠습니까?`)) {
+    pushState();
+    DATA.blackmagicCosts.splice(idx, 1);
+    isDirty = true;
+    recalculateProjectMetrics();
+    renderAdminTab();
+    renderIncomeTab();
+    renderOverview();
+  }
+}
+
+function updateCostItemLabel(id, label) {
+  normalizeBlackmagicCosts();
+  const item = DATA.blackmagicCosts.find(item => item.id === id);
+  if (item) {
+    pushState();
+    item.label = label;
+    isDirty = true;
+    renderIncomeTab();
+    renderAdminTab();
+  }
+}
+
+function updateCostItemCost(id, val) {
+  normalizeBlackmagicCosts();
+  const item = DATA.blackmagicCosts.find(item => item.id === id);
+  if (item) {
+    pushState();
+    item.cost = parseInt(val) || 0;
+    isDirty = true;
+    recalculateProjectMetrics();
+    renderIncomeTab();
+    renderAdminTab();
+    renderOverview();
+  }
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS FOR UNDO/REDO
+// ============================================================
+window.addEventListener('keydown', (e) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+  if (cmdKey && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) {
+      redo();
+    } else {
+      undo();
+    }
+  } else if (cmdKey && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    redo();
+  }
+});
