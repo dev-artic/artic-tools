@@ -342,19 +342,13 @@ function calcEpisodeRolePay(roleId, epIndex) {
 
   const result = {};
 
-  if (roleId === 'camera_staff') {
-    // 촬영 스태프는 현장에 참여한 인원별로 무조건 인당 15,000원 고정 지급
-    for (const member of allParticipants) {
-      result[member] = 15000;
-    }
-  } else {
-    // 기획, D.O.P., 편집 카테고리 역할 등은 역할 총 예산(unitCostPerPerson * headcount)을 N분의 1 균등 배분
-    const totalForRole = role.unitCostPerPerson * role.headcount;
-    const perPersonAmount = Math.round(totalForRole / allParticipants.length);
+  // 모든 역할(기획, DOP, 촬영 스태프, 편집 카테고리 등)은
+  // 역할 총 예산(unitCostPerPerson * headcount)을 참여 인원수로 나누어 균등 배분
+  const totalForRole = role.unitCostPerPerson * role.headcount;
+  const perPersonAmount = Math.round(totalForRole / allParticipants.length);
 
-    for (const member of allParticipants) {
-      result[member] = perPersonAmount;
-    }
+  for (const member of allParticipants) {
+    result[member] = perPersonAmount;
   }
 
   return result;
@@ -711,12 +705,8 @@ function renderEpisodeRoleTable() {
     // Per-person amount (from calculation)
     let perPerson = 0;
     if (participants.length > 0 && isApplicable) {
-      if (role.id === 'camera_staff') {
-        perPerson = 15000; // 촬영 스태프는 인당 무조건 15,000원 고정
-      } else {
-        const totalForRole = role.unitCostPerPerson * role.headcount;
-        perPerson = Math.round(totalForRole / participants.length);
-      }
+      const totalForRole = role.unitCostPerPerson * role.headcount;
+      perPerson = Math.round(totalForRole / participants.length);
     }
 
     const tr = document.createElement('tr');
