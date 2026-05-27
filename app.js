@@ -37,6 +37,12 @@ const DEFAULT_DATA = {
     blackmagicCost: 64025,
   },
   members: ['민제', '광규', '경엽', '정호'],
+  credentials: {
+    '민제': '1211',
+    '광규': '1211',
+    '경엽': '0128',
+    '정호': '0000',
+  },
   memberColors: {
     '민제':  'linear-gradient(135deg, #4f8ef7, #7c5ff5)',
     '광규':  'linear-gradient(135deg, #3ecf8e, #22b8e0)',
@@ -341,6 +347,15 @@ function normalizeData() {
     for (const ep of DATA.episodes) {
       if (ep.settled === undefined) ep.settled = ep.paid;
     }
+  }
+  // credentials 정규화: Firestore 문서에 없으면 기본값 설정
+  if (!DATA.credentials) {
+    DATA.credentials = {
+      '민제': '1211',
+      '광규': '1211',
+      '경엽': '0128',
+      '정호': '0000',
+    };
   }
 }
 
@@ -762,6 +777,7 @@ function executeTabSwitch(tabId) {
   if (tabId === 'roles') renderRolesGrid();
   if (tabId === 'income') renderIncomeTab();
   if (tabId === 'admin') renderAdminTab();
+  if (tabId === 'account') renderAccountTab();
 }
 
 function showNavGuardPopup() {
@@ -1830,7 +1846,9 @@ function attemptLogin() {
   }
 
   // 인증
-  if (CREDENTIALS[name] && CREDENTIALS[name] === pw) {
+  // DATA.credentials 우선, 로드 전이면 하드코딩 CREDENTIALS 폴백
+  const creds = (DATA && DATA.credentials) ? DATA.credentials : CREDENTIALS;
+  if (creds[name] && creds[name] === pw) {
     // 성공 — 세션에 저장
     sessionStorage.setItem('artic-auth', name);
     // 버튼 로딩 상태
@@ -1964,7 +1982,9 @@ async function init() {
   renderMemberDetailTable();
   renderRolesGrid();
   renderIncomeTab();
-  if (authed && CREDENTIALS[authed]) {
+  renderAccountTab();
+  const credMap = (DATA && DATA.credentials) ? DATA.credentials : CREDENTIALS;
+  if (authed && credMap[authed]) {
     // 이미 인증된 세션 — 오버레이 즉시 제거
     const overlay = document.getElementById('login-overlay');
     if (overlay) overlay.remove();
@@ -2840,3 +2860,142 @@ window.addEventListener('keydown', (e) => {
     redo();
   }
 });
+
+// ============================================================
+// ACCOUNT TAB
+// ============================================================
+const MEMBER_FULL_NAMES = {
+  '민제': '김민제',
+  '광규': '박광규',
+  '경엽': '조경엽',
+  '정호': '김정호',
+};
+
+function renderAccountTab() {
+  const authed = sessionStorage.getItem('artic-auth');
+  if (!authed) return;
+
+  const fullName = MEMBER_FULL_NAMES[authed] || authed;
+  const isAdminUser = authed === '민제';
+
+  // 아바타 & 이름
+  const avatarEl = document.getElementById('account-avatar');
+  const nameEl = document.getElementById('account-name');
+  const badgeEl = document.getElementById('account-role-badge');
+  if (avatarEl) avatarEl.textContent = fullName[0];
+  if (nameEl) nameEl.textContent = fullName;
+  if (badgeEl) badgeEl.textContent = isAdminUser ? '관리자' : '팀원';
+
+  // 멤버 컬러 배경
+  const color = (DATA.memberColors && DATA.memberColors[authed]) || 'linear-gradient(135deg, #4f8ef7, #7c5ff5)';
+  if (avatarEl) avatarEl.style.background = color;
+
+  // 누적 정산 완료액 (settled: true 회차 합산)
+  const matrix = buildPayMatrix();
+  let settledTotal = 0;
+  for (const ep of DATA.episodes) {
+    if (ep.settled) {
+      settledTotal += matrix[authed][ep.index] || 0;
+    }
+  }
+  // settled PPL 포함 재계산 (calcMemberEpisodePay는 이미 settled PPL 포함)
+  // 위 계산이 이미 정확 (calcMemberEpisodePay → PPL settled 필터 포함)
+
+  const pendingAmount = getMemberToReceive(authed);
+  const upcomingAmount = getMemberUnpaidAccumulated(authed);
+
+  const settledEl = document.getElementById('account-settled');
+  const pendingEl = document.getElementById('account-pending');
+  const upcomingEl = document.getElementById('account-upcoming');
+  if (settledEl) settledEl.textContent = formatKRW(settledTotal);
+  if (pendingEl) pendingEl.textContent = formatKRW(pendingAmount);
+  if (upcomingEl) upcomingEl.textContent = formatKRW(upcomingAmount);
+
+  // 역할 바 차트 (정산 완료 회차 기준)
+  const settledEpIndexes = DATA.episodes.filter(ep => ep.settled).map(ep => ep.index);
+  const totalSettled = settledEpIndexes.length;
+  const roleCounts = {};
+
+  for (const role of DATA.roles) {
+    const part = DATA.participation[role.id];
+    if (!part || !part[authed]) continue;
+    let count = 0;
+    for (const epIdx of settledEpIndexes) {
+      if (part[authed][epIdx]) count++;
+    }
+    if (count > 0) roleCounts[role.name] = count;
+  }
+
+  const sorted = Object.entries(roleCounts).sort((a, b) => b[1] - a[1]);
+  const maxCount = sorted.length > 0 ? sorted[0][1] : 1;
+
+  const chartEl = document.getElementById('account-role-chart');
+  if (chartEl) {
+    if (sorted.length === 0) {
+      chartEl.innerHTML = `<p style="color:var(--text-secondary); padding:12px 0; font-size:0.875rem;">정산 완료된 회차가 없습니다.</p>`;
+    } else {
+      chartEl.innerHTML = sorted.map(([roleName, count], i) => {
+        const pct = Math.round(count / maxCount * 100);
+        const partPct = totalSettled > 0 ? Math.round(count / totalSettled * 100) : 0;
+        return `
+          <div class="role-bar-row" style="animation-delay:${i * 60}ms">
+            <div class="role-bar-label">${roleName}</div>
+            <div class="role-bar-track">
+              <div class="role-bar-fill" style="width:0%" data-target="${pct}"></div>
+            </div>
+            <div class="role-bar-value">${count}회 <span class="role-bar-pct">${partPct}%</span></div>
+          </div>
+        `;
+      }).join('');
+      // 바 애니메이션 트리거
+      requestAnimationFrame(() => {
+        chartEl.querySelectorAll('.role-bar-fill').forEach(bar => {
+          bar.style.transition = 'width 0.7s cubic-bezier(0.4,0,0.2,1)';
+          bar.style.width = bar.dataset.target + '%';
+        });
+      });
+    }
+  }
+}
+
+async function changePassword() {
+  const authed = sessionStorage.getItem('artic-auth');
+  if (!authed) return;
+
+  const currentVal = document.getElementById('pw-current')?.value;
+  const newVal     = document.getElementById('pw-new')?.value;
+  const confirmVal = document.getElementById('pw-confirm')?.value;
+  const msgEl      = document.getElementById('pw-change-msg');
+
+  function showMsg(text, isError) {
+    if (!msgEl) return;
+    msgEl.textContent = text;
+    msgEl.style.display = 'block';
+    msgEl.style.color = isError ? 'var(--error, #f87171)' : 'var(--success, #34d399)';
+    setTimeout(() => { msgEl.style.display = 'none'; }, 3500);
+  }
+
+  const creds = DATA.credentials || {};
+  if (!currentVal || creds[authed] !== currentVal) {
+    showMsg('현재 비밀번호가 올바르지 않습니다.', true);
+    return;
+  }
+  if (!newVal || newVal.length < 4) {
+    showMsg('새 비밀번호는 4자리 숫자여야 합니다.', true);
+    return;
+  }
+  if (newVal !== confirmVal) {
+    showMsg('새 비밀번호가 일치하지 않습니다.', true);
+    return;
+  }
+
+  DATA.credentials[authed] = newVal;
+  await saveData(true); // silent save
+
+  // 입력창 초기화
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+
+  showMsg('비밀번호가 성공적으로 변경되었습니다! ✓', false);
+}

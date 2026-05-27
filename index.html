@@ -15,9 +15,19 @@
   <!-- ============ LOGIN OVERLAY ============ -->
   <div class="login-overlay" id="login-overlay">
     <div class="login-card" id="login-card">
-      <div class="login-logo">
-        <span class="logo-mark">a</span>
-        <div class="logo-text">
+      <div class="login-logo" style="flex-direction:column; align-items:center; gap:12px;">
+        <div class="artic-logo-wrap" style="background:#fff; border-radius:16px; padding:14px 18px; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 12px rgba(0,0,0,0.10);">
+          <svg viewBox="0 0 100 105" width="64" height="67" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="8" r="5" fill="#111"/>
+            <line x1="50" y1="14" x2="10" y2="44" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+            <line x1="50" y1="14" x2="90" y2="44" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+            <line x1="10" y1="44" x2="90" y2="44" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+            <line x1="19" y1="44" x2="19" y2="72" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+            <line x1="81" y1="44" x2="81" y2="72" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+            <text x="50" y="97" text-anchor="middle" font-family="Georgia, serif" font-size="18" fill="#111">artic.</text>
+          </svg>
+        </div>
+        <div class="logo-text" style="text-align:center;">
           <span class="logo-title">artic. PTR</span>
           <span class="logo-sub">Pay Table · Internal</span>
         </div>
@@ -74,8 +84,17 @@
   <!-- Mobile Header -->
   <header class="mobile-header">
     <div class="mobile-header-logo" onclick="switchTab('overview')" style="cursor:pointer; display:flex; align-items:center;">
-      <span class="logo-mark">a</span>
-      <span class="logo-title" style="font-weight:700; font-size:1.1rem; margin-left:8px; color:var(--text-primary);">artic. PTR</span>
+      <div style="background:#fff; border-radius:8px; padding:5px 7px; display:inline-flex; align-items:center; justify-content:center; margin-right:8px;">
+        <svg viewBox="0 0 100 80" width="28" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="8" r="5.5" fill="#111"/>
+          <line x1="50" y1="15" x2="10" y2="44" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="50" y1="15" x2="90" y2="44" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="10" y1="44" x2="90" y2="44" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="20" y1="44" x2="20" y2="72" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="80" y1="44" x2="80" y2="72" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="logo-title" style="font-weight:700; font-size:1.1rem; color:var(--text-primary);">artic. PTR</span>
     </div>
     <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -88,7 +107,16 @@
   <!-- Sidebar Nav -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-logo" onclick="switchTab('overview')" style="cursor:pointer; display:flex; align-items:center; gap:12px; padding:0 20px 24px; border-bottom:1px solid var(--border); margin-bottom:16px;">
-      <span class="logo-mark">a</span>
+      <div style="background:#fff; border-radius:8px; padding:5px 7px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <svg viewBox="0 0 100 80" width="28" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="8" r="5.5" fill="#111"/>
+          <line x1="50" y1="15" x2="10" y2="44" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="50" y1="15" x2="90" y2="44" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="10" y1="44" x2="90" y2="44" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="20" y1="44" x2="20" y2="72" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+          <line x1="80" y1="44" x2="80" y2="72" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+        </svg>
+      </div>
       <div class="logo-text">
         <span class="logo-title">artic. PTR</span>
         <span class="logo-sub">Pay Table</span>
@@ -135,6 +163,11 @@
     </ul>
 
     <div class="sidebar-footer">
+      <!-- 내 계정 메뉴 -->
+      <li class="nav-item" id="nav-account-tab" data-tab="account" onclick="switchTab('account')" style="list-style:none; margin-bottom:8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>내 계정</span>
+      </li>
       <div class="theme-toggle-wrap" style="margin-bottom: 12px; width: 100%;">
         <button class="btn btn-outline" id="btn-theme-toggle" onclick="toggleTheme()" style="width:100%; display:flex; justify-content:center; gap:8px; align-items:center;">
           <svg id="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -559,6 +592,92 @@
           지출 내역 추가
         </button>
       </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 내 계정 ============ -->
+    <section class="tab-section" id="tab-account">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">내 계정</h1>
+          <p class="page-desc">내 정산 현황 및 계정 설정</p>
+        </div>
+      </div>
+
+      <!-- 프로필 + 통계 카드 -->
+      <div class="account-profile-card">
+        <div class="account-avatar-wrap">
+          <div class="account-avatar" id="account-avatar">M</div>
+          <div class="account-name" id="account-name">김민제</div>
+          <div class="account-role-badge" id="account-role-badge">팀원</div>
+        </div>
+        <div class="account-stats-grid">
+          <div class="account-stat-item">
+            <span class="account-stat-label">누적 정산 완료</span>
+            <span class="account-stat-value settled" id="account-settled">₩0</span>
+          </div>
+          <div class="account-stat-divider"></div>
+          <div class="account-stat-item">
+            <span class="account-stat-label">미수금</span>
+            <span class="account-stat-value pending" id="account-pending">₩0</span>
+            <span class="account-stat-sub">입금완료 · 정산대기</span>
+          </div>
+          <div class="account-stat-divider"></div>
+          <div class="account-stat-item">
+            <span class="account-stat-label">향후 수령 예정</span>
+            <span class="account-stat-value upcoming" id="account-upcoming">₩0</span>
+            <span class="account-stat-sub">미입금 회차 기준</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 역할 참여 바 차트 -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header" style="align-items:flex-start;">
+          <div>
+            <h3 class="card-title">역할별 참여 현황</h3>
+            <p class="page-desc" style="margin:4px 0 0;">정산 완료된 회차 기준</p>
+          </div>
+        </div>
+        <div id="account-role-chart" style="padding:8px 0;"></div>
+      </div>
+
+      <!-- 비밀번호 변경 -->
+      <div class="card">
+        <div class="card-header" style="align-items:flex-start; margin-bottom:20px;">
+          <div>
+            <h3 class="card-title">비밀번호 변경</h3>
+            <p class="page-desc" style="margin:4px 0 0;">변경 즉시 다음 로그인부터 적용됩니다</p>
+          </div>
+        </div>
+        <div class="pw-change-form">
+          <div class="pw-change-row">
+            <label class="pw-change-label">현재 비밀번호</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-current" maxlength="4" placeholder="••••"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+            </div>
+          </div>
+          <div class="pw-change-row">
+            <label class="pw-change-label">새 비밀번호</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-new" maxlength="4" placeholder="••••"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+            </div>
+          </div>
+          <div class="pw-change-row">
+            <label class="pw-change-label">새 비밀번호 확인</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-confirm" maxlength="4" placeholder="••••"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+            </div>
+          </div>
+          <div id="pw-change-msg" class="pw-change-msg" style="display:none;"></div>
+          <button class="btn btn-primary" onclick="changePassword()" style="margin-top:8px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            비밀번호 변경
+          </button>
+        </div>
       </div>
     </section>
 
