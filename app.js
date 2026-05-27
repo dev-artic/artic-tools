@@ -461,6 +461,16 @@ async function switchTab(tabId) {
     }
   }
 
+  // 모바일 드로어 메뉴 및 오버레이 닫기
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && sidebar.classList.contains('active')) {
+    sidebar.classList.remove('active');
+  }
+  if (overlay && overlay.classList.contains('active')) {
+    overlay.classList.remove('active');
+  }
+
   document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`tab-${tabId}`).classList.add('active');
@@ -1474,4 +1484,16 @@ function deleteEpisode(epIndex) {
   renderMemberDetailTable();
   renderIncomeTab();
   renderAdminTab();
+}
+
+// ============================================================
+// MOBILE DRAWER TOGGLE HELPER
+// ============================================================
+function toggleMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && overlay) {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  }
 }

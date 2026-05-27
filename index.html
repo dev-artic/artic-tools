@@ -64,6 +64,20 @@
     </div>
   </div>
 
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <div class="mobile-header-logo" onclick="switchTab('overview')" style="cursor:pointer; display:flex; align-items:center;">
+      <span class="logo-mark">a</span>
+      <span class="logo-title" style="font-weight:700; font-size:1.1rem; margin-left:8px; color:var(--text-primary);">artic. PTR</span>
+    </div>
+    <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </header>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
   <!-- Sidebar Nav -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-logo" onclick="switchTab('overview')" style="cursor:pointer; display:flex; align-items:center; gap:12px; padding:0 20px 24px; border-bottom:1px solid var(--border); margin-bottom:16px;">
