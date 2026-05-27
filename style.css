@@ -812,22 +812,23 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    /* Cap width so it never exceeds viewport on very narrow screens */
     width: min(200px, 80vw);
-    height: 100dvh;           /* dynamic viewport height avoids mobile browser bar issues */
+    height: 100dvh;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1000;
-    box-shadow: 10px 0 40px rgba(0,0,0,0.6);
-    overflow-y: auto;         /* allow scrolling inside drawer if content overflows */
-  }
-
-  .sidebar .theme-toggle-wrap {
-    display: none !important;
+    box-shadow: none;            /* 닫혀있을 때 그림자 없음 */
+    overflow-y: auto;
   }
 
   .sidebar.active {
     transform: translateX(0);
+    box-shadow: 10px 0 40px rgba(0,0,0,0.6); /* 열렸을 때만 그림자 */
+  }
+
+  /* 모바일에서 메뉴 축소 버튼 숨김 */
+  .sidebar-toggle-wrap {
+    display: none !important;
   }
 
   /* Override desktop collapse styles inside mobile drawer */
