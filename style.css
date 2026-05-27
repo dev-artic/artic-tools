@@ -881,12 +881,15 @@ body {
 
 /* ===== Mobile Floating Theme Switcher ===== */
 .mobile-theme-floating-btn {
-  display: none;
+  display: none !important;
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
 }
 
 @media (max-width: 1024px) {
   .mobile-theme-floating-btn {
-    display: flex;
+    display: flex !important;
     position: fixed;
     bottom: 16px;
     left: 16px;
