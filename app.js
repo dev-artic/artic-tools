@@ -1748,7 +1748,7 @@ function renderIncomeTab() {
             item.classList.add('status-paid');
             pplStatusHtml = `
               <span class="status-dot blinking-green-dot"></span>
-              <span class="blinking-text-green" style="color:#3ecf8e; font-weight:700; font-size:0.82rem;">입금 완료</span>
+              <span class="blinking-text-green" style="color:#3ecf8e; font-weight:700; font-size:0.82rem;">입금 확인 (정산 예정)</span>
             `;
           } else {
             item.classList.add('status-pending');

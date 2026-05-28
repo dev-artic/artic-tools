@@ -755,7 +755,10 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px; border-radius: var(--radius-sm);
   background: var(--bg-elevated);
+  border: 1px solid transparent;
+  transition: all 0.15s;
 }
+.ppl-item:hover { background: var(--bg-card-hover); }
 .ppl-ep { font-weight: 600; font-size: 0.85rem; }
 .ppl-amount-sm { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 600; color: var(--accent-yellow); }
 .ppl-total-row {
@@ -1724,27 +1727,27 @@ body.light-theme .custom-confirm-popup {
 }
 
 /* ===== Ambient Deposit & Settlement Cards in Income Tab ===== */
-.ep-income-item.status-settled {
+.ep-income-item.status-settled, .ppl-item.status-settled {
   background: rgba(79, 142, 247, 0.08) !important;
   border: 1px solid rgba(79, 142, 247, 0.25) !important;
 }
-.ep-income-item.status-settled:hover {
+.ep-income-item.status-settled:hover, .ppl-item.status-settled:hover {
   background: rgba(79, 142, 247, 0.12) !important;
 }
 
-.ep-income-item.status-paid {
+.ep-income-item.status-paid, .ppl-item.status-paid {
   background: rgba(62, 207, 142, 0.08) !important;
   border: 1px solid rgba(62, 207, 142, 0.25) !important;
 }
-.ep-income-item.status-paid:hover {
+.ep-income-item.status-paid:hover, .ppl-item.status-paid:hover {
   background: rgba(62, 207, 142, 0.12) !important;
 }
 
-.ep-income-item.status-pending {
+.ep-income-item.status-pending, .ppl-item.status-pending {
   background: rgba(255, 255, 255, 0.02) !important;
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
-.ep-income-item.status-pending:hover {
+.ep-income-item.status-pending:hover, .ppl-item.status-pending:hover {
   background: rgba(255, 255, 255, 0.04) !important;
 }
 
