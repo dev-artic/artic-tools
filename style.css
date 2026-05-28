@@ -563,30 +563,30 @@ body {
 
 /* 정산 대기 (Paid by client) */
 .ep-chip.chip-paid {
-  background: rgba(62, 207, 142, 0.04);
-  border-color: rgba(62, 207, 142, 0.2);
-  color: rgba(62, 207, 142, 0.85);
-}
-.ep-chip.chip-paid.active {
-  background: var(--accent-green-dim) !important;
-  border-color: var(--accent-green) !important;
-  color: var(--accent-green) !important;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(62, 207, 142, 0.15);
-}
-
-/* 정산 완료 (Settled by team) */
-.ep-chip.chip-settled {
   background: rgba(79, 142, 247, 0.04);
   border-color: rgba(79, 142, 247, 0.2);
   color: rgba(79, 142, 247, 0.85);
 }
-.ep-chip.chip-settled.active {
+.ep-chip.chip-paid.active {
   background: var(--accent-blue-dim) !important;
   border-color: var(--accent-blue) !important;
   color: var(--accent-blue) !important;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(79, 142, 247, 0.15);
+}
+
+/* 정산 완료 (Settled by team) */
+.ep-chip.chip-settled {
+  background: rgba(62, 207, 142, 0.04);
+  border-color: rgba(62, 207, 142, 0.2);
+  color: rgba(62, 207, 142, 0.85);
+}
+.ep-chip.chip-settled.active {
+  background: var(--accent-green-dim) !important;
+  border-color: var(--accent-green) !important;
+  color: var(--accent-green) !important;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(62, 207, 142, 0.15);
 }
 
 .ep-detail-grid {
@@ -810,6 +810,15 @@ body {
   animation: greenBlink 0.8s infinite alternate;
 }
 .blinking-text-green {
+  animation: greenBlink 0.8s infinite alternate;
+  display: inline-block;
+}
+.blinking-blue-dot {
+  background-color: var(--accent-blue) !important;
+  box-shadow: 0 0 8px var(--accent-blue) !important;
+  animation: greenBlink 0.8s infinite alternate;
+}
+.blinking-text-blue {
   animation: greenBlink 0.8s infinite alternate;
   display: inline-block;
 }
@@ -1808,19 +1817,19 @@ body.light-theme .custom-confirm-popup {
 
 /* ===== Ambient Deposit & Settlement Cards in Income Tab ===== */
 .ep-income-item.status-settled, .ppl-item.status-settled {
-  background: rgba(79, 142, 247, 0.08) !important;
-  border: 1px solid rgba(79, 142, 247, 0.25) !important;
-}
-.ep-income-item.status-settled:hover, .ppl-item.status-settled:hover {
-  background: rgba(79, 142, 247, 0.12) !important;
-}
-
-.ep-income-item.status-paid, .ppl-item.status-paid {
   background: rgba(62, 207, 142, 0.08) !important;
   border: 1px solid rgba(62, 207, 142, 0.25) !important;
 }
-.ep-income-item.status-paid:hover, .ppl-item.status-paid:hover {
+.ep-income-item.status-settled:hover, .ppl-item.status-settled:hover {
   background: rgba(62, 207, 142, 0.12) !important;
+}
+
+.ep-income-item.status-paid, .ppl-item.status-paid {
+  background: rgba(79, 142, 247, 0.08) !important;
+  border: 1px solid rgba(79, 142, 247, 0.25) !important;
+}
+.ep-income-item.status-paid:hover, .ppl-item.status-paid:hover {
+  background: rgba(79, 142, 247, 0.12) !important;
 }
 
 .ep-income-item.status-pending, .ppl-item.status-pending {
