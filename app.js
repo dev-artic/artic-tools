@@ -1310,13 +1310,18 @@ function renderMemberCards() {
         <div class="large-card-metric">
           <div class="member-total-label" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">이번 정산 예정액 (미정산 잔액)</div>
           <div class="large-card-total-wrap">
-            <span class="member-total large" style="color:#4f8ef7">${formatKRW(myToReceive)}</span>
             ${myToReceive > 0 ? `
+              <span class="member-total large" style="color:#4f8ef7">${formatKRW(myToReceive)}</span>
               <div class="settle-pending-badge large" title="클라이언트 입금 완료, 멤버 정산 대기 중">
                 <span class="pulse-dot"></span>
                 정산 예정
               </div>
-            ` : ''}
+            ` : `
+              <span class="member-total large" style="color:var(--text-muted); font-size:1.5rem;">₩0</span>
+              <div class="settle-completed-badge-all" title="현재 대기 중인 미정산 금액이 없습니다.">
+                모든 정산 완료 ✓
+              </div>
+            `}
           </div>
         </div>
         
@@ -1345,8 +1350,15 @@ function renderMemberCards() {
             <div class="member-roles-list mini">${(memberRoleSummary[m] || []).slice(0, 2).join(' · ')}</div>
           </div>
           <div class="mini-metrics-group">
-            <div class="member-total mini" style="color:${titleColor}">${formatKRW(toReceive)}</div>
-            <div class="member-total-label mini">정산 예정액</div>
+            ${toReceive > 0 ? `
+              <div class="member-total mini" style="color:${titleColor}">${formatKRW(toReceive)}</div>
+              <div class="member-total-label mini">정산 예정액</div>
+            ` : `
+              <div class="member-total mini" style="color:var(--text-muted); font-size:0.82rem; font-weight:600; display:inline-flex; align-items:center; gap:4px; justify-content:flex-end;">
+                <span style="font-size:0.75rem; color:#4f8ef7; font-weight:bold;">✓</span> 정산 완료
+              </div>
+              <div class="member-total-label mini" style="color:var(--text-muted); opacity:0.85;">대기 금액 없음</div>
+            `}
           </div>
         </div>
       </div>
