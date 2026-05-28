@@ -952,8 +952,19 @@ function renderEpisodeChips() {
   el.innerHTML = '';
   for (const ep of DATA.episodes) {
     const chip = document.createElement('div');
-    chip.className = `ep-chip ${ep.index === currentEpIndex ? 'active' : ''} ${ep.paid ? 'paid-chip' : ''}`;
-    chip.textContent = ep.label + (ep.paid ? ' ✓' : '');
+    
+    let statusClass = 'chip-pending';
+    let checkMark = '';
+    if (ep.settled) {
+      statusClass = 'chip-settled';
+      checkMark = ' ✓';
+    } else if (ep.paid) {
+      statusClass = 'chip-paid';
+      checkMark = ' ✓';
+    }
+    
+    chip.className = `ep-chip ${ep.index === currentEpIndex ? 'active' : ''} ${statusClass}`;
+    chip.textContent = ep.label + checkMark;
     chip.onclick = () => { currentEpIndex = ep.index; renderEpisodeTab(); };
     el.appendChild(chip);
   }
