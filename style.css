@@ -1072,27 +1072,43 @@ body {
   .nav-guard-popup { width: calc(100vw - 32px); right: 16px; bottom: 16px; }
 }
 
-/* ===== Save Button Premium Success Animation ===== */
-@keyframes saveSuccessPulse {
-  0% {
-    background-color: var(--accent-blue);
-    box-shadow: 0 0 0 0 rgba(79, 142, 247, 0.7);
-  }
-  20% {
-    background-color: var(--accent-green);
-    box-shadow: 0 0 0 12px rgba(62, 207, 142, 0);
-  }
-  100% {
-    background-color: var(--accent-green);
-    box-shadow: 0 0 0 0 rgba(62, 207, 142, 0);
+/* ===== Premium Save Completed Micro-Animation (No Echo) ===== */
+.save-success-icon .cloud-path {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: drawCloud 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.save-success-icon .check-path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  opacity: 0;
+  animation: drawCheck 0.5s ease forwards 0.4s, fadeInCheck 0.5s ease forwards 0.4s;
+}
+
+@keyframes drawCloud {
+  to {
+    stroke-dashoffset: 0;
   }
 }
 
-.btn-save-success-pulse {
-  animation: saveSuccessPulse 2.0s cubic-bezier(0.24, 0, 0.38, 1) forwards !important;
+@keyframes drawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fadeInCheck {
+  to {
+    opacity: 1;
+  }
+}
+
+.btn-save-completed {
   background-color: var(--accent-green) !important;
   border-color: var(--accent-green) !important;
   color: #fff !important;
+  transition: all 0.3s ease !important;
 }
 
 /* Spinner Rotate Animation */

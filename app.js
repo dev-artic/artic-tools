@@ -388,11 +388,17 @@ async function saveData(silent = false) {
     if (!silent) {
       buttons.forEach(btn => {
         btn.disabled = false;
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 6px;"><polyline points="20 6 9 17 4 12"/></svg> 저장 완료`;
-        btn.classList.add('btn-save-success-pulse');
+        btn.innerHTML = `
+          <svg class="save-success-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; vertical-align: middle;">
+            <path class="cloud-path" d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+            <polyline class="check-path" points="9 15 12 18 16 11"></polyline>
+          </svg>
+          저장 완료
+        `;
+        btn.classList.add('btn-save-completed');
         setTimeout(() => {
-          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 저장`;
-          btn.classList.remove('btn-save-success-pulse');
+          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 저장`;
+          btn.classList.remove('btn-save-completed');
         }, 2500);
       });
     }
