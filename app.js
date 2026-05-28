@@ -1309,7 +1309,7 @@ function renderMemberCards() {
       <div class="large-card-body">
         <div class="large-card-metric">
           <div class="member-total-label" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">이번 정산 예정액 (미정산 잔액)</div>
-          <div style="display:flex; align-items:center; gap:12px;">
+          <div class="large-card-total-wrap">
             <span class="member-total large" style="color:#4f8ef7">${formatKRW(myToReceive)}</span>
             ${myToReceive > 0 ? `
               <div class="settle-pending-badge large" title="클라이언트 입금 완료, 멤버 정산 대기 중">

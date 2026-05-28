@@ -708,6 +708,14 @@ body {
   animation: textBlink 1.2s infinite alternate;
   line-height: 1;
   border: 1px solid rgba(245, 158, 11, 0.2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.large-card-total-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .pulse-dot {
@@ -2088,6 +2096,23 @@ body.light-theme .custom-confirm-popup {
   }
   .member-card.my-large-card {
     min-width: unset;
+  }
+}
+
+@media (max-width: 576px) {
+  .large-card-body {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .large-card-total-wrap {
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  .member-total.large {
+    font-size: 1.6rem !important;
+  }
+  .member-card.my-large-card {
+    padding: 20px 20px !important;
   }
 }
 
