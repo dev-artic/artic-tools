@@ -642,14 +642,13 @@ function getMemberToReceive(memberName) {
 }
 
 /**
- * 클라이언트로부터 입금 완료(paid: true)된 회차들에서 멤버가 수령하게 될 누적 수령 예정액 합산
- * (이미 정산된 것 settled: true + 아직 정산 대기 중인 것 settled: false 전부 포함)
+ * 멤버에게 실제로 정산 완료(settled: true)된 회차들의 누적 정산 완료액 합산
  */
 function getMemberAccumulatedReceived(memberName) {
   const matrix = buildPayMatrix();
   let total = 0;
   for (const ep of DATA.episodes) {
-    if (ep.paid) {
+    if (ep.settled) {
       total += matrix[memberName][ep.index] || 0;
     }
   }
@@ -2400,6 +2399,13 @@ function hideCustomConfirm(result) {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('custom-confirm-cancel-btn')?.addEventListener('click', () => hideCustomConfirm(false));
   document.getElementById('custom-confirm-ok-btn')?.addEventListener('click', () => hideCustomConfirm(true));
+
+  // 비밀번호 모달 바깥 클릭 시 닫기
+  document.getElementById('pw-change-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'pw-change-modal') {
+      closePasswordModal();
+    }
+  });
 });
 
 async function deletePplPayment(epIndex, pplId) {
@@ -3013,15 +3019,7 @@ function renderAccountTab() {
   if (avatarEl) avatarEl.style.background = color;
 
   // 누적 정산 완료액 (settled: true 회차 합산)
-  const matrix = buildPayMatrix();
-  let settledTotal = 0;
-  for (const ep of DATA.episodes) {
-    if (ep.settled) {
-      settledTotal += matrix[authed][ep.index] || 0;
-    }
-  }
-  // settled PPL 포함 재계산 (calcMemberEpisodePay는 이미 settled PPL 포함)
-  // 위 계산이 이미 정확 (calcMemberEpisodePay → PPL settled 필터 포함)
+  const settledTotal = getMemberAccumulatedReceived(authed);
 
   const pendingAmount = getMemberToReceive(authed);
   const upcomingAmount = getMemberUnpaidAccumulated(authed);
@@ -3120,4 +3118,33 @@ async function changePassword() {
   document.getElementById('pw-confirm').value = '';
 
   showMsg('비밀번호가 성공적으로 변경되었습니다! ✓', false);
+
+  // 성공 시 1.5초 후 모달 닫기
+  setTimeout(closePasswordModal, 1500);
+}
+
+function openPasswordModal() {
+  const modal = document.getElementById('pw-change-modal');
+  if (!modal) return;
+
+  // 입력 필드 및 메시지 초기화
+  const currentInput = document.getElementById('pw-current');
+  const newInput = document.getElementById('pw-new');
+  const confirmInput = document.getElementById('pw-confirm');
+  const msgEl = document.getElementById('pw-change-msg');
+
+  if (currentInput) currentInput.value = '';
+  if (newInput) newInput.value = '';
+  if (confirmInput) confirmInput.value = '';
+  if (msgEl) {
+    msgEl.style.display = 'none';
+    msgEl.textContent = '';
+  }
+
+  modal.classList.add('show');
+}
+
+function closePasswordModal() {
+  const modal = document.getElementById('pw-change-modal');
+  if (modal) modal.classList.remove('show');
 }

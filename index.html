@@ -141,7 +141,7 @@
 
     <div class="sidebar-footer">
       <!-- 내 계정 메뉴 -->
-      <li class="nav-item" id="nav-account-tab" data-tab="account" onclick="switchTab('account')" style="list-style:none; margin-bottom:8px;">
+      <li class="nav-item" id="nav-account-tab" data-tab="account" onclick="switchTab('account')" style="list-style:none; margin-bottom:8px; justify-content:center;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
         <span>내 계정</span>
       </li>
@@ -574,11 +574,15 @@
 
     <!-- ============ TAB: 내 계정 ============ -->
     <section class="tab-section" id="tab-account">
-      <div class="page-header">
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
         <div>
           <h1 class="page-title">내 계정</h1>
           <p class="page-desc">내 정산 현황 및 계정 설정</p>
         </div>
+        <button class="btn btn-outline" id="btn-open-pw-modal" onclick="openPasswordModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; padding: 8px 16px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>비밀번호 변경</span>
+        </button>
       </div>
 
       <!-- 프로필 + 통계 카드 -->
@@ -617,41 +621,6 @@
           </div>
         </div>
         <div id="account-role-chart" style="padding:8px 0;"></div>
-      </div>
-
-      <!-- 비밀번호 변경 -->
-      <div class="card">
-        <div class="card-header" style="align-items:flex-start; margin-bottom:20px;">
-          <div>
-            <h3 class="card-title">비밀번호 변경</h3>
-            <p class="page-desc" style="margin:4px 0 0;">변경 즉시 다음 로그인부터 적용됩니다</p>
-          </div>
-        </div>
-        <div class="pw-change-form">
-          <div class="pw-change-row">
-            <label class="pw-change-label">현재 비밀번호</label>
-            <div class="pw-wrap">
-              <input type="password" id="pw-current" placeholder="••••"/>
-            </div>
-          </div>
-          <div class="pw-change-row">
-            <label class="pw-change-label">새 비밀번호</label>
-            <div class="pw-wrap">
-              <input type="password" id="pw-new" placeholder="••••"/>
-            </div>
-          </div>
-          <div class="pw-change-row">
-            <label class="pw-change-label">새 비밀번호 확인</label>
-            <div class="pw-wrap">
-              <input type="password" id="pw-confirm" placeholder="••••"/>
-            </div>
-          </div>
-          <div id="pw-change-msg" class="pw-change-msg" style="display:none;"></div>
-          <button class="btn btn-primary" onclick="changePassword()" style="margin-top:8px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            비밀번호 변경
-          </button>
-        </div>
       </div>
     </section>
 
@@ -696,6 +665,49 @@
     <div class="custom-confirm-actions">
       <button class="btn btn-outline btn-sm" id="custom-confirm-cancel-btn">취소</button>
       <button class="btn btn-danger btn-sm" id="custom-confirm-ok-btn">삭제</button>
+    </div>
+  </div>
+
+  <!-- ============ PASSWORD CHANGE MODAL ============ -->
+  <div id="pw-change-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">비밀번호 변경</h3>
+        <button class="modal-close-btn" onclick="closePasswordModal()" title="닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">변경 즉시 다음 로그인부터 적용됩니다</p>
+        <div class="pw-change-form">
+          <div class="pw-change-row">
+            <label class="pw-change-label">현재 비밀번호</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-current" placeholder="••••"/>
+            </div>
+          </div>
+          <div class="pw-change-row">
+            <label class="pw-change-label">새 비밀번호</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-new" placeholder="••••"/>
+            </div>
+          </div>
+          <div class="pw-change-row">
+            <label class="pw-change-label">새 비밀번호 확인</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-confirm" placeholder="••••"/>
+            </div>
+          </div>
+          <div id="pw-change-msg" class="pw-change-msg" style="display:none; margin-top:12px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closePasswordModal()">취소</button>
+        <button class="btn btn-primary btn-sm" onclick="changePassword()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          변경 적용
+        </button>
+      </div>
     </div>
   </div>
 
