@@ -1712,14 +1712,17 @@ function renderIncomeTab() {
       }
 
       item.innerHTML = `
-        <div class="ep-income-ep">${ep.label}</div>
+        <div class="ep-income-ep">
+          <strong>${ep.label}</strong>
+          <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px; font-family:'JetBrains Mono', monospace; font-weight:500;">제작비: ${formatKRW(ep.targetAmount)}</div>
+        </div>
         <div class="ep-income-status">${statusHtml}</div>
       `;
       epList.appendChild(item);
     }
   }
 
-  // PPL list (다차수 분납 렌더링)
+  // PPL list (다차수 분납 렌더링 - 상태 디자인 통일화)
   const pplList = document.getElementById('ppl-list');
   if (pplList) {
     pplList.innerHTML = '';
@@ -1730,24 +1733,39 @@ function renderIncomeTab() {
         for (const p of ep.pplPayments) {
           const item = document.createElement('div');
           item.className = 'ppl-item';
+          item.style.display = 'flex';
+          item.style.justifyContent = 'space-between';
+          item.style.alignItems = 'center';
 
           let pplStatusHtml = '';
           if (p.paid && p.settled) {
-            pplStatusHtml = `<span style="font-size:0.7rem; color:var(--accent); font-weight:700; margin-right:8px;">[정산 완료]</span>`;
+            item.classList.add('status-settled');
+            pplStatusHtml = `
+              <span class="status-dot settled"></span>
+              <span style="color:#4f8ef7; font-weight:700; font-size:0.82rem;">정산 완료</span>
+            `;
           } else if (p.paid) {
-            pplStatusHtml = `<span class="blinking-text-green" style="font-size:0.7rem; color:var(--accent-green); font-weight:700; margin-right:8px;">[입금 완료]</span>`;
+            item.classList.add('status-paid');
+            pplStatusHtml = `
+              <span class="status-dot blinking-green-dot"></span>
+              <span class="blinking-text-green" style="color:#3ecf8e; font-weight:700; font-size:0.82rem;">입금 완료</span>
+            `;
           } else {
-            pplStatusHtml = `<span style="font-size:0.7rem; color:var(--text-muted); margin-right:8px;">[입금 대기]</span>`;
+            item.classList.add('status-pending');
+            pplStatusHtml = `
+              <span class="status-dot pending"></span>
+              <span style="color:var(--text-muted); font-size:0.82rem;">대기 중</span>
+            `;
           }
 
           item.innerHTML = `
             <div class="ppl-ep">
               <strong>${ep.label}</strong>
               <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:6px; font-weight:500;">${p.label}</span>
+              <div class="ppl-amount-sm" style="font-weight:600; margin-top:4px; font-size:0.8rem; color:var(--accent-yellow); font-family:'JetBrains Mono', monospace;">${formatKRW(p.targetAmount)}</div>
             </div>
-            <div style="display:flex; align-items:center;">
+            <div class="ep-income-status" style="display:flex; align-items:center; gap:8px;">
               ${pplStatusHtml}
-              <div class="ppl-amount-sm" style="font-weight:600;">${formatKRW(p.targetAmount)}</div>
             </div>
           `;
           pplList.appendChild(item);
