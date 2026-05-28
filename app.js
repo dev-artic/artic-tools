@@ -1712,13 +1712,13 @@ function renderIncomeTab() {
         item.classList.add('status-settled');
         statusHtml = `
           <span class="status-dot settled"></span>
-          <span style="color:#3ecf8e; font-weight:700;">정산 완료</span>
+          <span style="color:#4f8ef7; font-weight:700;">정산 완료</span>
         `;
       } else if (ep.paid) {
         item.classList.add('status-paid');
         statusHtml = `
-          <span class="status-dot blinking-blue-dot"></span>
-          <span class="blinking-text-blue" style="color:#4f8ef7; font-weight:700;">입금 확인 (정산 예정)</span>
+          <span class="status-dot blinking-green-dot"></span>
+          <span class="blinking-text-green" style="color:#3ecf8e; font-weight:700;">입금 확인 (정산 예정)</span>
         `;
       } else {
         item.classList.add('status-pending');
@@ -1759,13 +1759,13 @@ function renderIncomeTab() {
             item.classList.add('status-settled');
             pplStatusHtml = `
               <span class="status-dot settled"></span>
-              <span style="color:#3ecf8e; font-weight:700; font-size:0.82rem;">정산 완료</span>
+              <span style="color:#4f8ef7; font-weight:700; font-size:0.82rem;">정산 완료</span>
             `;
           } else if (p.paid) {
             item.classList.add('status-paid');
             pplStatusHtml = `
-              <span class="status-dot blinking-blue-dot"></span>
-              <span class="blinking-text-blue" style="color:#4f8ef7; font-weight:700; font-size:0.82rem;">입금 확인 (정산 예정)</span>
+              <span class="status-dot blinking-green-dot"></span>
+              <span class="blinking-text-green" style="color:#3ecf8e; font-weight:700; font-size:0.82rem;">입금 확인 (정산 예정)</span>
             `;
           } else {
             item.classList.add('status-pending');
