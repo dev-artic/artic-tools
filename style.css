@@ -561,32 +561,32 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* 정산 대기 (Paid by client) - 파란색 매핑 */
+/* 정산 대기 (Paid by client) - 초록색 매핑 */
 .ep-chip.chip-paid {
-  background: rgba(79, 142, 247, 0.04);
-  border-color: rgba(79, 142, 247, 0.2);
-  color: rgba(79, 142, 247, 0.85);
-}
-.ep-chip.chip-paid.active {
-  background: var(--accent-blue-dim) !important;
-  border-color: var(--accent-blue) !important;
-  color: var(--accent-blue) !important;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(79, 142, 247, 0.15);
-}
-
-/* 정산 완료 (Settled by team) - 초록색 매핑 */
-.ep-chip.chip-settled {
   background: rgba(62, 207, 142, 0.04);
   border-color: rgba(62, 207, 142, 0.2);
   color: rgba(62, 207, 142, 0.85);
 }
-.ep-chip.chip-settled.active {
+.ep-chip.chip-paid.active {
   background: var(--accent-green-dim) !important;
   border-color: var(--accent-green) !important;
   color: var(--accent-green) !important;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(62, 207, 142, 0.15);
+}
+
+/* 정산 완료 (Settled by team) - 파란색 매핑 */
+.ep-chip.chip-settled {
+  background: rgba(79, 142, 247, 0.04);
+  border-color: rgba(79, 142, 247, 0.2);
+  color: rgba(79, 142, 247, 0.85);
+}
+.ep-chip.chip-settled.active {
+  background: var(--accent-blue-dim) !important;
+  border-color: var(--accent-blue) !important;
+  color: var(--accent-blue) !important;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(79, 142, 247, 0.15);
 }
 
 .ep-detail-grid {

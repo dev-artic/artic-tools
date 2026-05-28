@@ -981,9 +981,9 @@ function renderEpisodeTab() {
   if (labelEl) {
     let badgeHtml = '';
     if (ep.settled) {
-      badgeHtml = `<span class="badge badge-green" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 완료 ✓</span>`;
+      badgeHtml = `<span class="badge badge-blue" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: rgba(79, 142, 247, 0.15); color: #4f8ef7; border: 1px solid rgba(79, 142, 247, 0.25);">정산 완료 ✓</span>`;
     } else if (ep.paid) {
-      badgeHtml = `<span class="badge badge-blue" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: rgba(79, 142, 247, 0.15); color: #4f8ef7; border: 1px solid rgba(79, 142, 247, 0.25);">정산 대기</span>`;
+      badgeHtml = `<span class="badge badge-green" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 대기</span>`;
     } else {
       badgeHtml = `<span class="badge badge-gray" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border); opacity:0.8;">입금 대기</span>`;
     }
