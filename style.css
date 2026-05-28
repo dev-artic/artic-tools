@@ -432,8 +432,9 @@ body {
   border-radius: 100px;
   font-size: 0.72rem; font-weight: 600;
 }
-.ep-dot.settled { background: var(--accent-green-dim); color: var(--accent-green); }
-.ep-dot.paid { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.ep-dot.settled { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.ep-dot.paid { background: var(--accent-green-dim); color: var(--accent-green); }
+.ep-dot.progress { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
 .ep-dot.pending { background: var(--bg-elevated); color: var(--text-muted); }
 
 /* ===== Badges ===== */
@@ -587,6 +588,20 @@ body {
   color: var(--accent-blue) !important;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(79, 142, 247, 0.15);
+}
+
+/* 정산 진행중 (Progressing - has unsettled PPL) - 노란색 매핑 */
+.ep-chip.chip-progress {
+  background: rgba(245, 200, 66, 0.04);
+  border-color: rgba(245, 200, 66, 0.2);
+  color: rgba(245, 200, 66, 0.85);
+}
+.ep-chip.chip-progress.active {
+  background: var(--accent-yellow-dim) !important;
+  border-color: var(--accent-yellow) !important;
+  color: var(--accent-yellow) !important;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(245, 200, 66, 0.15);
 }
 
 .ep-detail-grid {
@@ -797,6 +812,7 @@ body {
 }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; }
 .status-dot.paid { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+.status-dot.progress { background: var(--accent-yellow) !important; box-shadow: 0 0 6px var(--accent-yellow) !important; }
 .status-dot.pending { background: var(--text-muted); }
 .status-dot.settled { background: var(--accent) !important; box-shadow: 0 0 6px var(--accent) !important; }
 

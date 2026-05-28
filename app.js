@@ -268,6 +268,14 @@ function isAdmin() {
   return sessionStorage.getItem('artic-auth') === '민제';
 }
 
+function getEpisodeStatus(ep) {
+  if (!ep.paid) return 'pending';
+  if (!ep.settled) return 'paid';
+  const hasUnsettledPpl = ep.pplPayments && ep.pplPayments.some(p => !p.settled);
+  if (hasUnsettledPpl) return 'progress';
+  return 'settled';
+}
+
 // ============================================================
 // DATA LIFECYCLE (Load & Save & Exit Prevention)
 // ============================================================
@@ -866,12 +874,16 @@ function renderOverview() {
     dotsEl.innerHTML = '';
     for (const ep of DATA.episodes) {
       const dot = document.createElement('div');
+      const status = getEpisodeStatus(ep);
       let statusClass = 'pending';
       let checkIcon = '';
-      if (ep.settled) {
+      if (status === 'settled') {
         statusClass = 'settled';
         checkIcon = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-      } else if (ep.paid) {
+      } else if (status === 'progress') {
+        statusClass = 'progress';
+        checkIcon = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      } else if (status === 'paid') {
         statusClass = 'paid';
         checkIcon = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
       }
@@ -953,12 +965,16 @@ function renderEpisodeChips() {
   for (const ep of DATA.episodes) {
     const chip = document.createElement('div');
     
+    const status = getEpisodeStatus(ep);
     let statusClass = 'chip-pending';
     let checkMark = '';
-    if (ep.settled) {
+    if (status === 'settled') {
       statusClass = 'chip-settled';
       checkMark = ' ✓';
-    } else if (ep.paid) {
+    } else if (status === 'progress') {
+      statusClass = 'chip-progress';
+      checkMark = ' ✓';
+    } else if (status === 'paid') {
       statusClass = 'chip-paid';
       checkMark = ' ✓';
     }
@@ -980,9 +996,12 @@ function renderEpisodeTab() {
   const nextBtn = document.getElementById('ep-next');
   if (labelEl) {
     let badgeHtml = '';
-    if (ep.settled) {
+    const status = getEpisodeStatus(ep);
+    if (status === 'settled') {
       badgeHtml = `<span class="badge badge-blue" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: rgba(79, 142, 247, 0.15); color: #4f8ef7; border: 1px solid rgba(79, 142, 247, 0.25);">정산 완료 ✓</span>`;
-    } else if (ep.paid) {
+    } else if (status === 'progress') {
+      badgeHtml = `<span class="badge badge-yellow" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: rgba(245, 200, 66, 0.15); color: var(--accent-yellow); border: 1px solid rgba(245, 200, 66, 0.25);">정산 진행중</span>`;
+    } else if (status === 'paid') {
       badgeHtml = `<span class="badge badge-green" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default;">정산 대기</span>`;
     } else {
       badgeHtml = `<span class="badge badge-gray" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;vertical-align:middle;cursor:default; background-color: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border); opacity:0.8;">입금 대기</span>`;
@@ -1358,12 +1377,15 @@ function renderMemberDetailTable() {
     if (thead) {
       let headCells = `<tr><th style="vertical-align:middle;">멤버</th>`;
       for (const ep of DATA.episodes) {
+        const status = getEpisodeStatus(ep);
         const statusLabel = ep.index === 0 ? '' : (
-          ep.settled 
+          status === 'settled' 
             ? '<span style="color:#4f8ef7; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">정산완료 ✓</span>' 
-            : (ep.paid 
-                ? '<span style="color:#3ecf8e; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">정산대기</span>' 
-                : '<span style="color:var(--text-muted); font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">입금대기</span>')
+            : (status === 'progress'
+                ? '<span style="color:#f5c842; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">정산 진행중</span>'
+                : (status === 'paid' 
+                    ? '<span style="color:#3ecf8e; font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">정산대기</span>' 
+                    : '<span style="color:var(--text-muted); font-size:0.68rem; display:block; font-weight:normal; margin-top:2px;">입금대기</span>'))
         );
         
         // PPL 정보 표시
@@ -1708,13 +1730,20 @@ function renderIncomeTab() {
       item.className = 'ep-income-item';
 
       let statusHtml = '';
-      if (ep.paid && ep.settled) {
+      const status = getEpisodeStatus(ep);
+      if (status === 'settled') {
         item.classList.add('status-settled');
         statusHtml = `
           <span class="status-dot settled"></span>
           <span style="color:#4f8ef7; font-weight:700;">정산 완료</span>
         `;
-      } else if (ep.paid) {
+      } else if (status === 'progress') {
+        item.classList.add('status-progress');
+        statusHtml = `
+          <span class="status-dot progress"></span>
+          <span style="color:#f5c842; font-weight:700;">정산 진행중</span>
+        `;
+      } else if (status === 'paid') {
         item.classList.add('status-paid');
         statusHtml = `
           <span class="status-dot blinking-green-dot"></span>
