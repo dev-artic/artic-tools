@@ -365,9 +365,101 @@ function normalizeData() {
       '정호': '0000',
     };
   }
+
+  // invoices 정규화 및 자동 시드 생성
+  if (!DATA.invoices) {
+    DATA.invoices = [];
+    if (DATA.episodes) {
+      const matrix = buildPayMatrix();
+      for (const ep of DATA.episodes) {
+        if (ep.settled) {
+          const details = [];
+          let totalAmount = 0;
+          for (const m of DATA.members) {
+            let basePay = 0;
+            for (const role of DATA.roles) {
+              const rolePay = calcEpisodeRolePay(role.id, ep.index);
+              basePay += (rolePay[m] || 0);
+            }
+            const totalPay = matrix[m][ep.index] || 0;
+            const pplPay = totalPay - basePay;
+            details.push({
+              member: m,
+              base: basePay,
+              ppl: pplPay,
+              total: totalPay
+            });
+            totalAmount += totalPay;
+          }
+          
+          let dateStr = '2026-05-27';
+          if (ep.index === 1) dateStr = '2026-05-01';
+          if (ep.index === 2) dateStr = '2026-05-05';
+          if (ep.index === 3) dateStr = '2026-05-10';
+          if (ep.index === 4) dateStr = '2026-05-15';
+          if (ep.index === 5) dateStr = '2026-05-20';
+          if (ep.index === 6) dateStr = '2026-05-25';
+          
+          DATA.invoices.push({
+            id: `INV-${1000 + ep.index}`,
+            episodeIndex: ep.index,
+            episodeLabel: ep.label,
+            date: dateStr,
+            totalAmount: totalAmount,
+            details: details
+          });
+        }
+      }
+    }
+  }
 }
 
 async function saveData(silent = false) {
+  // 자동 인보이스 생성/삭제 트리거
+  if (DATA.episodes && DATA.invoices) {
+    const matrix = buildPayMatrix();
+    for (const ep of DATA.episodes) {
+      if (ep.settled) {
+        const exists = DATA.invoices.some(inv => inv.episodeIndex === ep.index);
+        if (!exists) {
+          const details = [];
+          let totalAmount = 0;
+          for (const m of DATA.members) {
+            let basePay = 0;
+            for (const role of DATA.roles) {
+              const rolePay = calcEpisodeRolePay(role.id, ep.index);
+              basePay += (rolePay[m] || 0);
+            }
+            const totalPay = matrix[m][ep.index] || 0;
+            const pplPay = totalPay - basePay;
+            details.push({
+              member: m,
+              base: basePay,
+              ppl: pplPay,
+              total: totalPay
+            });
+            totalAmount += totalPay;
+          }
+          
+          const todayStr = new Date().toISOString().split('T')[0];
+          DATA.invoices.push({
+            id: `INV-${Date.now().toString().slice(-6)}`,
+            episodeIndex: ep.index,
+            episodeLabel: ep.label,
+            date: todayStr,
+            totalAmount: totalAmount,
+            details: details
+          });
+        }
+      } else {
+        const invIdx = DATA.invoices.findIndex(inv => inv.episodeIndex === ep.index);
+        if (invIdx !== -1) {
+          DATA.invoices.splice(invIdx, 1);
+        }
+      }
+    }
+  }
+
   // localStorage 즉시 업데이트 (빠른 캐시)
   try {
     localStorage.setItem('artic-data', JSON.stringify(DATA));
@@ -2406,6 +2498,13 @@ document.addEventListener('DOMContentLoaded', () => {
       closePasswordModal();
     }
   });
+
+  // 인보이스 모달 바깥 클릭 시 닫기
+  document.getElementById('invoice-view-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'invoice-view-modal') {
+      closeInvoiceModal();
+    }
+  });
 });
 
 async function deletePplPayment(epIndex, pplId) {
@@ -3076,6 +3175,17 @@ function renderAccountTab() {
       });
     }
   }
+
+  // 관리자 전용 정산 인보이스 관리 영역 표시 여부 제어
+  const invoiceSection = document.getElementById('admin-invoice-section');
+  if (invoiceSection) {
+    if (authed === '민제') {
+      invoiceSection.style.display = 'block';
+      renderInvoicesTable();
+    } else {
+      invoiceSection.style.display = 'none';
+    }
+  }
 }
 
 async function changePassword() {
@@ -3147,4 +3257,137 @@ function openPasswordModal() {
 function closePasswordModal() {
   const modal = document.getElementById('pw-change-modal');
   if (modal) modal.classList.remove('show');
+}
+
+/* ===== Admin Invoice Management Functions ===== */
+let currentPrintingInvoiceId = null;
+
+function renderInvoicesTable() {
+  const tbody = document.getElementById('invoice-list-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (!DATA.invoices || DATA.invoices.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" style="padding: 24px;">완료된 정산 인보이스가 없습니다.</td></tr>`;
+    return;
+  }
+  
+  // 최신 인보이스 순으로 정렬
+  const sortedInvs = [...DATA.invoices].sort((a, b) => b.episodeIndex - a.episodeIndex);
+  
+  for (const inv of sortedInvs) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono font-semibold" style="color:var(--accent-purple);">${inv.id}</td>
+      <td><strong>${inv.episodeLabel}</strong></td>
+      <td class="text-muted" style="font-size: 0.82rem;">${inv.date}</td>
+      <td class="text-right font-bold mono">${formatKRW(inv.totalAmount)}</td>
+      <td class="text-center">
+        <button class="btn btn-outline btn-xs" onclick="openInvoiceModal('${inv.id}')" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 4px;">
+          명세서 보기
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function openInvoiceModal(invoiceId) {
+  const inv = DATA.invoices.find(i => i.id === invoiceId);
+  if (!inv) return;
+  
+  currentPrintingInvoiceId = invoiceId;
+  
+  const contentEl = document.getElementById('invoice-slip-content');
+  if (contentEl) {
+    let rowsHtml = '';
+    for (const det of inv.details) {
+      rowsHtml += `
+        <tr>
+          <td><strong>${det.member}</strong></td>
+          <td class="text-right mono">${formatKRW(det.base)}</td>
+          <td class="text-right mono">${formatKRW(det.ppl)}</td>
+          <td class="text-right font-bold mono" style="background:#f8fafc;">${formatKRW(det.total)}</td>
+        </tr>
+      `;
+    }
+    
+    contentEl.innerHTML = `
+      <div class="invoice-slip-header">
+        <div>
+          <div class="invoice-logo-title">artic - PTR PayTable</div>
+          <div class="invoice-logo-sub">아틱 콘텐츠 제작 정산 정합 대시보드</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="invoice-meta-label">Invoice ID</div>
+          <div class="invoice-meta-val" style="color:var(--accent-purple); font-family: monospace;">${inv.id}</div>
+        </div>
+      </div>
+      
+      <div class="invoice-billing-section">
+        <div>
+          <div class="invoice-billing-title">발행인 (Issuer)</div>
+          <div class="invoice-billing-info">
+            <strong>아틱 총괄 관리자 (김민제)</strong><br/>
+            개발 및 정산 감독 부서<br/>
+            artic-ptr-paytable.firebaseapp.com
+          </div>
+        </div>
+        <div>
+          <div class="invoice-billing-title">정산 정보 (Settle Info)</div>
+          <div class="invoice-billing-info">
+            <strong>대상 회차: ${inv.episodeLabel}</strong><br/>
+            발행 일자: ${inv.date}<br/>
+            정산 상태: 지급 완료 (Settled)
+          </div>
+        </div>
+      </div>
+      
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th style="text-align: left;">수령 멤버 (Recipient)</th>
+            <th style="text-align: right;">제작비 역할 페이 (Base)</th>
+            <th style="text-align: right;">PPL 협찬 배분액 (PPL)</th>
+            <th style="text-align: right; background:#f1f5f9;">최종 수령 완료액 (Total)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+          <tr class="grand-total-row">
+            <td colspan="3" style="text-align: right; font-weight: 800;">총 정산 지출액 합계 (Grand Total)</td>
+            <td style="text-align: right; background:#f1f5f9;">${formatKRW(inv.totalAmount)}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div style="margin-top: 50px; font-size: 0.72rem; color: #64748b; line-height: 1.4;">
+        * 본 명세서는 아틱(Artic) 제작회의 합의된 역할별 페이 단가 및 PPL 제작비 비례 정산 산식에 근거하여 자동으로 발행된 고유 정산 명세서입니다.<br/>
+        * 멤버 개별 송금 완료 후 발행된 최종 거래 영수증이므로 세무 증빙 자료로 보존될 수 있습니다.
+      </div>
+      
+      <div class="invoice-seal-area">
+        <div class="invoice-seal-graphic">
+          <div style="text-align:center; line-height: 1.2;">
+            artic<br/>
+            <span style="font-size:0.5rem; font-weight: bold;">송금완료</span><br/>
+            APPROVED
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  const modal = document.getElementById('invoice-view-modal');
+  if (modal) modal.classList.add('show');
+}
+
+function closeInvoiceModal() {
+  const modal = document.getElementById('invoice-view-modal');
+  if (modal) modal.classList.remove('show');
+  currentPrintingInvoiceId = null;
+}
+
+function printInvoice() {
+  window.print();
 }
