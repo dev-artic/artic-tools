@@ -1076,7 +1076,7 @@ function renderEpisodeRoleTable() {
       const hasDop = DATA.participation['dop'] && DATA.participation['dop'][m] && DATA.participation['dop'][m][currentEpIndex];
       const hasStaff = DATA.participation['camera_staff'] && DATA.participation['camera_staff'][m] && DATA.participation['camera_staff'][m][currentEpIndex];
 
-      const isEditable = isAdmin() && ep.paid && !ep.settled;
+      const isEditable = isAdmin() && !ep.settled;
       const extraStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;filter:grayscale(0.3);"';
 
       const staffDisabled = hasDop || !isEditable;
@@ -1163,7 +1163,7 @@ function renderEpisodeRoleTable() {
       const p = DATA.participation[role.id];
       const isChecked = p && p[m] && p[m][currentEpIndex];
       const payAmt = rolePay[m] || 0;
-      const isEditable = isAdmin() && ep.paid && !ep.settled;
+      const isEditable = isAdmin() && !ep.settled;
       const extraStyle = isEditable ? '' : 'style="pointer-events:none;opacity:0.65;cursor:not-allowed;filter:grayscale(0.3);"';
       return `<div class="participant-chip ${isChecked ? 'active' : ''}" ${extraStyle}
                 onclick="toggleParticipation('${role.id}', '${m}', ${currentEpIndex})"
@@ -1205,12 +1205,8 @@ function toggleParticipation(roleId, memberName, epIndex) {
     return;
   }
   const ep = DATA.episodes.find(e => e.index === epIndex);
-  if (ep && (!ep.paid || ep.settled)) {
-    if (!ep.paid) {
-      alert('보코스 입금이 완료된 회차(정산 대기 상태)만 페이 배분을 수정할 수 있습니다.');
-    } else {
-      alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
-    }
+  if (ep && ep.settled) {
+    alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
     return;
   }
   const p = DATA.participation[roleId];
@@ -2741,12 +2737,8 @@ function toggleShootRole(memberName, type, epIndex) {
     return;
   }
   const ep = DATA.episodes.find(e => e.index === epIndex);
-  if (ep && (!ep.paid || ep.settled)) {
-    if (!ep.paid) {
-      alert('보코스 입금이 완료된 회차(정산 대기 상태)만 페이 배분을 수정할 수 있습니다.');
-    } else {
-      alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
-    }
+  if (ep && ep.settled) {
+    alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
     return;
   }
 
