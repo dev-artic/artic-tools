@@ -203,6 +203,31 @@
   visibility: hidden !important;
 }
 
+/* ===== Theme Toggle Smooth Fade Transition ===== */
+body, 
+.sidebar, 
+.main-content, 
+.card, 
+.kpi-card, 
+.nav-item, 
+.btn, 
+.data-table, 
+.data-table td, 
+.admin-input, 
+.login-overlay, 
+.login-card, 
+.mobile-header,
+.ppl-item,
+.ep-income-item {
+  transition: background 0.4s ease, 
+              background-color 0.4s ease, 
+              color 0.4s ease, 
+              border-color 0.4s ease, 
+              box-shadow 0.4s ease, 
+              backdrop-filter 0.4s ease,
+              -webkit-backdrop-filter 0.4s ease;
+}
+
 html { font-size: 15px; }
 body {
   font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
