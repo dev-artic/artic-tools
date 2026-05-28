@@ -2190,3 +2190,22 @@ body.light-theme .custom-confirm-popup {
   .account-stat-value { font-size: 1.3rem; }
   .role-bar-label { width: 70px; font-size: 0.75rem; }
 }
+
+/* ===== Admin Costs Card Drag and Drop Styles ===== */
+.admin-cost-card {
+  cursor: grab;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+}
+.admin-cost-card:active {
+  cursor: grabbing;
+}
+.admin-cost-card.dragging {
+  opacity: 0.4;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4) !important;
+  transform: scale(0.97);
+}
+.admin-cost-card.drag-over {
+  border: 1px dashed var(--accent-blue) !important;
+  transform: scale(1.02);
+  box-shadow: 0 6px 16px rgba(79, 142, 247, 0.15);
+}

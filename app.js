@@ -681,7 +681,7 @@ function getMemberUnpaidAccumulated(memberName) {
 
     if (ep.pplPayments && ep.pplPayments.length > 0) {
       const unpaidPpl = ep.pplPayments
-        .filter(p => !p.settled)
+        .filter(p => !p.paid && !p.settled)
         .reduce((sum, p) => sum + (p.targetAmount || 0), 0);
       total += Math.round(unpaidPpl * ratio);
     }
@@ -2194,7 +2194,7 @@ function renderAdminTab() {
     grid.appendChild(div);
   }
 
-  // 2. 정기 지출 비용 인풋 카드 그리기
+  // 2. 정기 지출 비용 인풋 카드 그리기 (드래그 앤 드롭 정렬 기능 탑재)
   const costsGrid = document.getElementById('admin-costs-grid');
   if (costsGrid) {
     costsGrid.innerHTML = '';
@@ -2203,18 +2203,72 @@ function renderAdminTab() {
     for (const item of DATA.blackmagicCosts) {
       const card = document.createElement('div');
       card.className = 'admin-cost-card';
+      card.setAttribute('draggable', 'true');
+      card.setAttribute('data-id', item.id);
       card.innerHTML = `
         <button class="btn-delete-cost" onclick="deleteCostItem('${item.id}')" title="지출 내역 삭제">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <input type="text" class="admin-cost-label-input" value="${item.label}" onchange="updateCostItemLabel('${item.id}', this.value)" placeholder="월 지출명 입력" />
+          <input type="text" class="admin-cost-label-input" value="${item.label}" onchange="updateCostItemLabel('${item.id}', this.value)" placeholder="월 지출명 입력" style="cursor: text;" />
           <div class="role-field" style="margin-bottom:0;">
             <label>지출액 (원)</label>
-            <input type="text" inputmode="numeric" class="admin-input" value="${Number(item.cost || 0).toLocaleString('ko-KR')}" oninput="formatMonetaryInput(this)" onchange="updateCostItemCost('${item.id}', this.value)" />
+            <input type="text" inputmode="numeric" class="admin-input" value="${Number(item.cost || 0).toLocaleString('ko-KR')}" oninput="formatMonetaryInput(this)" onchange="updateCostItemCost('${item.id}', this.value)" style="cursor: text;" />
           </div>
         </div>
       `;
+
+      // Drag and Drop Event Listeners
+      card.addEventListener('dragstart', (e) => {
+        // 인풋이나 텍스트 박스를 선택하는 동작 시 드래그 방지
+        const target = e.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'BUTTON') {
+          e.preventDefault();
+          return;
+        }
+        card.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', item.id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        document.querySelectorAll('.admin-cost-card').forEach(c => c.classList.remove('drag-over'));
+      });
+
+      card.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        card.classList.add('drag-over');
+      });
+
+      card.addEventListener('dragleave', () => {
+        card.classList.remove('drag-over');
+      });
+
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        card.classList.remove('drag-over');
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const targetId = card.getAttribute('data-id');
+
+        if (draggedId && targetId && draggedId !== targetId) {
+          const draggedIndex = DATA.blackmagicCosts.findIndex(x => x.id === draggedId);
+          const targetIndex = DATA.blackmagicCosts.findIndex(x => x.id === targetId);
+
+          if (draggedIndex !== -1 && targetIndex !== -1) {
+            pushState();
+            const [removed] = DATA.blackmagicCosts.splice(draggedIndex, 1);
+            DATA.blackmagicCosts.splice(targetIndex, 0, removed);
+            isDirty = true;
+            recalculateProjectMetrics();
+            renderAdminTab();
+            renderIncomeTab();
+            renderOverview();
+          }
+        }
+      });
+
       costsGrid.appendChild(card);
     }
   }
