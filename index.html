@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARTIC Workspace Portal</title>
+  <title>Tool Portal | artic.</title>
   
   <!-- Modern Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -177,6 +177,12 @@
       font-weight: 900;
       letter-spacing: 0.08em;
       background: linear-gradient(135deg, #ffffff 30%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    body.light-theme .brand-title {
+      background: linear-gradient(135deg, var(--text-primary) 30%, var(--text-secondary) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -479,7 +485,7 @@
       <div class="brand-wrap">
         <img src="artic-logo-full-ver.svg" alt="ARTIC Logo" class="logo-img">
         <div class="divider"></div>
-        <span class="brand-title">WORKSPACE</span>
+        <span class="brand-title">Tools</span>
       </div>
       
       <!-- Actions Wrap -->
@@ -498,13 +504,6 @@
         </div>
       </div>
     </header>
-    
-    <!-- HERO GREETING -->
-    <section class="hero-section">
-      <div class="welcome-subtitle" id="welcome-subtitle">Good Day</div>
-      <h1 class="welcome-title">아틱 팀 워크스페이스</h1>
-      <p class="welcome-desc">아틱 크루의 창작과 정산을 더 유연하고 완벽하게 만들어줄 생산성 및 협업 도구 보관소입니다.</p>
-    </section>
     
     <!-- LAUNCHER GRID -->
     <main class="launcher-grid">
@@ -614,20 +613,6 @@
       };
       const timeString = now.toLocaleTimeString('ko-KR', options);
       document.getElementById('kst-clock').textContent = `KST ${timeString}`;
-      
-      // Dynamic Greeting subtitle based on KST hours
-      const kstHour = parseInt(timeString.split(':')[0]);
-      let subtitle = "좋은 하루입니다";
-      if (kstHour >= 5 && kstHour < 12) {
-        subtitle = "상쾌한 아침입니다 🌅";
-      } else if (kstHour >= 12 && kstHour < 18) {
-        subtitle = "활기찬 오후입니다 ☀️";
-      } else if (kstHour >= 18 && kstHour < 22) {
-        subtitle = "차분한 저녁입니다 🌙";
-      } else {
-        subtitle = "편안한 밤입니다 ✨";
-      }
-      document.getElementById('welcome-subtitle').textContent = subtitle;
     }
     
     // ===== Theme Switcher Logic =====
