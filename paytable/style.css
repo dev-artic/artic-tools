@@ -52,6 +52,7 @@
 .login-overlay.hide {
   opacity: 0;
   pointer-events: none;
+  transition: none !important;
 }
 
 .login-card {
@@ -65,8 +66,8 @@
   animation: cardIn 0.45s cubic-bezier(.4,0,.2,1);
 }
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(24px) scale(0.97); }
-  to   { opacity: 1; transform: none; }
+  from { transform: translateY(24px) scale(0.97); }
+  to   { transform: none; }
 }
 @keyframes shake {
   0%,100% { transform: translateX(0); }
