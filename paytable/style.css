@@ -66,8 +66,8 @@
   animation: cardIn 0.45s cubic-bezier(.4,0,.2,1);
 }
 @keyframes cardIn {
-  from { transform: translateY(24px) scale(0.97); }
-  to   { transform: none; }
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
 }
 @keyframes shake {
   0%,100% { transform: translateX(0); }
@@ -189,14 +189,16 @@
 
 /* 대시보드 초기 숨김 및 등장 애니메이션 */
 .sidebar, .main-content {
-  transition: transform 1.0s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: opacity 1.0s cubic-bezier(0.16, 1, 0.3, 1), transform 1.0s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 .dashboard-hidden .sidebar {
+  opacity: 0 !important;
   transform: translateX(-40px) !important;
   pointer-events: none !important;
   visibility: hidden !important;
 }
 .dashboard-hidden .main-content {
+  opacity: 0 !important;
   transform: translateY(30px) !important;
   pointer-events: none !important;
   visibility: hidden !important;
@@ -337,7 +339,7 @@ body {
 
 .tab-section { display: none; animation: fadeIn 0.2s ease; }
 .tab-section.active { display: block; }
-@keyframes fadeIn { from { transform:translateY(8px); } to { transform:none; } }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
 
 /* ===== Page Header ===== */
 .page-header {
