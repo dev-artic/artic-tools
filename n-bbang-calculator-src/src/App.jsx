@@ -15,9 +15,19 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const getInitialTheme = () => {
     const saved = localStorage.getItem('artic-theme');
-    if (saved) return saved;
-    const hour = new Date().getHours();
-    return (hour >= 7 && hour < 19) ? 'light' : 'dark';
+    let activeTheme = 'dark';
+    if (saved) {
+      activeTheme = saved;
+    } else {
+      const hour = new Date().getHours();
+      activeTheme = (hour >= 7 && hour < 19) ? 'light' : 'dark';
+    }
+    
+    // Apply classes immediately to avoid initial render flash
+    document.documentElement.classList.toggle('dark', activeTheme === 'dark');
+    document.body.classList.toggle('light-theme', activeTheme === 'light');
+    
+    return activeTheme;
   };
 
   const [theme, setThemeState] = useState(getInitialTheme());

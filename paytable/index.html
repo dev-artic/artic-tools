@@ -12,7 +12,15 @@
   <link rel="stylesheet" href="style.css?v=1.2.2" />
 </head>
 <body class="dashboard-hidden">
-  <script>if(window !== window.top) document.body.classList.add('in-iframe');</script>
+  <script>
+    if (window !== window.top) {
+      document.body.classList.add('in-iframe');
+    }
+    const savedTheme = localStorage.getItem('artic-theme');
+    if (savedTheme === 'light') {
+      document.body.classList.add('light-theme');
+    }
+  </script>
 
   <!-- ============ LOGIN OVERLAY ============ -->
   <div class="login-overlay" id="login-overlay">
