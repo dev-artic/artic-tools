@@ -1024,7 +1024,9 @@ body.light-theme .settle-completed-badge-all {
   }
 
   .clock-widget {
-    padding: 6px 12px !important; /* Compact clock widget on mobile */
+    height: 38px !important;
+    box-sizing: border-box !important;
+    padding: 0 12px !important; /* Compact clock widget on mobile */
     font-size: 0.78rem !important;
     gap: 6px !important;
   }
@@ -3039,7 +3041,9 @@ body.light-theme .logo-img {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
   border-radius: 30px;
-  padding: 8px 18px;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 18px;
   display: flex;
   align-items: center;
   gap: 10px;
