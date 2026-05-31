@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tool Portal | artic.</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   
   <!-- Modern Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,6 +50,11 @@
       flex-direction: column;
       overflow-x: hidden;
       position: relative;
+      transition: background 0.4s ease, color 0.4s ease;
+    }
+    
+    .app-card, .logo-img, .theme-toggle-btn, .clock-widget, .welcome-title {
+      transition: background 0.4s ease, border-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease, filter 0.4s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     
     /* ===== Premium Neon Background Gradients ===== */
@@ -218,6 +224,22 @@
       0% { opacity: 0.4; }
       50% { opacity: 1; }
       100% { opacity: 0.4; }
+    }
+    
+    @keyframes floatUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .animate-fade-up {
+      opacity: 0;
+      animation: floatUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     
     /* ===== Welcome Hero Banner ===== */
@@ -507,7 +529,7 @@
     </header>
     
     <!-- HERO GREETING -->
-    <section class="hero-section">
+    <section class="hero-section animate-fade-up">
       <h1 class="welcome-title">TOOLS</h1>
     </section>
     
@@ -515,7 +537,7 @@
     <main class="launcher-grid">
       
       <!-- APP 1: PTR PAYTABLE -->
-      <a href="paytable/" class="app-card">
+      <a href="paytable/" class="app-card animate-fade-up" style="animation-delay: 0.1s;">
         <div class="app-top">
           <div class="app-icon-wrap">
             <!-- Account / Pay icon SVG -->
@@ -540,7 +562,7 @@
       </a>
       
       <!-- APP 2: N-BBANG CALCULATOR -->
-      <a href="n-bbang-calculator/" class="app-card">
+      <a href="n-bbang-calculator/" class="app-card animate-fade-up" style="animation-delay: 0.2s;">
         <div class="app-top">
           <div class="app-icon-wrap">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -566,7 +588,7 @@
       </a>
       
       <!-- APP 3: EQUIPMENT BOOKING -->
-      <div class="app-card disabled">
+      <div class="app-card disabled animate-fade-up" style="animation-delay: 0.3s;">
         <div class="app-top">
           <div class="app-icon-wrap" style="color: var(--text-muted);">
             <!-- Camera SVG -->
