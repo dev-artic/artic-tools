@@ -138,7 +138,7 @@ export default function App() {
         <div className="bg-blue-600 p-5 text-white flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <Receipt size={28} />
-            <h1 className="text-xl font-bold">깔끔한 N빵 정산기</h1>
+            <h1 className="text-xl font-bold">깔끔한 TNT 정산기</h1>
           </div>
           
           <div className="flex items-center justify-between text-xs font-medium text-blue-200 px-2">
