@@ -2908,7 +2908,7 @@ body.light-theme .modal-container {
   justify-content: flex-end;
   align-items: center;
   padding: 0 24px;
-  z-index: 999;
+  z-index: 10005;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
