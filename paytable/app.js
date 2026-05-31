@@ -2893,8 +2893,14 @@ function toggleShootRole(memberName, type, epIndex) {
 // THEME SWITCHER LOGIC
 // ============================================================
 function initTheme() {
-  const savedTheme = localStorage.getItem('artic-theme') || 'dark';
-  setTheme(savedTheme);
+  const savedTheme = localStorage.getItem('artic-theme');
+  if (savedTheme) {
+    setTheme(savedTheme);
+  } else {
+    const currentHour = new Date().getHours();
+    const defaultTheme = (currentHour >= 7 && currentHour < 19) ? 'light' : 'dark';
+    setTheme(defaultTheme);
+  }
 }
 
 function setTheme(theme) {

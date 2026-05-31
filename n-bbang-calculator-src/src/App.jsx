@@ -13,7 +13,14 @@ export default function App() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [theme, setThemeState] = useState(localStorage.getItem('artic-theme') || 'dark');
+  const getInitialTheme = () => {
+    const saved = localStorage.getItem('artic-theme');
+    if (saved) return saved;
+    const hour = new Date().getHours();
+    return (hour >= 7 && hour < 19) ? 'light' : 'dark';
+  };
+
+  const [theme, setThemeState] = useState(getInitialTheme());
 
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
@@ -24,10 +31,17 @@ export default function App() {
   };
 
   React.useEffect(() => {
-    const savedTheme = localStorage.getItem('artic-theme') || 'dark';
-    setThemeState(savedTheme);
-    document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-    document.body.classList.toggle('light-theme', savedTheme === 'light');
+    const savedTheme = localStorage.getItem('artic-theme');
+    let activeTheme = 'dark';
+    if (savedTheme) {
+      activeTheme = savedTheme;
+    } else {
+      const hour = new Date().getHours();
+      activeTheme = (hour >= 7 && hour < 19) ? 'light' : 'dark';
+    }
+    setThemeState(activeTheme);
+    document.documentElement.classList.toggle('dark', activeTheme === 'dark');
+    document.body.classList.toggle('light-theme', activeTheme === 'light');
     
     const updateClock = () => {
       const now = new Date();
