@@ -1015,6 +1015,20 @@ body.light-theme .settle-completed-badge-all {
     display: none !important;
   }
 
+  .portal-header {
+    padding: 0 12px !important; /* Push clock, light button and menu toggle closer to the right edge */
+  }
+
+  .header-actions-wrap {
+    gap: 8px !important; /* Decrease gap on mobile to save space */
+  }
+
+  .clock-widget {
+    padding: 6px 12px !important; /* Compact clock widget on mobile */
+    font-size: 0.78rem !important;
+    gap: 6px !important;
+  }
+
   :root {
     --sidebar-w: 0px !important;
   }
@@ -2964,6 +2978,12 @@ body.light-theme .portal-header {
 
 .portal-header > * {
   pointer-events: auto;
+}
+
+.header-actions-wrap {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .brand-wrap {
