@@ -6,6 +6,11 @@
     <title>TNT 정산기</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script>
+      if (window === window.top) {
+        window.location.replace('../#n-bbang-calculator');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

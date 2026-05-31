@@ -908,8 +908,8 @@
         iframe.src = url;
       }
       
-      // Push history state
-      history.pushState({ app: currentApp }, '', url);
+      // Push history state using hash routing to keep shell on reload
+      history.pushState({ app: currentApp }, '', '#' + currentApp);
       
       updateHeaderState();
     }
@@ -992,12 +992,13 @@
       }
     }
 
-    // Check initial path on load to support direct deep links
+    // Check initial path on load to support direct deep links and hash routing
     function checkInitialPath() {
       const path = window.location.pathname;
-      if (path.includes('/paytable/')) {
+      const hash = window.location.hash;
+      if (path.includes('/paytable/') || hash.includes('paytable')) {
         openApp(null, 'paytable/');
-      } else if (path.includes('/n-bbang-calculator/')) {
+      } else if (path.includes('/n-bbang-calculator/') || hash.includes('n-bbang-calculator')) {
         openApp(null, 'n-bbang-calculator/');
       }
     }

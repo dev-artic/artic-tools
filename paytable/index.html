@@ -13,7 +13,9 @@
 </head>
 <body class="dashboard-hidden">
   <script>
-    if (window !== window.top) {
+    if (window === window.top) {
+      window.location.replace('../#paytable');
+    } else {
       document.body.classList.add('in-iframe');
     }
     const savedTheme = localStorage.getItem('artic-theme');
