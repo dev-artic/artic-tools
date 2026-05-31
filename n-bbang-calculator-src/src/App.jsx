@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Receipt, ArrowRight, RotateCcw, Calculator, Users, CreditCard, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, Receipt, ArrowRight, RotateCcw, Calculator, Users, CreditCard, ChevronRight, ChevronLeft, Share, Check, Download } from 'lucide-react';
 
 export default function App() {
   const [step, setStep] = useState(1);
@@ -12,6 +12,55 @@ export default function App() {
   ]);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const copyScreenshot = async () => {
+    const element = document.getElementById('screenshot-target');
+    if (!element) return;
+    
+    setCopied('loading');
+    
+    try {
+      const canvas = await window.html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          alert('이미지 생성에 실패했습니다.');
+          setCopied(false);
+          return;
+        }
+        
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              [blob.type]: blob
+            })
+          ]);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        } catch (clipboardErr) {
+          console.warn('Clipboard copy failed, downloading fallback:', clipboardErr);
+          
+          const link = document.createElement('a');
+          link.download = 'TNT-정산결과.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          
+          setCopied('fallback');
+          setTimeout(() => setCopied(false), 3000);
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error('Screenshot failed:', err);
+      alert('정산 결과를 이미지로 만드는 중 오류가 발생했습니다.');
+      setCopied(false);
+    }
+  };
 
   const addMember = () => setMembers([...members, { id: Date.now(), name: '' }]);
   
@@ -267,48 +316,97 @@ export default function App() {
           {/* [STEP 3] 결과 화면 */}
           {step === 3 && results && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <h3 className="text-sm font-bold text-gray-500 mb-3 text-center">정산 요약</h3>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">총 지출액 ({results.memberCount}명)</span>
-                  <span className="font-bold text-lg">{Math.round(results.total).toLocaleString()}원</span>
-                </div>
-                <div className="flex justify-between items-center text-blue-600">
-                  <span className="font-medium">1인당 부담액</span>
-                  <span className="font-bold text-xl">{Math.round(results.average).toLocaleString()}원</span>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-gray-500 mb-3 text-center">💸 최종 송금 내역</h3>
-                {results.transfers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
-                    모두가 정확히 같은 금액을 지출했습니다.<br/>송금할 필요가 없어요! 🎉
+              
+              {/* Screenshot Target Card */}
+              <div id="screenshot-target" className="bg-white p-4 rounded-xl border border-gray-100 space-y-5">
+                <div className="border-b border-gray-100 pb-3 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="text-blue-600" size={20} />
+                    <span className="font-bold text-gray-800 text-sm">TNT 정산 결과서</span>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {results.transfers.map((transfer, idx) => (
-                      <div key={idx} className="bg-white border border-blue-100 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded-full text-sm">{transfer.sender}</span>
-                          <ArrowRight size={16} className="text-blue-400" />
-                          <span className="font-bold text-gray-800 bg-blue-50 px-3 py-1 rounded-full text-sm">{transfer.receiver}</span>
+                  <span className="text-xs text-gray-400 font-medium">발행일: {new Date().toLocaleDateString('ko-KR')}</span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <h3 className="text-xs font-bold text-gray-400 mb-3 text-center uppercase tracking-wide">정산 요약</h3>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600 text-sm">총 지출액 ({results.memberCount}명)</span>
+                    <span className="font-bold text-base text-gray-800">{Math.round(results.total).toLocaleString()}원</span>
+                  </div>
+                  <div className="flex justify-between items-center text-blue-600">
+                    <span className="font-bold text-sm">1인당 부담액</span>
+                    <span className="font-black text-lg">{Math.round(results.average).toLocaleString()}원</span>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-bold text-gray-400 mb-3 text-center uppercase tracking-wide">💸 최종 송금 내역</h3>
+                  {results.transfers.length === 0 ? (
+                    <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-xl text-xs">
+                      모두가 정확히 같은 금액을 지출했습니다.<br/>송금할 필요가 없어요! 🎉
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {results.transfers.map((transfer, idx) => (
+                        <div key={idx} className="bg-white border border-blue-50 p-3 rounded-xl flex items-center justify-between shadow-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md text-xs">{transfer.sender}</span>
+                            <ArrowRight size={14} className="text-blue-400" />
+                            <span className="font-bold text-gray-700 bg-blue-50 px-2 py-0.5 rounded-md text-xs">{transfer.receiver}</span>
+                          </div>
+                          <div className="font-bold text-blue-600 text-sm">{Math.round(transfer.amount).toLocaleString()}원</div>
                         </div>
-                        <div className="font-bold text-blue-600">{Math.round(transfer.amount).toLocaleString()}원</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex gap-3 mt-4">
-                <button onClick={() => setStep(2)} className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-200">
-                  <ChevronLeft size={20} /> 지출 수정
+              {/* Action Buttons */}
+              <div className="space-y-3 mt-6">
+                <button 
+                  onClick={copyScreenshot}
+                  disabled={copied === 'loading'}
+                  className={`w-full py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-md transition-all outline-none ${
+                    copied === 'loading'
+                      ? 'bg-blue-400 text-white cursor-wait'
+                      : copied === true
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : copied === 'fallback'
+                      ? 'bg-amber-600 text-white hover:bg-amber-700'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {copied === 'loading' ? (
+                    <>이미지 생성 중...</>
+                  ) : copied === true ? (
+                    <>
+                      <Check size={20} />
+                      클립보드 이미지 복사 완료!
+                    </>
+                  ) : copied === 'fallback' ? (
+                    <>
+                      <Download size={20} />
+                      기기에 정산서(PNG) 저장 완료!
+                    </>
+                  ) : (
+                    <>
+                      <Share size={20} />
+                      정산 결과 화면 이미지 복사 (공유)
+                    </>
+                  )}
                 </button>
-                <button onClick={reset} className="flex-[2] bg-gray-800 text-white py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-900">
-                  <RotateCcw size={20} /> 처음부터 다시하기
-                </button>
+
+                <div className="flex gap-3">
+                  <button onClick={() => setStep(2)} className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-200">
+                    <ChevronLeft size={20} /> 지출 수정
+                  </button>
+                  <button onClick={reset} className="flex-[2] bg-gray-800 text-white py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-900">
+                    <RotateCcw size={20} /> 처음부터 다시하기
+                  </button>
+                </div>
               </div>
+
             </div>
           )}
         </div>
