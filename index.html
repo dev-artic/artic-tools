@@ -520,7 +520,47 @@
     .footer-links a:hover {
       color: var(--text-secondary);
     }
-        /* ===== Responsive Adjustments ===== */
+
+    /* ===== SPA View & Iframe styles ===== */
+    .view-content {
+      display: none;
+      width: 100%;
+      flex: 1;
+      flex-direction: column;
+    }
+    .view-content.active {
+      display: flex;
+    }
+    .app-iframe {
+      width: 100%;
+      height: 100vh;
+      border: none;
+      background: transparent;
+      outline: none;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    #iframe-view {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+    }
+    body.app-active {
+      overflow: hidden;
+    }
+    body.sidebar-active .portal-header {
+      z-index: 0 !important;
+    }
+
+    /* ===== Mobile Menu Hamburger Button (Base) ===== */
+    .mobile-menu-toggle {
+      display: none;
+    }
+
+    /* ===== Responsive Adjustments ===== */
     @media (max-width: 768px) {
       .bg-glow-1 {
         width: 100%;
@@ -552,10 +592,45 @@
         font-size: 0.78rem !important;
         gap: 6px !important;
       }
-      .logo-img {
-        height: 20px;
-        margin: 8px 12px 8px 0;
+      
+      @keyframes revealHamburger {
+        0% { width: 0; opacity: 0; transform: scale(0); margin-left: -8px; }
+        100% { width: 38px; opacity: 1; transform: scale(1); margin-left: 0; }
       }
+      .mobile-menu-toggle.visible {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: all 0.4s ease;
+        outline: none;
+        padding: 0;
+        animation: revealHamburger 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        transform-origin: right center;
+        overflow: hidden;
+      }
+      .mobile-menu-toggle.visible:hover {
+        border-color: var(--border-hover);
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      body.light-theme .mobile-menu-toggle.visible {
+        background: rgba(15, 23, 42, 0.03);
+        border-color: rgba(15, 23, 42, 0.08);
+      }
+      body.light-theme .mobile-menu-toggle.visible:hover {
+        background: rgba(15, 23, 42, 0.06);
+        border-color: rgba(29, 78, 216, 0.35);
+      }
+
       .welcome-title {
         font-size: 2.8rem;
         line-height: 1.1;
@@ -585,7 +660,7 @@
   
   <!-- HEADER -->
   <header class="portal-header">
-    <div class="brand-wrap" onclick="location.reload()" style="cursor:pointer;">
+    <div class="brand-wrap" id="global-logo" onclick="goToHome(event)" style="cursor:pointer;">
       <img src="artic-logo-full-ver.svg" alt="ARTIC Logo" class="logo-img">
     </div>
     
@@ -603,112 +678,127 @@
         <div class="clock-dot"></div>
         <span id="kst-clock">KST --:--:--</span>
       </div>
+
+      <!-- Global Mobile Hamburger Button -->
+      <button class="mobile-menu-toggle" id="global-hamburger" onclick="toggleIframeSidebar()" title="메뉴 열기">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
   </header>
 
-  <div class="portal-container">
-    
-    
-    <!-- HERO GREETING -->
-    <section class="hero-section animate-fade-up">
-      <h1 class="welcome-title">TOOLS</h1>
-    </section>
-    
-    <!-- LAUNCHER GRID -->
-    <main class="launcher-grid">
+  <!-- HOME VIEW CONTAINER -->
+  <div id="home-view" class="view-content active">
+    <div class="portal-container">
       
-      <!-- APP 1: PTR PAYTABLE -->
-      <a href="paytable/" class="app-card animate-fade-up" style="animation-delay: 0.1s;">
-        <div class="app-top">
-          <div class="app-icon-wrap">
-            <!-- Account / Pay icon SVG -->
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+      <!-- HERO GREETING -->
+      <section class="hero-section animate-fade-up">
+        <h1 class="welcome-title">TOOLS</h1>
+      </section>
+      
+      <!-- LAUNCHER GRID -->
+      <main class="launcher-grid">
+        
+        <!-- APP 1: PTR PAYTABLE -->
+        <a href="paytable/" onclick="openApp(event, 'paytable/')" class="app-card animate-fade-up" style="animation-delay: 0.1s;">
+          <div class="app-top">
+            <div class="app-icon-wrap">
+              <!-- Account / Pay icon SVG -->
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <span class="status-badge active">운영 중</span>
+          </div>
+          <div class="app-info">
+            <h2 class="app-title">PTR PayTable</h2>
+            <p class="app-desc">회차별 외주 제작비 정산 비율 및 PPL 협찬 배분액을 정밀 계산하고, 영수증 명세 슬립과 PDF 인보이스를 발행 및 추적합니다.</p>
+          </div>
+          <div class="app-action">
+            <span>대시보드 열기</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
             </svg>
           </div>
-          <span class="status-badge active">운영 중</span>
-        </div>
-        <div class="app-info">
-          <h2 class="app-title">PTR PayTable</h2>
-          <p class="app-desc">회차별 외주 제작비 정산 비율 및 PPL 협찬 배분액을 정밀 계산하고, 영수증 명세 슬립과 PDF 인보이스를 발행 및 추적합니다.</p>
-        </div>
-        <div class="app-action">
-          <span>대시보드 열기</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </div>
-      </a>
-      
-      <!-- APP 2: N-BBANG CALCULATOR -->
-      <a href="n-bbang-calculator/" class="app-card animate-fade-up" style="animation-delay: 0.2s;">
-        <div class="app-top">
-          <div class="app-icon-wrap">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-              <line x1="8" y1="14" x2="16" y2="14"></line>
-              <line x1="8" y1="10" x2="16" y2="10"></line>
-              <line x1="8" y1="6" x2="16" y2="6"></line>
+        </a>
+        
+        <!-- APP 2: N-BBANG CALCULATOR -->
+        <a href="n-bbang-calculator/" onclick="openApp(event, 'n-bbang-calculator/')" class="app-card animate-fade-up" style="animation-delay: 0.2s;">
+          <div class="app-top">
+            <div class="app-icon-wrap">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <line x1="8" y1="14" x2="16" y2="14"></line>
+                <line x1="8" y1="10" x2="16" y2="10"></line>
+                <line x1="8" y1="6" x2="16" y2="6"></line>
+              </svg>
+            </div>
+            <span class="status-badge active">운영 중</span>
+          </div>
+          <div class="app-info">
+            <h2 class="app-title">TNT 정산기</h2>
+            <p class="app-desc">TNT 크루 활동 정산을 위해 결제 내역과 멤버를 입력하면 자동으로 각 1인 부담액과 최종 송금 명세를 정밀 계산합니다.</p>
+          </div>
+          <div class="app-action">
+            <span>정산기 열기</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
             </svg>
           </div>
-          <span class="status-badge active">운영 중</span>
-        </div>
-        <div class="app-info">
-          <h2 class="app-title">TNT 정산기</h2>
-          <p class="app-desc">TNT 크루 활동 정산을 위해 결제 내역과 멤버를 입력하면 자동으로 각 1인 부담액과 최종 송금 명세를 정밀 계산합니다.</p>
-        </div>
-        <div class="app-action">
-          <span>정산기 열기</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </div>
-      </a>
-      
-      <!-- APP 3: EQUIPMENT BOOKING -->
-      <div class="app-card disabled animate-fade-up" style="animation-delay: 0.3s;">
-        <div class="app-top">
-          <div class="app-icon-wrap" style="color: var(--text-muted);">
-            <!-- Camera SVG -->
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-              <circle cx="12" cy="13" r="4"></circle>
+        </a>
+        
+        <!-- APP 3: EQUIPMENT BOOKING -->
+        <div class="app-card disabled animate-fade-up" style="animation-delay: 0.3s;">
+          <div class="app-top">
+            <div class="app-icon-wrap" style="color: var(--text-muted);">
+              <!-- Camera SVG -->
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+            <span class="status-badge pending">준비 중</span>
+          </div>
+          <div class="app-info">
+            <h2 class="app-title">Camera & Studio Rental</h2>
+            <p class="app-desc">촬영용 바디, 시네 렌즈, 무선 마이크 세트 및 메인 스튜디오 대여 상황을 실시간 트래킹하여 촬영 딜레이를 예방합니다.</p>
+          </div>
+          <div class="app-action">
+            <span>서비스 준비 중</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
           </div>
-          <span class="status-badge pending">준비 중</span>
         </div>
-        <div class="app-info">
-          <h2 class="app-title">Camera & Studio Rental</h2>
-          <p class="app-desc">촬영용 바디, 시네 렌즈, 무선 마이크 세트 및 메인 스튜디오 대여 상황을 실시간 트래킹하여 촬영 딜레이를 예방합니다.</p>
-        </div>
-        <div class="app-action">
-          <span>서비스 준비 중</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-        </div>
-      </div>
+        
+      </main>
       
-    </main>
-    
-    <!-- FOOTER -->
-    <footer class="portal-footer">
-      <span>&copy; 2026 ARTIC. All rights reserved.</span>
-      <div class="footer-links">
-        <a href="https://github.com/dev-artic/artic-ptr-paytable" target="_blank">Repository</a>
-        <span>&bull;</span>
-        <span>Internal Crew Hub</span>
-      </div>
-    </footer>
-    
+      <!-- FOOTER -->
+      <footer class="portal-footer">
+        <span>&copy; 2026 ARTIC. All rights reserved.</span>
+        <div class="footer-links">
+          <a href="https://github.com/dev-artic/artic-ptr-paytable" target="_blank">Repository</a>
+          <span>&bull;</span>
+          <span>Internal Crew Hub</span>
+        </div>
+      </footer>
+      
+    </div>
+  </div>
+
+  <!-- IFRAME VIEW CONTAINER -->
+  <div id="iframe-view" class="view-content">
+    <iframe id="app-iframe" class="app-iframe" name="app-iframe"></iframe>
   </div>
   
-  <!-- JavaScript for Live Clock Widget & dynamic greetings -->
+  <!-- JavaScript for SPA shell & synchronization -->
   <script>
+    let currentApp = 'home';
+    let isLoggedIn = false;
+
     function updateClock() {
       const now = new Date();
       
@@ -721,7 +811,8 @@
         hour12: false
       };
       const timeString = now.toLocaleTimeString('ko-KR', options);
-      document.getElementById('kst-clock').textContent = `KST ${timeString}`;
+      const clockEl = document.getElementById('kst-clock');
+      if (clockEl) clockEl.textContent = `KST ${timeString}`;
     }
     
     // ===== Theme Switcher Logic =====
@@ -750,11 +841,140 @@
         }
       }
       localStorage.setItem('artic-theme', theme);
+      
+      // Synchronize theme to iframe if present
+      const iframe = document.getElementById('app-iframe');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'SET_THEME', theme }, '*');
+      }
     }
     
     function toggleTheme() {
       const isLight = document.body.classList.contains('light-theme');
       setTheme(isLight ? 'dark' : 'light');
+    }
+    
+    // ===== SPA Shell Router =====
+    function updateHeaderState() {
+      const brandLogo = document.getElementById('global-logo');
+      const hamburger = document.getElementById('global-hamburger');
+      
+      if (currentApp === 'paytable' && isLoggedIn) {
+        brandLogo.style.display = 'none';
+        hamburger.classList.add('visible');
+      } else {
+        brandLogo.style.display = 'flex';
+        hamburger.classList.remove('visible');
+      }
+    }
+
+    function openApp(event, url) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      
+      currentApp = url.replace('/', '');
+      isLoggedIn = false; // Reset authentication state on first load
+      
+      const homeView = document.getElementById('home-view');
+      const iframeView = document.getElementById('iframe-view');
+      const iframe = document.getElementById('app-iframe');
+      
+      homeView.classList.remove('active');
+      iframeView.classList.add('active');
+      document.body.classList.add('app-active');
+      
+      // Prevent double load, only set src if different
+      const fullUrl = window.location.origin + window.location.pathname + url;
+      if (iframe.src !== fullUrl) {
+        iframe.src = url;
+      }
+      
+      // Push history state
+      history.pushState({ app: currentApp }, '', url);
+      
+      updateHeaderState();
+    }
+    
+    function goToHome(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      
+      currentApp = 'home';
+      isLoggedIn = false;
+      
+      const homeView = document.getElementById('home-view');
+      const iframeView = document.getElementById('iframe-view');
+      const iframe = document.getElementById('app-iframe');
+      
+      iframeView.classList.remove('active');
+      homeView.classList.add('active');
+      document.body.classList.remove('app-active');
+      
+      // Clear iframe content (garbage collection)
+      iframe.src = 'about:blank';
+      
+      // Push history state
+      const homeUrl = window.location.origin + window.location.pathname;
+      history.pushState({ app: 'home' }, '', homeUrl);
+      
+      updateHeaderState();
+    }
+    
+    function toggleIframeSidebar() {
+      const iframe = document.getElementById('app-iframe');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'TOGGLE_SIDEBAR' }, '*');
+      }
+    }
+    
+    // Handle Browser popstate (Back/Forward navigation)
+    window.addEventListener('popstate', (event) => {
+      const state = event.state;
+      if (state && state.app) {
+        if (state.app === 'home') {
+          goToHome();
+        } else if (state.app === 'paytable') {
+          openApp(null, 'paytable/');
+        } else if (state.app === 'calculator' || state.app === 'n-bbang-calculator') {
+          openApp(null, 'n-bbang-calculator/');
+        }
+      } else {
+        // Fallback to Home
+        goToHome();
+      }
+    });
+    
+    // Listen to Iframe synchronization triggers
+    window.addEventListener('message', (event) => {
+      if (event.data) {
+        if (event.data.type === 'LOGIN_SUCCESS') {
+          isLoggedIn = true;
+          updateHeaderState();
+        } else if (event.data.type === 'LOGOUT') {
+          isLoggedIn = false;
+          updateHeaderState();
+        } else if (event.data.type === 'SIDEBAR_STATE') {
+          if (event.data.active) {
+            document.body.classList.add('sidebar-active');
+          } else {
+            document.body.classList.remove('sidebar-active');
+          }
+        }
+      }
+    });
+
+    // Check initial path on load to support direct deep links
+    function checkInitialPath() {
+      const path = window.location.pathname;
+      if (path.includes('/paytable/')) {
+        openApp(null, 'paytable/');
+      } else if (path.includes('/n-bbang-calculator/')) {
+        openApp(null, 'n-bbang-calculator/');
+      }
     }
     
     // Run clock immediately and then every second
@@ -763,6 +983,9 @@
     
     // Initialize theme on load
     initTheme();
+    
+    // Check path on load
+    checkInitialPath();
   </script>
 </body>
 </html>

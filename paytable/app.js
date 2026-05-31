@@ -2022,6 +2022,9 @@ function attemptLogin() {
       const overlay = document.getElementById('login-overlay');
       overlay.classList.add('hide');
       document.body.classList.remove('dashboard-hidden');
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'LOGIN_SUCCESS' }, '*');
+      }
       init(); // 대시보드 갱신
       setTimeout(() => overlay.remove(), 500);
     }, 300);
@@ -2153,9 +2156,15 @@ async function init() {
     const overlay = document.getElementById('login-overlay');
     if (overlay) overlay.remove();
     document.body.classList.remove('dashboard-hidden');
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'LOGIN_SUCCESS' }, '*');
+    }
   } else {
     // 로그인 화면 표시, 대시보드 숨김
     document.body.classList.add('dashboard-hidden');
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'LOGOUT' }, '*');
+    }
     const pwInput = document.getElementById('login-pw');
     if (pwInput) {
       pwInput.addEventListener('input', () => {
@@ -2169,6 +2178,22 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// SPA iframe integration helper
+if (window !== window.top) {
+  document.body.classList.add('in-iframe');
+  
+  // Listen to parent events
+  window.addEventListener('message', (event) => {
+    if (event.data) {
+      if (event.data.type === 'SET_THEME') {
+        setTheme(event.data.theme);
+      } else if (event.data.type === 'TOGGLE_SIDEBAR') {
+        toggleMobileSidebar();
+      }
+    }
+  });
+}
 
 // ============================================================
 // ADMIN LOGIC (Dynamic Data Update)
@@ -2831,6 +2856,12 @@ function toggleMobileSidebar() {
   if (sidebar && overlay) {
     sidebar.classList.toggle('active');
     overlay.classList.toggle('active');
+    
+    // Notify parent about the sidebar active state
+    if (window.parent && window.parent !== window) {
+      const isActive = sidebar.classList.contains('active');
+      window.parent.postMessage({ type: 'SIDEBAR_STATE', active: isActive }, '*');
+    }
   }
 }
 

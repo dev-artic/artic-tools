@@ -188,16 +188,14 @@
 
 /* 대시보드 초기 숨김 및 등장 애니메이션 */
 .sidebar, .main-content {
-  transition: opacity 1.0s cubic-bezier(0.16, 1, 0.3, 1), transform 1.0s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: transform 1.0s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 .dashboard-hidden .sidebar {
-  opacity: 0 !important;
   transform: translateX(-40px) !important;
   pointer-events: none !important;
   visibility: hidden !important;
 }
 .dashboard-hidden .main-content {
-  opacity: 0 !important;
   transform: translateY(30px) !important;
   pointer-events: none !important;
   visibility: hidden !important;
@@ -3118,6 +3116,14 @@ body.light-theme .theme-toggle-btn {
 }
 body.light-theme .theme-toggle-btn:hover {
   background: rgba(15, 23, 42, 0.06);
+}
+
+/* SPA Iframe styles */
+body.in-iframe .portal-header {
+  display: none !important;
+}
+body.in-iframe .main-content {
+  padding-top: 20px !important;
 }
 
 
