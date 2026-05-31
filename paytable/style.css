@@ -905,11 +905,11 @@ body.light-theme .settle-completed-badge-all {
   font-size: 14px;
 }
 .mobile-menu-toggle {
+  display: none;
   background: none;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  display: flex;
   align-items: center;
   padding: 4px;
   transition: color 0.15s;
@@ -3092,9 +3092,6 @@ body.light-theme .theme-toggle-btn:hover {
   background: rgba(15, 23, 42, 0.06);
 }
 
-.mobile-menu-toggle {
-  display: none !important;
-}
 
 
 
