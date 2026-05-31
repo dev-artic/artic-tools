@@ -2093,6 +2093,7 @@ function migratePplData() {
 
 async function init() {
   initTheme();
+  initClock();
 
   // Cmd+S (Mac) or Ctrl+S (Windows) global key listener
   window.addEventListener('keydown', (e) => {
@@ -2941,6 +2942,24 @@ function updateThemeUI(theme) {
       lightBtn.classList.remove('active');
     }
   }
+}
+
+function initClock() {
+  function updateClock() {
+    const now = new Date();
+    const options = {
+      timeZone: 'Asia/Seoul',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    };
+    const timeString = now.toLocaleTimeString('ko-KR', options);
+    const clockEl = document.getElementById('kst-clock');
+    if (clockEl) clockEl.textContent = `KST ${timeString}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
 }
 
 // ============================================================

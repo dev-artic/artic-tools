@@ -13,6 +13,39 @@ export default function App() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [theme, setThemeState] = useState(localStorage.getItem('artic-theme') || 'dark');
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setThemeState(nextTheme);
+    localStorage.setItem('artic-theme', nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+    document.body.classList.toggle('light-theme', nextTheme === 'light');
+  };
+
+  React.useEffect(() => {
+    const savedTheme = localStorage.getItem('artic-theme') || 'dark';
+    setThemeState(savedTheme);
+    document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+    document.body.classList.toggle('light-theme', savedTheme === 'light');
+    
+    const updateClock = () => {
+      const now = new Date();
+      const options = {
+        timeZone: 'Asia/Seoul',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      };
+      const timeString = now.toLocaleTimeString('ko-KR', options);
+      const clockEl = document.getElementById('kst-clock-calc');
+      if (clockEl) clockEl.textContent = `KST ${timeString}`;
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const copyScreenshot = async () => {
     const element = document.getElementById('screenshot-target');
@@ -180,8 +213,41 @@ export default function App() {
   const validMembers = members.filter(m => m.name.trim() !== '');
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans text-gray-800">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden flex flex-col h-[85vh] sm:h-auto sm:max-h-[90vh]">
+    <div className={`min-h-screen w-full transition-colors duration-300 font-sans flex flex-col items-center ${theme === 'light' ? 'bg-[#f5f6fa] text-slate-800' : 'bg-[#0d0f14] text-slate-100'}`}>
+      
+      {/* Unified Top Branding Header */}
+      <header className={`w-full h-[70px] border-b flex items-center justify-between px-6 z-50 backdrop-blur-md sticky top-0 ${theme === 'light' ? 'bg-white/80 border-slate-200/60' : 'bg-[#13161e]/80 border-white/5'}`}>
+        <div onClick={() => location.href = '../'} className="cursor-pointer flex items-center">
+          <img 
+            src="../artic-logo-full-ver.svg" 
+            alt="ARTIC Logo" 
+            className={`h-[24px] w-auto transition-all ${theme === 'dark' ? 'invert' : ''}`} 
+          />
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Theme Toggle Button */}
+          <button 
+            onClick={toggleTheme} 
+            title="테마 변경"
+            className={`w-[38px] h-[38px] rounded-full border flex items-center justify-center cursor-pointer transition-all ${theme === 'light' ? 'bg-black/5 border-slate-200 text-slate-600 hover:bg-black/10' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d={theme === 'light' ? "M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0z" : "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"} />
+            </svg>
+          </button>
+
+          {/* Live Clock Widget */}
+          <div className={`rounded-full border px-[18px] py-[8px] flex items-center gap-[10px] font-mono text-[0.85rem] transition-all ${theme === 'light' ? 'bg-black/3 border-slate-200 text-slate-600' : 'bg-white/3 border-white/5 text-slate-400'}`}>
+            <div className="w-[6px] h-[6px] rounded-full bg-blue-600 shadow-[0_0_8px_#2563eb] animate-pulse" />
+            <span id="kst-clock-calc">KST --:--:--</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container below header */}
+      <div className="flex-1 w-full flex items-center justify-center p-4">
+        <div className={`w-full max-w-lg rounded-2xl shadow-xl overflow-hidden flex flex-col h-[85vh] sm:h-auto sm:max-h-[90vh] border transition-all ${theme === 'light' ? 'bg-white border-slate-100' : 'bg-[#181c27] border-white/5'}`}>
         
         {/* 헤더 부분 */}
         <div className="bg-blue-600 p-5 text-white flex-shrink-0">
@@ -411,6 +477,7 @@ export default function App() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }
