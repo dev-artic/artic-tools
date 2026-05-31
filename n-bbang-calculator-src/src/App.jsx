@@ -230,34 +230,31 @@ export default function App() {
     <div className={`min-h-screen w-full transition-colors duration-300 font-sans flex flex-col items-center ${theme === 'light' ? 'bg-[#f5f6fa] text-slate-800' : 'bg-[#0d0f14] text-slate-100'}`}>
       
       {/* Unified Top Branding Header */}
-      <header className="w-full h-[70px] flex items-center justify-between px-6 z-50 sticky top-0 bg-transparent border-none backdrop-blur-none pointer-events-none">
+      <header className="w-full h-[70px] flex items-center justify-between px-4 sm:px-6 z-50 sticky top-0 bg-transparent border-none backdrop-blur-none pointer-events-none">
         <div 
           onClick={() => location.href = '../'} 
-          className={`cursor-pointer flex items-center gap-3 px-5 py-1.5 rounded-full border transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto animate-fade-up ${
+          className={`cursor-pointer flex items-center gap-2 px-4 h-[38px] box-border rounded-full border transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${
             theme === 'light' 
-              ? 'bg-white/80 border-slate-200/60 hover:bg-white/95 hover:border-slate-300 hover:shadow-md' 
-              : 'bg-[#181c27]/80 border-white/5 hover:bg-[#1f2432]/95 hover:border-white/10 hover:shadow-md hover:shadow-blue-500/5'
+              ? 'bg-slate-900/[0.03] border-slate-900/[0.08] hover:bg-slate-900/[0.06] hover:border-slate-900/20 hover:shadow-md' 
+              : 'bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/20 hover:shadow-[0_0_12px_rgba(255,255,255,0.05)]'
           }`}
         >
           <img 
             src="../artic-logo-full-ver.svg" 
             alt="ARTIC Logo" 
-            className={`h-[18px] w-auto my-1 transition-all ${theme === 'dark' ? 'invert' : ''}`} 
+            className={`h-[14px] w-auto my-0 transition-all ${theme === 'dark' ? 'invert' : ''}`} 
           />
         </div>
         
-        <div 
-          className="flex items-center gap-2 sm:gap-3 animate-fade-up pointer-events-auto"
-          style={{ animationDelay: '0.1s' }}
-        >
+        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
           {/* Theme Toggle Button */}
           <button 
             onClick={toggleTheme} 
             title="테마 변경"
             className={`w-[38px] h-[38px] rounded-full border flex items-center justify-center cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${
               theme === 'light' 
-                ? 'bg-white/80 border-slate-200/60 text-slate-600 hover:bg-white/95 hover:border-slate-300 hover:shadow-md' 
-                : 'bg-[#181c27]/80 border-white/5 text-slate-400 hover:bg-[#1f2432]/95 hover:border-white/10 hover:shadow-md'
+                ? 'bg-slate-900/[0.03] border-slate-900/[0.08] text-slate-600 hover:bg-slate-900/[0.06] hover:border-slate-900/20 hover:shadow-md' 
+                : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:bg-white/[0.06] hover:border-white/20 hover:shadow-md'
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -266,7 +263,7 @@ export default function App() {
           </button>
 
           {/* Live Clock Widget */}
-          <div className={`rounded-full border px-3 sm:px-[18px] h-[38px] box-border flex items-center gap-1.5 sm:gap-[10px] font-mono text-[0.78rem] sm:text-[0.85rem] transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${theme === 'light' ? 'bg-white/80 border-slate-200/60 text-slate-600' : 'bg-[#181c27]/80 border-white/5 text-slate-400'}`}>
+          <div className={`rounded-full border px-3 sm:px-[18px] h-[38px] box-border flex items-center gap-1.5 sm:gap-[10px] font-mono text-[0.78rem] sm:text-[0.85rem] transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${theme === 'light' ? 'bg-slate-900/[0.03] border-slate-900/[0.08] text-slate-600' : 'bg-white/[0.03] border-white/[0.08] text-slate-400'}`}>
             <div className="w-[6px] h-[6px] rounded-full bg-blue-600 shadow-[0_0_8px_#2563eb] animate-pulse" />
             <span id="kst-clock-calc">KST --:--:--</span>
           </div>

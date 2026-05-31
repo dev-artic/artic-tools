@@ -1034,7 +1034,7 @@ body.light-theme .settle-completed-badge-all {
   }
 
   .portal-header {
-    padding: 0 12px !important; /* Push clock, light button and menu toggle closer to the right edge */
+    padding: 0 16px !important; /* Push clock, light button and menu toggle to align exactly at 16px edge margin */
   }
 
   .header-actions-wrap {
@@ -3017,7 +3017,9 @@ body.light-theme .portal-header {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
   border-radius: 30px;
-  padding: 6px 20px;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 16px;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: all 0.4s ease;
@@ -3047,9 +3049,9 @@ body.light-theme .brand-wrap:hover {
 }
 
 .logo-img {
-  height: 18px;
+  height: 14px;
   width: auto;
-  margin: 4px 0;
+  margin: 0;
   transition: filter 0.4s ease;
   filter: invert(1);
 }
