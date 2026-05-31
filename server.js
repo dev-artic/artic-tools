@@ -16,16 +16,16 @@ app.post('/api/save', (req, res) => {
     return res.status(400).json({ success: false, error: 'No data provided' });
   }
 
-  const filePath = path.join(__dirname, 'data.json');
+  const filePath = path.join(__dirname, 'paytable', 'data.json');
 
-  // 1. Write updated data to data.json
+  // 1. Write updated data to paytable/data.json
   fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8', (err) => {
     if (err) {
-      console.error('Failed to write data.json:', err);
+      console.error('Failed to write paytable/data.json:', err);
       return res.status(500).json({ success: false, error: 'Failed to write data on server' });
     }
 
-    console.log('Successfully saved data.json locally.');
+    console.log('Successfully saved paytable/data.json locally.');
 
     // 2. Git Automation
     // First, check if inside a git repository
@@ -40,7 +40,7 @@ app.post('/api/save', (req, res) => {
       }
 
       // If it is a git repo, add, commit and push
-      const gitCmd = 'git add data.json && git commit -m "auto: update paytable data" && git push';
+      const gitCmd = 'git add paytable/data.json && git commit -m "auto: update paytable data" && git push';
       exec(gitCmd, { cwd: __dirname }, (execErr, stdout, stderr) => {
         if (execErr) {
           console.error('Git push failed:', stderr || execErr.message);
@@ -64,7 +64,7 @@ app.post('/api/save', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`==================================================`);
-  console.log(`  artic. PTR Paytable Server running at:`);
+  console.log(`  ARTIC Team Workspace Portal running at:`);
   console.log(`  http://localhost:${PORT}`);
   console.log(`==================================================`);
 });

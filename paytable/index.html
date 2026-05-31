@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>artic - PTR PayTable</title>
+  <meta name="description" content="팀 프로젝트 외주 계약 입금액을 참여 인원별로 배분하고 급여 처리를 관리하는 내부 대시보드" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=1.0.8" />
+</head>
+<body>
+
+  <!-- ============ LOGIN OVERLAY ============ -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-card" id="login-card">
+      <div class="login-logo" style="flex-direction:column; align-items:center; gap:12px;">
+        <div style="background:#fff; border-radius:12px; width:64px; height:64px; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 12px rgba(0,0,0,0.12); flex-shrink:0;">
+          <img src="artic-logo-full-ver.svg" alt="artic. logo" style="width:44px; height:44px; object-fit:contain; display:block;"/>
+        </div>
+        <div class="logo-text" style="text-align:center;">
+          <span class="logo-title">PTR</span>
+          <span class="logo-sub">Pay Table · Internal</span>
+        </div>
+      </div>
+
+      <h2 class="login-title">팀원 인증</h2>
+      <p class="login-desc">이름과 비밀번호를 입력해주세요</p>
+
+      <div class="login-form">
+        <div class="login-field">
+          <label for="login-name">이름</label>
+          <select id="login-name">
+            <option value="">이름을 선택하세요</option>
+            <option value="민제">김민제</option>
+            <option value="광규">박광규</option>
+            <option value="경엽">조경엽</option>
+            <option value="정호">김정호</option>
+          </select>
+        </div>
+        <div class="login-field">
+          <label for="login-pw">비밀번호</label>
+          <div class="pw-wrap">
+            <input type="password" id="login-pw" placeholder="" autocomplete="off"
+              onkeydown="if(event.key==='Enter') attemptLogin()" />
+            <button class="pw-toggle" id="pw-toggle" onclick="togglePw()" type="button">
+              <svg id="pw-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-error" id="login-error">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="login-error-msg">이름 또는 비밀번호가 올바르지 않습니다.</span>
+        </div>
+
+        <button class="login-btn" id="login-btn" onclick="attemptLogin()">
+          <span id="login-btn-text">로그인</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- Theme Toggle below Login Card -->
+    <div class="login-theme-toggle" style="margin-top: 24px; display: flex; gap: 12px; justify-content: center; align-items: center; z-index: 10000; animation: cardIn 0.5s ease;">
+      <button onclick="setTheme('dark')" id="login-theme-dark" class="login-theme-btn" title="다크 모드">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button onclick="setTheme('light')" id="login-theme-light" class="login-theme-btn" title="라이트 모드">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <div class="mobile-header-logo" onclick="switchTab('overview')" style="cursor:pointer; display:flex; align-items:center;">
+      <div style="background:#fff; border-radius:8px; width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; margin-right:6px;">
+        <img src="artic-logo-full-ver.svg" alt="artic." style="width:22px; height:22px; object-fit:contain; display:block;"/>
+      </div>
+      <span class="logo-title" style="font-weight:700; font-size:1.1rem; color:var(--text-primary);">PTR</span>
+    </div>
+    <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </header>
+
+  <!-- Sidebar Overlay for Mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Sidebar Nav -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo" onclick="switchTab('overview')" style="cursor:pointer; display:flex; align-items:center; gap:12px; padding:0 20px 24px; border-bottom:1px solid var(--border); margin-bottom:16px;">
+      <div style="background:#fff; border-radius:8px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <img src="artic-logo-full-ver.svg" alt="artic." style="width:26px; height:26px; object-fit:contain; display:block;"/>
+      </div>
+      <div class="logo-text">
+        <span class="logo-title">PTR</span>
+        <span class="logo-sub">Pay Table</span>
+      </div>
+    </div>
+    
+    <div class="sidebar-toggle-wrap" style="display:flex; align-items:center; padding:0 20px 16px; border-bottom:1px solid var(--border); margin-bottom:16px; transition:all 0.2s;">
+      <button id="sidebar-toggle" onclick="toggleSidebar()" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; gap:10px; font-size:0.875rem; font-weight:500; font-family:inherit; transition:color 0.15s; padding:4px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <span class="toggle-label" style="transition:opacity 0.2s;">메뉴 축소</span>
+      </button>
+    </div>
+
+    <ul class="nav-menu">
+      <a href="/" style="text-decoration: none;">
+        <li class="nav-item" style="color: var(--accent-purple) !important; border-bottom: 1px dashed var(--border); margin-bottom: 8px; padding-bottom: 12px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span style="font-weight: 700;">워크스페이스 홈</span>
+        </li>
+      </a>
+      <li class="nav-item active" data-tab="overview" onclick="switchTab('overview')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>개요</span>
+      </li>
+      <li class="nav-item" data-tab="members" onclick="switchTab('members')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>인원별 정산</span>
+      </li>
+      <li class="nav-item" data-tab="income" onclick="switchTab('income')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>입금 현황</span>
+      </li>
+
+      <!-- Admin Grouped Section -->
+      <li class="nav-admin-header" id="nav-admin-group-header" style="display:none; font-size:0.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; padding:18px 12px 6px; user-select:none; transition:all 0.2s;">
+        관리자 메뉴
+      </li>
+      <li class="nav-item" id="nav-admin-tab" data-tab="admin" onclick="switchTab('admin')" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="3"/></svg>
+        <span>관리자 설정</span>
+      </li>
+      <li class="nav-item" id="nav-roles-tab" data-tab="roles" onclick="switchTab('roles')" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 9H17v1.5c0 .83-.67 1.5-1.5 1.5S14 11.33 14 10.5V9"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 15H7v-1.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5V15"/></svg>
+        <span>역할 설정</span>
+      </li>
+      <li class="nav-item" id="nav-episodes-tab" data-tab="episodes" onclick="switchTab('episodes')" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+        <span>에피소드 배분</span>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <!-- 내 계정 메뉴 -->
+      <li class="nav-item" id="nav-account-tab" data-tab="account" onclick="switchTab('account')" style="list-style:none; margin-bottom:8px; justify-content:center;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>내 계정</span>
+      </li>
+      <div class="theme-toggle-wrap" style="margin-bottom: 12px; width: 100%;">
+        <button class="btn btn-outline" id="btn-theme-toggle" onclick="toggleTheme()" style="width:100%; display:flex; justify-content:center; gap:8px; align-items:center;">
+          <svg id="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="theme-text">라이트 모드</span>
+        </button>
+      </div>
+      <button class="btn btn-outline" id="btn-logout" onclick="logout()" style="width:100%; margin-bottom:12px; display:none; justify-content:center; gap:8px; align-items:center;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>로그아웃</span>
+      </button>
+      <div class="project-badge">
+        <span class="badge-dot"></span>
+        <span>시즌 1 · 12EP</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content" id="main-content">
+
+    <!-- ============ TAB: 개요 ============ -->
+    <section class="tab-section active" id="tab-overview">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">페이 배분 개요</h1>
+          <p class="page-desc">외주 계약 입금액 현황 및 전체 인원별 정산 요약</p>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-primary">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">계약 입금 예정액</div>
+            <div class="kpi-value" id="kpi-contract">₩3,800,000</div>
+            <div class="kpi-sub">총 계약금</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-success">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">현재 입금액</div>
+            <div class="kpi-value" id="kpi-received">₩1,800,000</div>
+            <div class="kpi-sub">누적 수령액</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-warning">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">잔여 예정액</div>
+            <div class="kpi-value" id="kpi-remaining">₩2,000,000</div>
+            <div class="kpi-sub">미수금</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-info">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">투입 용역비용</div>
+            <div class="kpi-value" id="kpi-cost">₩1,276,560</div>
+            <div class="kpi-sub">총 지급 예정액</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-purple">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">PPL 추가 수입</div>
+            <div class="kpi-value" id="kpi-ppl">₩1,400,000</div>
+            <div class="kpi-sub">회차별 PPL 합산</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M9 9h6v6H9z"/></svg>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">순이익</div>
+            <div class="kpi-value" id="kpi-profit">₩523,440</div>
+            <div class="kpi-sub">계약금 — 용역비</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="card progress-card">
+        <div class="card-header">
+          <h2 class="card-title">입금 진행률</h2>
+          <span class="badge badge-blue" id="progress-ep-badge">EP.1~6 입금 완료</span>
+        </div>
+        <div class="progress-info">
+          <span class="progress-current" id="progress-current-text">₩1,800,000</span>
+          <span class="progress-target">/ ₩3,800,000</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="overview-progress-bar" style="width: 47.37%">
+            <span class="progress-label">47.4%</span>
+          </div>
+        </div>
+        <div class="episode-dots" id="episode-dots"></div>
+      </div>
+
+      <!-- Member Summary Table -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">인원별 정산 요약</h2>
+          <span class="badge badge-green">자동 계산</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="member-summary-table">
+            <thead>
+              <tr>
+                <th>멤버</th>
+                <th class="text-right">리허설</th>
+                <th class="text-right">EP.1</th>
+                <th class="text-right">EP.2</th>
+                <th class="text-right">EP.3</th>
+                <th class="text-right">EP.4</th>
+                <th class="text-right">EP.5</th>
+                <th class="text-right">EP.6</th>
+                <th class="text-right">EP.7</th>
+                <th class="text-right highlight-col">합계</th>
+              </tr>
+            </thead>
+            <tbody id="member-summary-tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 에피소드 배분 ============ -->
+    <section class="tab-section" id="tab-episodes">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">에피소드별 배분</h1>
+          <p class="page-desc">각 에피소드에서 역할별 참여 인원을 체크하여 페이를 자동 계산합니다</p>
+        </div>
+        <div class="header-actions" style="display:flex; gap:8px; align-items:center;">
+          <div class="ep-selector" style="margin-right: 8px;">
+            <button class="ep-nav-btn" id="ep-prev" onclick="changeEpisode(-1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="ep-label" id="ep-current-label">리허설</span>
+            <button class="ep-nav-btn" id="ep-next" onclick="changeEpisode(1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+          <!-- Undo/Redo/Save for Episode tab -->
+          <button class="btn btn-outline btn-icon" id="btn-redo-episodes" onclick="redo()" title="재실행 (Ctrl+Y)" disabled style="padding: 6px 10px; display: flex; align-items: center; justify-content: center; height: 36px; border-radius: var(--radius-sm);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/><polyline points="3 7 3 13 9 13"/></svg>
+          </button>
+          <button class="btn btn-outline btn-icon" id="btn-undo-episodes" onclick="undo()" title="되돌리기 (Ctrl+Z)" disabled style="padding: 6px 10px; display: flex; align-items: center; justify-content: center; height: 36px; border-radius: var(--radius-sm);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: scaleX(-1);"><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/><polyline points="3 7 3 13 9 13"/></svg>
+          </button>
+          <button class="btn btn-primary" id="btn-save-episodes" onclick="saveData()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            저장
+          </button>
+        </div>
+      </div>
+
+      <!-- Episode Overview Chips -->
+      <div class="ep-chips-wrap">
+        <div class="ep-chips" id="ep-chips"></div>
+      </div>
+
+      <!-- Episode Detail -->
+      <div class="ep-detail-grid">
+        <!-- Episode Artists -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">출연 아티스트</h2>
+          </div>
+          <div class="artist-list" id="ep-artist-display"></div>
+        </div>
+
+        <!-- PPL Info -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">PPL 정보</h2>
+          </div>
+          <div class="ppl-info" id="ep-ppl-info">
+            <div class="ppl-amount" id="ep-ppl-amount">₩0</div>
+            <div class="ppl-label" id="ep-ppl-label">PPL 없음</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Role Participation Table -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">역할별 참여 현황 및 페이 계산</h2>
+          <span class="badge badge-purple" id="ep-total-badge">계산 중...</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table role-table" id="ep-role-table">
+            <thead>
+              <tr>
+                <th>역할</th>
+                <th>설명</th>
+                <th class="text-right">역할 단가</th>
+                <th>참여 인원</th>
+                <th class="text-right">실수령액/인</th>
+                <th class="text-right">역할 소계</th>
+              </tr>
+            </thead>
+            <tbody id="ep-role-tbody">
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="5" class="text-right"><strong>에피소드 합계</strong></td>
+                <td class="text-right highlight-col" id="ep-grand-total">—</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Multi-role Notice -->
+      <div class="card notice-card" id="multi-role-notice" style="display:none">
+        <div class="notice-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="notice-content">
+          <strong>다중 역할 분배 안내</strong>
+          <p id="multi-role-detail"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 인원별 정산 ============ -->
+    <section class="tab-section" id="tab-members">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">인원별 정산</h1>
+          <p class="page-desc">각 멤버가 수령해야 할 총 금액과 입금 현황</p>
+        </div>
+      </div>
+
+      <div class="member-cards-grid" id="member-cards-grid"></div>
+
+      <!-- Detailed Breakdown -->
+      <div class="card" style="margin-top: 24px;">
+        <div class="card-header">
+          <h2 class="card-title">인원별 회차별 상세 내역</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="member-detail-table">
+            <thead>
+              <tr>
+                <th>멤버</th>
+                <th class="text-right">리허설</th>
+                <th class="text-right">EP.1</th>
+                <th class="text-right">EP.2</th>
+                <th class="text-right">EP.3</th>
+                <th class="text-right">EP.4</th>
+                <th class="text-right">EP.5</th>
+                <th class="text-right">EP.6</th>
+                <th class="text-right">EP.7</th>
+                <th class="text-right highlight-col">합계</th>
+              </tr>
+            </thead>
+            <tbody id="member-detail-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 역할 설정 ============ -->
+    <section class="tab-section" id="tab-roles">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">역할 설정</h1>
+          <p class="page-desc">각 역할의 단가와 구성을 확인하고 수정합니다</p>
+        </div>
+        <div class="header-actions" style="display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-outline btn-icon" id="btn-redo" onclick="redo()" title="재실행 (Ctrl+Y)" disabled style="padding: 6px 10px; display: flex; align-items: center; justify-content: center; height: 36px; border-radius: var(--radius-sm);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/><polyline points="3 7 3 13 9 13"/></svg>
+          </button>
+          <button class="btn btn-outline btn-icon" id="btn-undo" onclick="undo()" title="되돌리기 (Ctrl+Z)" disabled style="padding: 6px 10px; display: flex; align-items: center; justify-content: center; height: 36px; border-radius: var(--radius-sm);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: scaleX(-1);"><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/><polyline points="3 7 3 13 9 13"/></svg>
+          </button>
+          <button class="btn btn-primary" id="btn-save-roles" onclick="saveRoleSettings()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            저장
+          </button>
+        </div>
+      </div>
+
+      <div class="roles-grid" id="roles-grid"></div>
+
+      <!-- Role Summary -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <h2 class="card-title">역할 총괄 비용 요약</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>역할</th>
+                <th>담당 멤버</th>
+                <th class="text-right">1회 단가</th>
+                <th class="text-right">편당 횟수</th>
+                <th class="text-right">편당 총액</th>
+              </tr>
+            </thead>
+            <tbody id="role-summary-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 입금 현황 ============ -->
+    <section class="tab-section" id="tab-income">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">입금 현황</h1>
+          <p class="page-desc">회차별 입금 확인 및 PPL 수입 현황</p>
+        </div>
+      </div>
+
+      <!-- Income Status Cards -->
+      <div class="income-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">회차별 입금 확인</h2>
+          </div>
+          <div class="ep-income-list" id="ep-income-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">PPL 수입 현황</h2>
+          </div>
+          <div class="ppl-list" id="ppl-list"></div>
+          <div class="ppl-total-row">
+            <span>PPL 합계</span>
+            <span class="ppl-total-amount" id="ppl-total-display">₩1,400,000</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BlackMagic Cloud 정기지출 -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <h2 class="card-title">정기 지출 내역</h2>
+          <span class="badge badge-red">BlackMagic Cloud</span>
+        </div>
+        <div class="table-wrap" id="income-cost-table-wrap">
+          <!-- Will be rendered dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 관리자 설정 ============ -->
+    <section class="tab-section" id="tab-admin">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">관리자 설정</h1>
+          <p class="page-desc">외주 계약금, 회차별 정산 상태, PPL 및 정기 지출액을 직접 수정합니다</p>
+        </div>
+        <div class="header-actions" style="display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-outline btn-icon" id="btn-redo-admin" onclick="redo()" title="재실행 (Ctrl+Y)" disabled style="padding: 6px 10px; display: flex; align-items: center; justify-content: center; height: 36px; border-radius: var(--radius-sm);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/><polyline points="3 7 3 13 9 13"/></svg>
+          </button>
+          <button class="btn btn-outline btn-icon" id="btn-undo-admin" onclick="undo()" title="되돌리기 (Ctrl+Z)" disabled style="padding: 6px 10px; display: flex; align-items: center; justify-content: center; height: 36px; border-radius: var(--radius-sm);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: scaleX(-1);"><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/><polyline points="3 7 3 13 9 13"/></svg>
+          </button>
+          <button class="btn btn-primary" id="btn-save-admin" onclick="saveData()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            저장
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-grid">
+        <!-- Left Column: Episode Data Cards -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-header">
+              <h2 class="card-title">회차별 계약 및 정산 관리 (카드뷰)</h2>
+              <span class="badge badge-blue">카드 호버 시 삭제 가능</span>
+            </div>
+          </div>
+          <div id="admin-episodes-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
+            <!-- Dynamic Admin Episode Cards -->
+          </div>
+          <button class="btn btn-primary" onclick="addNewEpisode()" style="display:flex; justify-content:center; gap:8px; padding:12px; font-weight:700; width:100%;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            에피소드 추가
+          </button>
+        </div>
+
+      <!-- Right Column: Recurring Cost (BlackMagic Cloud) -->
+      <div class="admin-costs-section">
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-header" style="margin-bottom:0;">
+            <h2 class="card-title">정기 지출 비용 (BlackMagic Cloud)</h2>
+          </div>
+        </div>
+        <div id="admin-costs-grid" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Dynamic cost cards -->
+        </div>
+        <button class="btn btn-outline" onclick="addCostItem()" style="display:flex; justify-content:center; gap:8px; padding:12px; font-weight:700; width:100%; border-style:dashed;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          지출 내역 추가
+        </button>
+      </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: 내 계정 ============ -->
+    <section class="tab-section" id="tab-account">
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h1 class="page-title">내 계정</h1>
+          <p class="page-desc">내 정산 현황 및 계정 설정</p>
+        </div>
+        <button class="btn btn-outline" id="btn-open-pw-modal" onclick="openPasswordModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; padding: 8px 16px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>비밀번호 변경</span>
+        </button>
+      </div>
+
+      <!-- 프로필 + 통계 카드 -->
+      <div class="account-profile-card">
+        <div class="account-avatar-wrap">
+          <div class="account-avatar" id="account-avatar">M</div>
+          <div class="account-name" id="account-name">김민제</div>
+          <div class="account-role-badge" id="account-role-badge">팀원</div>
+        </div>
+        <div class="account-stats-grid">
+          <div class="account-stat-item">
+            <span class="account-stat-label">누적 정산 완료</span>
+            <span class="account-stat-value settled" id="account-settled">₩0</span>
+          </div>
+          <div class="account-stat-divider"></div>
+          <div class="account-stat-item">
+            <span class="account-stat-label">미수금</span>
+            <span class="account-stat-value pending" id="account-pending">₩0</span>
+            <span class="account-stat-sub">입금완료 · 정산대기</span>
+          </div>
+          <div class="account-stat-divider"></div>
+          <div class="account-stat-item">
+            <span class="account-stat-label">향후 수령 예정</span>
+            <span class="account-stat-value upcoming" id="account-upcoming">₩0</span>
+            <span class="account-stat-sub">미입금 회차 기준</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 역할 참여 바 차트 -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header" style="align-items:flex-start;">
+          <div>
+            <h3 class="card-title">역할별 참여 현황</h3>
+            <p class="page-desc" style="margin:4px 0 0;">정산 완료된 회차 기준</p>
+          </div>
+        </div>
+        <div id="account-role-chart" style="padding:8px 0;"></div>
+      </div>
+
+      <!-- 정산 인보이스 관리 (관리자 전용) -->
+      <div class="card" id="admin-invoice-section" style="display: none; margin-bottom: 24px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h3 class="card-title">정산 인보이스 내역 관리</h3>
+            <p class="page-desc" style="margin: 4px 0 0;">완료된 정산 회차별 멤버 지급 내역과 공식 영수증을 관리합니다</p>
+          </div>
+          <span class="badge badge-purple" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 100px;">관리자 전용</span>
+        </div>
+        <div class="table-wrap">
+          <table class="table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>발행 번호</th>
+                <th>대상 회차</th>
+                <th>발행 일자</th>
+                <th class="text-right">총 정산액</th>
+                <th class="text-center" style="width: 130px;">정산 명세서</th>
+              </tr>
+            </thead>
+            <tbody id="invoice-list-tbody">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Custom Context Menu for deletion -->
+  <div id="custom-context-menu" class="context-menu" style="display:none; position:fixed; z-index:10000;">
+    <button onclick="handleDeleteEpisodeClick()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2-2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      에피소드 삭제
+    </button>
+  </div>
+
+  <!-- ============ DYNAMIC NAV GUARD MODAL ============ -->
+  <div id="nav-guard-popup" class="nav-guard-popup">
+    <div class="nav-guard-content">
+      <div class="nav-guard-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div class="nav-guard-text">
+        <h4 class="nav-guard-title">저장하지 않은 변경사항</h4>
+        <p class="nav-guard-desc">작성 중인 데이터가 있습니다. 저장하시겠습니까?</p>
+      </div>
+    </div>
+    <div class="nav-guard-actions">
+      <button class="btn btn-outline btn-sm" onclick="cancelNavGuard()">취소</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmNavGuardSave()">저장 후 이동</button>
+    </div>
+  </div>
+
+  <!-- ============ CUSTOM CONFIRM POPUP (BOTTOM RIGHT SLIDE) ============ -->
+  <div id="custom-confirm-popup" class="custom-confirm-popup">
+    <div class="custom-confirm-content">
+      <div class="custom-confirm-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div class="custom-confirm-text">
+        <h4 class="custom-confirm-title" id="custom-confirm-title">삭제 확인</h4>
+        <p class="custom-confirm-desc" id="custom-confirm-desc">정말로 삭제하시겠습니까?</p>
+      </div>
+    </div>
+    <div class="custom-confirm-actions">
+      <button class="btn btn-outline btn-sm" id="custom-confirm-cancel-btn">취소</button>
+      <button class="btn btn-danger btn-sm" id="custom-confirm-ok-btn">삭제</button>
+    </div>
+  </div>
+
+  <!-- ============ PASSWORD CHANGE MODAL ============ -->
+  <div id="pw-change-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">비밀번호 변경</h3>
+        <button class="modal-close-btn" onclick="closePasswordModal()" title="닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">변경 즉시 다음 로그인부터 적용됩니다</p>
+        <div class="pw-change-form">
+          <div class="pw-change-row">
+            <label class="pw-change-label">현재 비밀번호</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-current" placeholder="••••"/>
+            </div>
+          </div>
+          <div class="pw-change-row">
+            <label class="pw-change-label">새 비밀번호</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-new" placeholder="••••"/>
+            </div>
+          </div>
+          <div class="pw-change-row">
+            <label class="pw-change-label">새 비밀번호 확인</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw-confirm" placeholder="••••"/>
+            </div>
+          </div>
+          <div id="pw-change-msg" class="pw-change-msg" style="display:none; margin-top:12px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closePasswordModal()">취소</button>
+        <button class="btn btn-primary btn-sm" onclick="changePassword()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          변경 적용
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ INVOICE VIEW MODAL ============ -->
+  <div id="invoice-view-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 640px; width: 95%;">
+      <div class="modal-header">
+        <h3 class="modal-title">정산 명세서 (Settlement Invoice)</h3>
+        <button class="modal-close-btn" onclick="closeInvoiceModal()" title="닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 0; background: #ffffff; overflow-y: auto; max-height: calc(85vh - 120px);">
+        <div id="invoice-slip-content" class="invoice-slip">
+          <!-- Dynamically generated printable invoice slip -->
+        </div>
+      </div>
+      <div class="modal-footer" style="background: var(--bg-hover);">
+        <button class="btn btn-outline btn-sm" onclick="closeInvoiceModal()">닫기</button>
+        <button class="btn btn-primary btn-sm" onclick="printInvoice()" style="display: flex; align-items: center; gap: 6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          인쇄 / PDF 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Mobile Theme Toggle (visible only on mobile) -->
+  <button class="mobile-theme-floating-btn" id="mobile-theme-btn" onclick="toggleTheme()" title="테마 변경">
+    <svg id="mobile-theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script src="app.js?v=1.0.8"></script>
+</body>
+</html>
