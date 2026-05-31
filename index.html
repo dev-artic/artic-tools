@@ -166,6 +166,12 @@
       background: rgba(15, 23, 42, 0.03);
     }
     
+    .header-actions-wrap {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    
     /* Theme Toggle Button Style */
     .theme-toggle-btn {
       background: rgba(255, 255, 255, 0.03);
@@ -226,7 +232,9 @@
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--border);
       border-radius: 30px;
-      padding: 8px 18px;
+      height: 38px;
+      box-sizing: border-box;
+      padding: 0 18px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -235,6 +243,7 @@
       color: var(--text-secondary);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
+      transition: var(--transition);
     }
     
     .clock-dot {
@@ -522,6 +531,16 @@
       .portal-header {
         margin-bottom: 24px;
       }
+      .header-actions-wrap {
+        gap: 8px !important;
+      }
+      .clock-widget {
+        height: 38px !important;
+        box-sizing: border-box !important;
+        padding: 0 12px !important;
+        font-size: 0.78rem !important;
+        gap: 6px !important;
+      }
       .logo-img {
         height: 20px;
         margin: 8px 12px 8px 0;
@@ -562,7 +581,7 @@
       </div>
       
       <!-- Actions Wrap -->
-      <div style="display:flex; gap:12px; align-items:center;">
+      <div class="header-actions-wrap">
         <!-- Theme Toggle Button -->
         <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 변경">
           <svg id="theme-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

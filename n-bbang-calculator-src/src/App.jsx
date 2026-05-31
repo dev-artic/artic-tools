@@ -247,7 +247,7 @@ export default function App() {
         </div>
         
         <div 
-          className="flex items-center gap-3 animate-fade-up pointer-events-auto"
+          className="flex items-center gap-2 sm:gap-3 animate-fade-up pointer-events-auto"
           style={{ animationDelay: '0.1s' }}
         >
           {/* Theme Toggle Button */}
@@ -266,7 +266,7 @@ export default function App() {
           </button>
 
           {/* Live Clock Widget */}
-          <div className={`rounded-full border px-[18px] py-[8px] flex items-center gap-[10px] font-mono text-[0.85rem] transition-all duration-300 backdrop-blur-md shadow-sm ${theme === 'light' ? 'bg-white/80 border-slate-200/60 text-slate-600' : 'bg-[#181c27]/80 border-white/5 text-slate-400'}`}>
+          <div className={`rounded-full border px-3 sm:px-[18px] h-[38px] box-border flex items-center gap-1.5 sm:gap-[10px] font-mono text-[0.78rem] sm:text-[0.85rem] transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${theme === 'light' ? 'bg-white/80 border-slate-200/60 text-slate-600' : 'bg-[#181c27]/80 border-white/5 text-slate-400'}`}>
             <div className="w-[6px] h-[6px] rounded-full bg-blue-600 shadow-[0_0_8px_#2563eb] animate-pulse" />
             <span id="kst-clock-calc">KST --:--:--</span>
           </div>

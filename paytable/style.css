@@ -977,6 +977,21 @@ body.light-theme .settle-completed-badge-all {
     font-size: 15px;
   }
 
+  @keyframes revealHamburger {
+    0% {
+      width: 0;
+      opacity: 0;
+      transform: scale(0);
+      margin-left: -8px;
+    }
+    100% {
+      width: 38px;
+      opacity: 1;
+      transform: scale(1);
+      margin-left: 0;
+    }
+  }
+
   .mobile-menu-toggle {
     display: flex !important;
     align-items: center !important;
@@ -993,6 +1008,9 @@ body.light-theme .settle-completed-badge-all {
     transition: all 0.4s ease !important;
     outline: none !important;
     padding: 0 !important;
+    animation: revealHamburger 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: right center;
+    overflow: hidden;
   }
   
   .mobile-menu-toggle:hover {
