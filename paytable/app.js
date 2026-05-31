@@ -877,7 +877,19 @@ function executeTabSwitch(tabId) {
 
   // 각 탭 전환 시 UI를 실시간 다시 그리도록 연동
   if (tabId === 'overview') renderOverview();
-  if (tabId === 'episodes') renderEpisodeTab();
+  if (tabId === 'episodes') {
+    // 아직 정산이 완료되지 않은 첫 에피소드(입금 대기 'pending' 또는 정산 대기 'paid' 상태)로 자동으로 인덱스 설정
+    if (DATA && DATA.episodes) {
+      const firstUnsettled = DATA.episodes.find(ep => {
+        const status = getEpisodeStatus(ep);
+        return status === 'pending' || status === 'paid';
+      });
+      if (firstUnsettled) {
+        currentEpIndex = firstUnsettled.index;
+      }
+    }
+    renderEpisodeTab();
+  }
   if (tabId === 'members') { renderMemberCards(); renderMemberDetailTable(); }
   if (tabId === 'roles') renderRolesGrid();
   if (tabId === 'income') renderIncomeTab();
