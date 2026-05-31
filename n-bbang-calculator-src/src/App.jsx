@@ -1,0 +1,318 @@
+import React, { useState } from 'react';
+import { Plus, Trash2, Receipt, ArrowRight, RotateCcw, Calculator, Users, CreditCard, ChevronRight, ChevronLeft } from 'lucide-react';
+
+export default function App() {
+  const [step, setStep] = useState(1);
+  const [members, setMembers] = useState([
+    { id: 1, name: '' },
+    { id: 2, name: '' }
+  ]);
+  const [expenses, setExpenses] = useState([
+    { id: 1, memberId: '', detail: '', amount: '' }
+  ]);
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState('');
+
+  const addMember = () => setMembers([...members, { id: Date.now(), name: '' }]);
+  
+  const removeMember = (id) => {
+    if (members.length <= 2) {
+      setError('최소 2명 이상이어야 합니다.');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    setMembers(members.filter(m => m.id !== id));
+    setExpenses(expenses.filter(e => e.memberId !== id));
+  };
+
+  const handleMemberChange = (id, value) => {
+    setMembers(members.map(m => m.id === id ? { ...m, name: value } : m));
+  };
+
+  const goToNextStep = () => {
+    setError('');
+    const validMembers = members.filter(m => m.name.trim() !== '');
+    if (validMembers.length < 2) {
+      setError('참여할 멤버의 이름을 2명 이상 입력해주세요.');
+      return;
+    }
+    setStep(2);
+    
+    const updatedExpenses = expenses.map(exp => {
+      const memberExists = validMembers.find(m => m.id === exp.memberId);
+      return memberExists ? exp : { ...exp, memberId: '' };
+    });
+    setExpenses(updatedExpenses);
+  };
+
+  const handleStepNavigation = (targetStep) => {
+    if (targetStep === step) return;
+    setError('');
+
+    if (targetStep === 1) {
+      setStep(1);
+    } else if (targetStep === 2) {
+      if (step === 1) goToNextStep();
+      else setStep(2);
+    } else if (targetStep === 3) {
+      if (step === 2) calculate();
+      else if (step === 1) setError('지출 내역을 먼저 입력해야 결과를 확인할 수 있습니다.');
+    }
+  };
+
+  const addExpense = () => setExpenses([...expenses, { id: Date.now(), memberId: '', detail: '', amount: '' }]);
+  const removeExpense = (id) => setExpenses(expenses.filter(e => e.id !== id));
+
+  const handleExpenseChange = (id, field, value) => {
+    if (field === 'amount') value = value.replace(/[^0-9]/g, '');
+    if (field === 'memberId') value = value ? Number(value) : '';
+    setExpenses(expenses.map(e => e.id === id ? { ...e, [field]: value } : e));
+  };
+
+  const calculate = () => {
+    setError('');
+    const validMembers = members.filter(m => m.name.trim() !== '');
+    const validExpenses = expenses.filter(e => e.memberId !== '' && e.amount !== '');
+
+    if (validExpenses.length === 0) {
+      setError('지출 내역을 1건 이상 올바르게 입력해주세요.');
+      return;
+    }
+
+    const memberTotals = {};
+    validMembers.forEach(m => { memberTotals[m.id] = { name: m.name, total: 0 }; });
+
+    let total = 0;
+    validExpenses.forEach(e => {
+      const amount = Number(e.amount);
+      if (memberTotals[e.memberId]) {
+        memberTotals[e.memberId].total += amount;
+        total += amount;
+      }
+    });
+
+    const average = total / validMembers.length;
+    let receivers = [];
+    let senders = [];
+
+    Object.values(memberTotals).forEach(m => {
+      const balance = m.total - average;
+      if (balance > 0.1) receivers.push({ name: m.name, amount: balance });
+      else if (balance < -0.1) senders.push({ name: m.name, amount: -balance });
+    });
+
+    const transfers = [];
+    let i = 0, j = 0;
+
+    while (i < senders.length && j < receivers.length) {
+      let sender = senders[i];
+      let receiver = receivers[j];
+      let transferAmount = Math.min(sender.amount, receiver.amount);
+
+      transfers.push({ sender: sender.name, receiver: receiver.name, amount: transferAmount });
+      sender.amount -= transferAmount;
+      receiver.amount -= transferAmount;
+      if (sender.amount < 0.1) i++;
+      if (receiver.amount < 0.1) j++;
+    }
+
+    setResults({ total, average, transfers, memberCount: validMembers.length });
+    setStep(3);
+  };
+
+  const reset = () => {
+    setMembers([{ id: 1, name: '' }, { id: 2, name: '' }]);
+    setExpenses([{ id: 1, memberId: '', detail: '', amount: '' }]);
+    setResults(null);
+    setError('');
+    setStep(1);
+  };
+
+  const validMembers = members.filter(m => m.name.trim() !== '');
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans text-gray-800">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden flex flex-col h-[85vh] sm:h-auto sm:max-h-[90vh]">
+        
+        {/* 헤더 부분 */}
+        <div className="bg-blue-600 p-5 text-white flex-shrink-0">
+          <div className="flex items-center gap-3 mb-4">
+            <Receipt size={28} />
+            <h1 className="text-xl font-bold">깔끔한 N빵 정산기</h1>
+          </div>
+          
+          <div className="flex items-center justify-between text-xs font-medium text-blue-200 px-2">
+            <button onClick={() => handleStepNavigation(1)} className={`hover:text-white transition-colors outline-none cursor-pointer ${step === 1 ? "text-white font-bold" : ""}`}>
+              1. 멤버 입력
+            </button>
+            <span className="flex-1 mx-2 h-px bg-blue-400 opacity-50"></span>
+            
+            <button onClick={() => handleStepNavigation(2)} className={`hover:text-white transition-colors outline-none cursor-pointer ${step === 2 ? "text-white font-bold" : ""}`}>
+              2. 지출 입력
+            </button>
+            <span className="flex-1 mx-2 h-px bg-blue-400 opacity-50"></span>
+            
+            <button onClick={() => handleStepNavigation(3)} className={`hover:text-white transition-colors outline-none cursor-pointer ${step === 3 ? "text-white font-bold" : ""}`}>
+              3. 결과 확인
+            </button>
+          </div>
+        </div>
+
+        {/* 메인 콘텐츠 영역 */}
+        <div className="p-5 overflow-y-auto flex-1">
+          {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm text-center">{error}</div>}
+
+          {/* [STEP 1] 멤버 입력 */}
+          {step === 1 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+              <div className="text-sm font-semibold text-gray-500 mb-2 flex items-center gap-2">
+                <Users size={16} /> 누가 함께 했나요?
+              </div>
+              
+              <div className="space-y-3">
+                {members.map((member, index) => (
+                  <div key={member.id} className="flex gap-2 items-center">
+                    <div className="w-8 text-center text-gray-400 font-bold text-sm">{index + 1}</div>
+                    <input
+                      type="text"
+                      placeholder="이름"
+                      value={member.name}
+                      onChange={(e) => handleMemberChange(member.id, e.target.value)}
+                      className="flex-1 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    <button onClick={() => removeMember(member.id)} className="p-2 text-gray-400 hover:text-red-500">
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={addMember} className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 text-sm mt-4">
+                <Plus size={18} /> 멤버 추가하기
+              </button>
+
+              <button onClick={goToNextStep} className="w-full mt-6 bg-blue-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md">
+                다음 단계로 <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+
+          {/* [STEP 2] 지출 내역 입력 */}
+          {step === 2 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-2">
+              <div className="flex justify-between items-center mb-2">
+                <div className="text-sm font-semibold text-gray-500 flex items-center gap-2">
+                  <CreditCard size={16} /> 결제 내역을 추가해주세요
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                {expenses.map((expense, index) => (
+                  <div key={expense.id} className="p-4 border border-gray-100 bg-gray-50 rounded-xl space-y-3 relative shadow-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-gray-400">결제 건 #{index + 1}</span>
+                      <button onClick={() => removeExpense(expense.id)} className="text-gray-400 hover:text-red-500 p-1">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <select
+                        value={expense.memberId}
+                        onChange={(e) => handleExpenseChange(expense.id, 'memberId', e.target.value)}
+                        className="w-1/3 sm:w-2/5 border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 bg-white outline-none"
+                      >
+                        <option value="">결제자 선택</option>
+                        {validMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                      
+                      <input
+                        type="text"
+                        placeholder="결제 내용"
+                        value={expense.detail}
+                        onChange={(e) => handleExpenseChange(expense.id, 'detail', e.target.value)}
+                        className="flex-1 border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="금액을 입력하세요"
+                        value={expense.amount ? Number(expense.amount).toLocaleString() : ''}
+                        onChange={(e) => handleExpenseChange(expense.id, 'amount', e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg p-3 pr-8 text-sm text-right focus:ring-2 focus:ring-blue-500 font-bold outline-none"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">원</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={addExpense} className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 text-sm mt-2">
+                <Plus size={18} /> 결제 내역 추가하기
+              </button>
+
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setStep(1)} className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-xl font-bold flex justify-center gap-2">
+                  <ChevronLeft size={20} /> 이전
+                </button>
+                <button onClick={calculate} className="flex-[2] bg-blue-600 text-white py-4 rounded-xl font-bold text-lg flex justify-center gap-2 hover:bg-blue-700 shadow-md">
+                  <Calculator size={20} /> 정산하기
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* [STEP 3] 결과 화면 */}
+          {step === 3 && results && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <h3 className="text-sm font-bold text-gray-500 mb-3 text-center">정산 요약</h3>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">총 지출액 ({results.memberCount}명)</span>
+                  <span className="font-bold text-lg">{Math.round(results.total).toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between items-center text-blue-600">
+                  <span className="font-medium">1인당 부담액</span>
+                  <span className="font-bold text-xl">{Math.round(results.average).toLocaleString()}원</span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-gray-500 mb-3 text-center">💸 최종 송금 내역</h3>
+                {results.transfers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
+                    모두가 정확히 같은 금액을 지출했습니다.<br/>송금할 필요가 없어요! 🎉
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {results.transfers.map((transfer, idx) => (
+                      <div key={idx} className="bg-white border border-blue-100 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded-full text-sm">{transfer.sender}</span>
+                          <ArrowRight size={16} className="text-blue-400" />
+                          <span className="font-bold text-gray-800 bg-blue-50 px-3 py-1 rounded-full text-sm">{transfer.receiver}</span>
+                        </div>
+                        <div className="font-bold text-blue-600">{Math.round(transfer.amount).toLocaleString()}원</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => setStep(2)} className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-200">
+                  <ChevronLeft size={20} /> 지출 수정
+                </button>
+                <button onClick={reset} className="flex-[2] bg-gray-800 text-white py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-900">
+                  <RotateCcw size={20} /> 처음부터 다시하기
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
