@@ -885,7 +885,7 @@
       }
     }
 
-    function openApp(event, url) {
+    function openApp(event, url, isPopState = false) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -902,19 +902,29 @@
       iframeView.classList.add('active');
       document.body.classList.add('app-active');
       
-      // Prevent double load, only set src if different
+      // Prevent double load, use contentWindow.location.replace to avoid duplicate browser history entries
       const fullUrl = window.location.origin + window.location.pathname + url;
       if (iframe.src !== fullUrl) {
-        iframe.src = url;
+        if (iframe.contentWindow) {
+          try {
+            iframe.contentWindow.location.replace(url);
+          } catch (e) {
+            iframe.src = url;
+          }
+        } else {
+          iframe.src = url;
+        }
       }
       
-      // Push history state using hash routing to keep shell on reload
-      history.pushState({ app: currentApp }, '', '#' + currentApp);
+      // Push history state using hash routing only if navigating programmatically (not via popstate)
+      if (!isPopState) {
+        history.pushState({ app: currentApp }, '', '#' + currentApp);
+      }
       
       updateHeaderState();
     }
     
-    function goToHome(event) {
+    function goToHome(event, isPopState = false) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -931,12 +941,22 @@
       homeView.classList.add('active');
       document.body.classList.remove('app-active');
       
-      // Clear iframe content (garbage collection)
-      iframe.src = 'about:blank';
+      // Clear iframe content using location.replace to prevent extra history stack items
+      if (iframe.contentWindow) {
+        try {
+          iframe.contentWindow.location.replace('about:blank');
+        } catch (e) {
+          iframe.src = 'about:blank';
+        }
+      } else {
+        iframe.src = 'about:blank';
+      }
       
-      // Push history state
-      const homeUrl = window.location.origin + window.location.pathname;
-      history.pushState({ app: 'home' }, '', homeUrl);
+      // Push history state back to root URL only if navigating programmatically (not via popstate)
+      if (!isPopState) {
+        const homeUrl = window.location.origin + window.location.pathname;
+        history.pushState({ app: 'home' }, '', homeUrl);
+      }
       
       updateHeaderState();
     }
@@ -951,17 +971,26 @@
     // Handle Browser popstate (Back/Forward navigation)
     window.addEventListener('popstate', (event) => {
       const state = event.state;
+      const hash = window.location.hash;
+      const path = window.location.pathname;
+      
       if (state && state.app) {
         if (state.app === 'home') {
-          goToHome();
+          goToHome(null, true);
         } else if (state.app === 'paytable') {
-          openApp(null, 'paytable/');
+          openApp(null, 'paytable/', true);
         } else if (state.app === 'calculator' || state.app === 'n-bbang-calculator') {
-          openApp(null, 'n-bbang-calculator/');
+          openApp(null, 'n-bbang-calculator/', true);
         }
       } else {
-        // Fallback to Home
-        goToHome();
+        // Fallback based on active URL hash or path to support clean navigation even when state is null
+        if (hash.includes('paytable') || path.includes('/paytable/')) {
+          openApp(null, 'paytable/', true);
+        } else if (hash.includes('n-bbang-calculator') || path.includes('/n-bbang-calculator/')) {
+          openApp(null, 'n-bbang-calculator/', true);
+        } else {
+          goToHome(null, true);
+        }
       }
     });
     
