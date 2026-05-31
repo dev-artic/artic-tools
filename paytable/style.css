@@ -2915,7 +2915,7 @@ body.light-theme .modal-container {
   background: transparent !important;
   border-bottom: none !important;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-end; /* Align right when logged in */
   align-items: center;
   padding: 0 24px;
   z-index: 10005;
@@ -2923,6 +2923,10 @@ body.light-theme .modal-container {
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
   pointer-events: none;
+}
+
+body.dashboard-hidden .portal-header {
+  justify-content: space-between !important; /* Space between logo and buttons on login screen */
 }
 
 body.light-theme .portal-header {
@@ -2935,7 +2939,7 @@ body.light-theme .portal-header {
 }
 
 .brand-wrap {
-  display: flex;
+  display: none !important; /* Hidden when logged in */
   align-items: center;
   gap: 12px;
   background: rgba(255, 255, 255, 0.03);
@@ -2947,6 +2951,10 @@ body.light-theme .portal-header {
   transition: all 0.4s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
+}
+
+body.dashboard-hidden .brand-wrap {
+  display: flex !important; /* Show logo on login screen */
 }
 
 .brand-wrap:hover {
