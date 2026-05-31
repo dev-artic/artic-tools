@@ -2639,4 +2639,261 @@ body.light-theme .modal-container {
   }
 }
 
+/* ===== Responsive Mobile Optimizations for Admin Settings ===== */
+
+/* PPL Item Layout (Default / Desktop) */
+.admin-ppl-item {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  background: var(--bg-elevated) !important;
+  padding: 14px 16px !important;
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--border) !important;
+  transition: all 0.2s ease !important;
+}
+.admin-ppl-item:hover {
+  border-color: var(--border-hover) !important;
+}
+.admin-ppl-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-height: 28px !important;
+  padding-right: 28px !important; /* Space for delete button */
+}
+.admin-ppl-label-input {
+  background: none !important;
+  border: none !important;
+  border-bottom: 1px dashed var(--border) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  outline: none !important;
+  padding-bottom: 2px !important;
+  width: 45% !important;
+  text-align: left !important;
+  margin: 0 !important;
+  transition: border-color 0.2s !important;
+}
+.admin-ppl-label-input:focus {
+  border-bottom-color: var(--accent-blue) !important;
+}
+.admin-ppl-status-group {
+  display: flex !important;
+  gap: 6px !important;
+  margin-left: auto !important;
+}
+.admin-ppl-status-group .btn-toggle-status {
+  width: auto !important;
+  white-space: nowrap !important;
+  font-size: 0.68rem !important;
+  padding: 4px 10px !important;
+}
+.admin-ppl-inputs {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+}
+
+/* Delete PPL button specifically targeting absolute position hover */
+.admin-ppl-item .btn-delete-ppl {
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+  background: none !important;
+  border: none !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+  z-index: 10 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  padding: 0 !important;
+}
+.admin-ppl-item:hover .btn-delete-ppl {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.btn-delete-ppl:hover {
+  background: rgba(248, 113, 113, 0.15) !important;
+  color: var(--accent-red) !important;
+}
+
+/* General Episode Card Status Group Container */
+.admin-ep-card-status-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+/* Mobile & Tablet Overrides (<= 768px) */
+@media (max-width: 768px) {
+  /* Admin header actions stack */
+  .page-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    margin-bottom: 20px !important;
+  }
+  
+  .header-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+  }
+  
+  .header-actions .btn {
+    height: 44px !important; /* Larger touch area */
+    font-size: 0.9rem !important;
+    border-radius: var(--radius-sm) !important;
+  }
+  
+  /* Main Save button fills space, Undo/Redo are squares */
+  #btn-save-admin {
+    flex: 1 !important;
+  }
+  #btn-undo-admin, #btn-redo-admin {
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* Force delete buttons to always show on mobile (no hover dependence) */
+  .btn-delete-cost {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    top: 12px !important;
+    right: 12px !important;
+    background: rgba(248, 113, 113, 0.15) !important;
+    color: var(--accent-red) !important;
+    width: 28px !important; /* Large touch target */
+    height: 28px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  }
+  .btn-delete-cost:hover {
+    transform: none !important;
+    background: var(--accent-red) !important;
+    color: #fff !important;
+  }
+  
+  .admin-ppl-item .btn-delete-ppl {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    background: rgba(248, 113, 113, 0.1) !important;
+    color: var(--accent-red) !important;
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  /* Episode Card vertical layout */
+  .admin-ep-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    padding: 16px !important;
+  }
+
+  /* Card Header styling adjustment */
+  .admin-ep-card-header {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-right: none !important;
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding-bottom: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .admin-ep-card-title {
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+  }
+
+  .admin-ep-card-status-group {
+    flex-direction: row !important;
+    gap: 8px !important;
+  }
+  .admin-ep-card-status-group .btn-toggle-status {
+    flex: 1 !important;
+    height: 40px !important; /* Larger touch target */
+    font-size: 0.78rem !important;
+  }
+
+  /* Card Body stacked in Grid columns */
+  .admin-ep-card-body {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+  .admin-ep-card-body .role-field {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* PPL Item Mobile Styling */
+  .admin-ppl-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding-right: 28px !important;
+  }
+  .admin-ppl-label-input {
+    width: 100% !important;
+    font-size: 0.85rem !important;
+  }
+  .admin-ppl-status-group {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+  .admin-ppl-status-group .btn-toggle-status {
+    flex: 1 !important;
+    height: 38px !important;
+    font-size: 0.72rem !important;
+    padding: 6px 8px !important;
+  }
+}
+
+/* Extra Small Screen Options (<= 480px) */
+@media (max-width: 480px) {
+  /* Stack episode card status buttons vertically */
+  .admin-ep-card-status-group {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+
+  /* Stack inputs to 1-column */
+  .admin-ep-card-body {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stack PPL status buttons vertically and inputs to 1-column */
+  .admin-ppl-status-group {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .admin-ppl-inputs {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
 

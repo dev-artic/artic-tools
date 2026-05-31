@@ -2233,9 +2233,9 @@ function renderAdminTab() {
 
     div.innerHTML = `
       ${deleteBtnHtml}
-      <div class="admin-ep-card-header" style="align-items: flex-start; gap: 8px; width: 160px; min-width: 160px;">
-        <span class="admin-ep-card-title" style="margin-bottom: 6px;">${ep.label}</span>
-        <div style="display:flex; flex-direction:column; gap:6px; width: 100%;">
+      <div class="admin-ep-card-header">
+        <span class="admin-ep-card-title">${ep.label}</span>
+        <div class="admin-ep-card-status-group">
           ${!ep.paid ? `
             <button type="button" class="btn-toggle-status paid" onclick="updateEpisodeData(${ep.index}, 'paid', true)">
               보코스 입금 대기
@@ -2284,49 +2284,49 @@ function renderAdminTab() {
           </div>
           <div class="admin-ppl-list" style="display:flex; flex-direction:column; gap:8px;">
             ${(ep.pplPayments || []).map(p => `
-              <div class="admin-ppl-item" style="display:flex; flex-direction:column; gap:6px; background:var(--bg-elevated); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border); position:relative;">
-                <button class="btn-delete-cost" onclick="deletePplPayment(${ep.index}, '${p.id}')" style="top:6px; right:6px; background:none; border:none; color:var(--text-muted); cursor:pointer;" title="차수 삭제">
+              <div class="admin-ppl-item">
+                <button class="btn-delete-cost btn-delete-ppl" onclick="deletePplPayment(${ep.index}, '${p.id}')" title="차수 삭제">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
-                <div style="display:flex; gap:8px; align-items:center; width: 85%; min-height: 28px;">
-                  <input type="text" class="admin-cost-label-input" value="${p.label}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'label', this.value)" placeholder="차수명 (예: PPL 1차)" style="font-size:0.72rem; padding:4px 6px; width:50%; font-weight:600; text-align:left; margin:0;" />
-                  <div style="display:flex; gap:6px; margin-left: auto;">
+                <div class="admin-ppl-header">
+                  <input type="text" class="admin-ppl-label-input" value="${p.label}" onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'label', this.value)" placeholder="차수명 (예: PPL 1차)" />
+                  <div class="admin-ppl-status-group">
                     ${!p.paid ? `
-                      <button type="button" class="btn-toggle-status paid" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', true)" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                      <button type="button" class="btn-toggle-status paid" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', true)">
                         보코스 입금 대기
                       </button>
-                      <button type="button" class="btn-toggle-status settled" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; opacity: 0.5; cursor: not-allowed;">
+                      <button type="button" class="btn-toggle-status settled" disabled style="opacity: 0.5; cursor: not-allowed;">
                         아틱팀 정산 대기
                       </button>
                     ` : ( !p.settled ? `
-                      <button type="button" class="btn-toggle-status paid active" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', false)" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                      <button type="button" class="btn-toggle-status paid active" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'paid', false)">
                         보코스 입금 완료 ✓
                       </button>
-                      <button type="button" class="btn-toggle-status settled blinking-blue" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', true)" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;">
+                      <button type="button" class="btn-toggle-status settled blinking-blue" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', true)">
                         아틱팀 정산 예정
                       </button>
                     ` : `
-                      <button type="button" class="btn-toggle-status paid active" disabled style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap; cursor: not-allowed; opacity: 0.85;">
+                      <button type="button" class="btn-toggle-status paid active" disabled style="cursor: not-allowed; opacity: 0.85;">
                         보코스 입금 완료 ✓
                       </button>
-                      <button type="button" class="btn-toggle-status settled active" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', false)" style="font-size:0.65rem; padding:4px 8px; width:auto; white-space:nowrap;" title="클릭하면 정산 예정 상태로 되돌릴 수 있습니다.">
+                      <button type="button" class="btn-toggle-status settled active" onclick="updatePplPaymentField(${ep.index}, '${p.id}', 'settled', false)" title="클릭하면 정산 예정 상태로 되돌릴 수 있습니다.">
                         아틱팀 정산 완료 ✓
                       </button>
                     `)}
                   </div>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <div class="admin-ppl-inputs">
                   <div class="role-field" style="margin-bottom:0;">
-                    <label style="font-size:0.65rem; margin-bottom:2px; color:var(--text-muted);">입금 예정액 (원)</label>
+                    <label>입금 예정액 (원)</label>
                     <input type="text" inputmode="numeric" class="admin-input" 
                       value="${Number(p.targetAmount || 0).toLocaleString('ko-KR')}" 
                       oninput="formatMonetaryInput(this)" 
                       onchange="updatePplPaymentField(${ep.index}, '${p.id}', 'targetAmount', this.value)" 
-                      ${p.paid ? 'disabled style="font-size:0.72rem; padding:4px 6px; background: var(--bg-hover); cursor: not-allowed; opacity: 0.85;"' : 'style="font-size:0.72rem; padding:4px 6px;"'} />
+                      ${p.paid ? 'disabled style="background: var(--bg-hover); cursor: not-allowed; opacity: 0.85;"' : ''} />
                   </div>
                   <div class="role-field" style="margin-bottom:0;">
-                    <label style="font-size:0.65rem; margin-bottom:2px; color:var(--text-muted);">실제 입금액 (원)</label>
-                    <input type="text" class="admin-input" value="${Number(p.receivedAmount || 0).toLocaleString('ko-KR')}" disabled style="background: var(--bg-hover); cursor: not-allowed; opacity: 0.85; font-size:0.72rem; padding:4px 6px;" />
+                    <label>실제 입금액 (원)</label>
+                    <input type="text" class="admin-input" value="${Number(p.receivedAmount || 0).toLocaleString('ko-KR')}" disabled style="background: var(--bg-hover); cursor: not-allowed; opacity: 0.85;" />
                   </div>
                 </div>
               </div>
