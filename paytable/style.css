@@ -1035,6 +1035,10 @@ body.light-theme .settle-completed-badge-all {
     --sidebar-w: 0px !important;
   }
 
+  .sidebar-overlay {
+    z-index: 10010 !important;
+  }
+
   /* Sidebar: hidden off-screen as a drawer */
   .sidebar {
     display: flex !important;
@@ -1045,7 +1049,7 @@ body.light-theme .settle-completed-badge-all {
     height: 100dvh;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1000;
+    z-index: 10020 !important;
     box-shadow: none;            /* 닫혀있을 때 그림자 없음 */
     overflow-y: auto;
   }
