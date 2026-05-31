@@ -230,7 +230,7 @@ export default function App() {
     <div className={`min-h-screen w-full transition-colors duration-300 font-sans flex flex-col items-center ${theme === 'light' ? 'bg-[#f5f6fa] text-slate-800' : 'bg-[#0d0f14] text-slate-100'}`}>
       
       {/* Unified Top Branding Header */}
-      <header className="w-full h-[70px] flex items-center justify-between px-4 sm:px-6 z-50 sticky top-0 bg-transparent border-none backdrop-blur-none pointer-events-none">
+      <header className="w-full h-[70px] flex items-center justify-between px-4 md:px-6 z-50 sticky top-0 bg-transparent border-none backdrop-blur-none pointer-events-none">
         <div 
           onClick={() => location.href = '../'} 
           className={`cursor-pointer flex items-center gap-2 px-4 h-[38px] box-border rounded-full border transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${
@@ -246,7 +246,7 @@ export default function App() {
           />
         </div>
         
-        <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+        <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
           {/* Theme Toggle Button */}
           <button 
             onClick={toggleTheme} 
@@ -263,7 +263,7 @@ export default function App() {
           </button>
 
           {/* Live Clock Widget */}
-          <div className={`rounded-full border px-3 sm:px-[18px] h-[38px] box-border flex items-center gap-1.5 sm:gap-[10px] font-mono text-[0.78rem] sm:text-[0.85rem] transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${theme === 'light' ? 'bg-slate-900/[0.03] border-slate-900/[0.08] text-slate-600' : 'bg-white/[0.03] border-white/[0.08] text-slate-400'}`}>
+          <div className={`rounded-full border px-3 md:px-[18px] h-[38px] box-border flex items-center gap-1.5 md:gap-[10px] font-mono text-[0.78rem] md:text-[0.85rem] transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${theme === 'light' ? 'bg-slate-900/[0.03] border-slate-900/[0.08] text-slate-600' : 'bg-white/[0.03] border-white/[0.08] text-slate-400'}`}>
             <div className="w-[6px] h-[6px] rounded-full bg-blue-600 shadow-[0_0_8px_#2563eb] animate-pulse" />
             <span id="kst-clock-calc">KST --:--:--</span>
           </div>

@@ -85,7 +85,7 @@
       max-width: 1100px;
       width: 100%;
       margin: 0 auto;
-      padding: 40px 24px;
+      padding: 80px 24px 40px 24px;
       z-index: 10;
       flex: 1;
       display: flex;
@@ -95,12 +95,21 @@
     
     /* ===== Header Section ===== */
     .portal-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 48px;
-      flex-wrap: wrap;
-      gap: 20px;
+      padding: 0 24px;
+      box-sizing: border-box;
+      z-index: 10005;
+      pointer-events: none;
+    }
+    .portal-header > * {
+      pointer-events: auto;
     }
     
     .brand-wrap {
@@ -528,10 +537,10 @@
         right: 0;
       }
       .portal-container {
-        padding: 24px 16px;
+        padding: 80px 16px 24px 16px;
       }
       .portal-header {
-        margin-bottom: 24px;
+        padding: 0 16px !important;
       }
       .header-actions-wrap {
         gap: 8px !important;
@@ -574,30 +583,31 @@
   <div class="bg-glow-1"></div>
   <div class="bg-glow-2"></div>
   
+  <!-- HEADER -->
+  <header class="portal-header">
+    <div class="brand-wrap" onclick="location.reload()" style="cursor:pointer;">
+      <img src="artic-logo-full-ver.svg" alt="ARTIC Logo" class="logo-img">
+    </div>
+    
+    <!-- Actions Wrap -->
+    <div class="header-actions-wrap">
+      <!-- Theme Toggle Button -->
+      <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 변경">
+        <svg id="theme-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path id="theme-icon-path" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+
+      <!-- Live Clock Widget -->
+      <div class="clock-widget">
+        <div class="clock-dot"></div>
+        <span id="kst-clock">KST --:--:--</span>
+      </div>
+    </div>
+  </header>
+
   <div class="portal-container">
     
-    <!-- HEADER -->
-    <header class="portal-header">
-      <div class="brand-wrap">
-        <img src="artic-logo-full-ver.svg" alt="ARTIC Logo" class="logo-img">
-      </div>
-      
-      <!-- Actions Wrap -->
-      <div class="header-actions-wrap">
-        <!-- Theme Toggle Button -->
-        <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 변경">
-          <svg id="theme-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path id="theme-icon-path" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
-
-        <!-- Live Clock Widget -->
-        <div class="clock-widget">
-          <div class="clock-dot"></div>
-          <span id="kst-clock">KST --:--:--</span>
-        </div>
-      </div>
-    </header>
     
     <!-- HERO GREETING -->
     <section class="hero-section animate-fade-up">
