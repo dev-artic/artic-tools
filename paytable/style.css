@@ -337,7 +337,7 @@ body {
 
 .tab-section { display: none; animation: fadeIn 0.2s ease; }
 .tab-section.active { display: block; }
-@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@keyframes fadeIn { from { transform:translateY(8px); } to { transform:none; } }
 
 /* ===== Page Header ===== */
 .page-header {
