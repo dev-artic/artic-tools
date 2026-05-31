@@ -978,13 +978,41 @@ body.light-theme .settle-completed-badge-all {
   }
 
   .mobile-menu-toggle {
-    border: none;
-    padding: 4px;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    height: auto;
-    background: none;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 50% !important;
+    width: 38px !important;
+    height: 38px !important;
+    color: var(--text-secondary) !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    transition: all 0.4s ease !important;
+    outline: none !important;
+    padding: 0 !important;
+  }
+  
+  .mobile-menu-toggle:hover {
+    border-color: var(--border-hover) !important;
+    color: var(--text-primary) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+  
+  body.light-theme .mobile-menu-toggle {
+    background: rgba(15, 23, 42, 0.03) !important;
+    border-color: rgba(15, 23, 42, 0.08) !important;
+  }
+  
+  body.light-theme .mobile-menu-toggle:hover {
+    background: rgba(15, 23, 42, 0.06) !important;
+    border-color: rgba(29, 78, 216, 0.35) !important;
+  }
+
+  body.dashboard-hidden .mobile-menu-toggle {
+    display: none !important;
   }
 
   :root {
@@ -3042,6 +3070,10 @@ body.light-theme .theme-toggle-btn {
 }
 body.light-theme .theme-toggle-btn:hover {
   background: rgba(15, 23, 42, 0.06);
+}
+
+.mobile-menu-toggle {
+  display: none !important;
 }
 
 
