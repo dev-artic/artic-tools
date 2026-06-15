@@ -330,7 +330,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 280px;
+      min-height: 320px;
       position: relative;
       overflow: hidden;
       backdrop-filter: blur(12px);
@@ -434,6 +434,41 @@
       font-size: 0.88rem;
       color: var(--text-secondary);
       line-height: 1.5;
+    }
+
+    /* ===== Project Label Tag ===== */
+    .app-project-labels {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .app-project-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: rgba(79, 142, 247, 0.1);
+      color: var(--accent-blue);
+      border: 1px solid rgba(79, 142, 247, 0.2);
+      transition: var(--transition);
+    }
+
+    body.light-theme .app-project-label {
+      background: rgba(29, 78, 216, 0.07);
+      color: var(--accent-blue);
+      border-color: rgba(29, 78, 216, 0.18);
+    }
+
+    .app-card.disabled .app-project-label {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      border-color: var(--border);
     }
     
     /* App Action */
@@ -730,6 +765,9 @@
           <div class="app-info">
             <h2 class="app-title">PTR PayTable</h2>
             <p class="app-desc">회차별 외주 제작비 정산 비율 및 PPL 협찬 배분액을 정밀 계산하고, 영수증 명세 슬립과 PDF 인보이스를 발행 및 추적합니다.</p>
+            <div class="app-project-labels">
+              <span class="app-project-label">PTR</span>
+            </div>
           </div>
           <div class="app-action">
             <span>대시보드 열기</span>
@@ -756,6 +794,9 @@
           <div class="app-info">
             <h2 class="app-title">TNT 정산기</h2>
             <p class="app-desc">TNT 크루 활동 정산을 위해 결제 내역과 멤버를 입력하면 자동으로 각 1인 부담액과 최종 송금 명세를 정밀 계산합니다.</p>
+            <div class="app-project-labels">
+              <span class="app-project-label">TNT</span>
+            </div>
           </div>
           <div class="app-action">
             <span>정산기 열기</span>
@@ -781,6 +822,10 @@
           <div class="app-info">
             <h2 class="app-title">Camera & Studio Rental</h2>
             <p class="app-desc">촬영용 바디, 시네 렌즈, 무선 마이크 세트 및 메인 스튜디오 대여 상황을 실시간 트래킹하여 촬영 딜레이를 예방합니다.</p>
+            <div class="app-project-labels">
+              <span class="app-project-label">PTR</span>
+              <span class="app-project-label">TNT</span>
+            </div>
           </div>
           <div class="app-action">
             <span>서비스 준비 중</span>
