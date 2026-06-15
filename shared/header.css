@@ -1,0 +1,157 @@
+/*
+ * shared/header.css
+ * Single source of truth for the global top navigation bar.
+ * Consumed by /index.html (portal) and /paytable/style.css (PTR app).
+ *
+ * Context body classes:
+ *   .portal-mode      → portal shell (logo always visible)
+ *   .dashboard-hidden → PTR app login screen (logo visible)
+ *   .in-iframe        → PTR app inside portal iframe (header hidden)
+ */
+
+/* ===== Base Layout ===== */
+.portal-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0 24px;
+  box-sizing: border-box;
+  z-index: 10005;
+  background: transparent !important;
+  border-bottom: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+.portal-header > * { pointer-events: auto; }
+
+/* ===== Brand Logo Pill ===== */
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.brand-wrap:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 12px var(--accent-blue-glow, rgba(79, 142, 247, 0.25));
+}
+
+/* ===== Logo Image ===== */
+.logo-img {
+  height: 14px;
+  width: auto;
+  margin: 0;
+  filter: invert(1) drop-shadow(0 0 12px rgba(255, 255, 255, 0.15));
+  transition: filter 0.4s ease;
+}
+
+/* ===== Actions Group ===== */
+.header-actions-wrap {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* ===== Theme Toggle Button ===== */
+.theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  padding: 0;
+}
+.theme-toggle-btn:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 12px var(--accent-blue-glow, rgba(79, 142, 247, 0.25));
+}
+
+/* ===== Clock Widget ===== */
+.clock-widget {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.clock-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  box-shadow: 0 0 8px var(--accent-blue);
+  animation: header-pulse 1.8s infinite;
+}
+@keyframes header-pulse {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 1;   }
+  100% { opacity: 0.4; }
+}
+
+/* ===== Divider ===== */
+.header-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+
+/* ===== Visibility Logic ===== */
+/* Portal mode: brand always visible */
+body.portal-mode .brand-wrap { display: flex !important; }
+/* App login screen: brand visible */
+body.dashboard-hidden .brand-wrap { display: flex !important; }
+/* App logged-in (not portal, not login): brand hidden */
+body:not(.portal-mode):not(.dashboard-hidden) .brand-wrap { display: none !important; }
+/* In iframe: hide entire header (portal's header is used) */
+body.in-iframe .portal-header { display: none !important; }
+body.in-iframe .main-content { padding-top: 80px !important; }
+
+/* ===== Light Theme ===== */
+body.light-theme .portal-header { background: transparent !important; border-bottom: none !important; }
+body.light-theme .brand-wrap { background: rgba(15,23,42,0.03); border-color: rgba(15,23,42,0.08); }
+body.light-theme .brand-wrap:hover { background: rgba(15,23,42,0.06); border-color: rgba(29,78,216,0.35); box-shadow: 0 0 12px rgba(29,78,216,0.15); }
+body.light-theme .logo-img { filter: drop-shadow(0 0 8px rgba(0,0,0,0.08)); }
+body.light-theme .theme-toggle-btn { background: rgba(15,23,42,0.03); }
+body.light-theme .theme-toggle-btn:hover { background: rgba(15,23,42,0.06); }
+body.light-theme .clock-widget { background: rgba(15,23,42,0.03); color: var(--text-secondary); }

@@ -2107,8 +2107,7 @@ function migratePplData() {
 }
 
 async function init() {
-  initTheme();
-  initClock();
+  // initTheme() and initClock() are handled by shared/header.js
 
   // Cmd+S (Mac) or Ctrl+S (Windows) global key listener
   window.addEventListener('keydown', (e) => {
@@ -2191,21 +2190,8 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', init);
 
-// SPA iframe integration helper
-if (window !== window.top) {
-  document.body.classList.add('in-iframe');
-  
-  // Listen to parent events
-  window.addEventListener('message', (event) => {
-    if (event.data) {
-      if (event.data.type === 'SET_THEME') {
-        setTheme(event.data.theme);
-      } else if (event.data.type === 'TOGGLE_SIDEBAR') {
-        toggleMobileSidebar();
-      }
-    }
-  });
-}
+// SPA iframe integration: in-iframe class is set by shared/header.js.
+// The TOGGLE_SIDEBAR message is also handled there via the toggleMobileSidebar hook.
 
 // ============================================================
 // ADMIN LOGIC (Dynamic Data Update)
@@ -2932,71 +2918,7 @@ function toggleShootRole(memberName, type, epIndex) {
   renderMemberDetailTable();
 }
 
-// ============================================================
-// THEME SWITCHER LOGIC
-// ============================================================
-function initTheme() {
-  const savedTheme = localStorage.getItem('artic-theme');
-  if (savedTheme) {
-    setTheme(savedTheme);
-  } else {
-    const currentHour = new Date().getHours();
-    const defaultTheme = (currentHour >= 7 && currentHour < 19) ? 'light' : 'dark';
-    setTheme(defaultTheme);
-  }
-}
-
-function setTheme(theme) {
-  const iconPath = document.getElementById('theme-icon-path');
-  if (theme === 'light') {
-    document.body.classList.add('light-theme');
-    if (iconPath) {
-      iconPath.setAttribute('d', 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0z');
-    }
-  } else {
-    document.body.classList.remove('light-theme');
-    if (iconPath) {
-      iconPath.setAttribute('d', 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z');
-    }
-  }
-  localStorage.setItem('artic-theme', theme);
-
-  // Update active state on login theme buttons if they exist
-  const darkBtn = document.getElementById('login-theme-dark');
-  const lightBtn = document.getElementById('login-theme-light');
-  if (darkBtn && lightBtn) {
-    if (theme === 'light') {
-      lightBtn.classList.add('active');
-      darkBtn.classList.remove('active');
-    } else {
-      darkBtn.classList.add('active');
-      lightBtn.classList.remove('active');
-    }
-  }
-}
-
-function toggleTheme() {
-  const isLight = document.body.classList.contains('light-theme');
-  setTheme(isLight ? 'dark' : 'light');
-}
-
-function initClock() {
-  function updateClock() {
-    const now = new Date();
-    const options = {
-      timeZone: 'Asia/Seoul',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    };
-    const timeString = now.toLocaleTimeString('ko-KR', options);
-    const clockEl = document.getElementById('kst-clock');
-    if (clockEl) clockEl.textContent = `KST ${timeString}`;
-  }
-  updateClock();
-  setInterval(updateClock, 1000);
-}
+// THEME SWITCHER LOGIC is now in shared/header.js
 
 // ============================================================
 // DYNAMIC COST ITEMS HELPER & HANDLERS
