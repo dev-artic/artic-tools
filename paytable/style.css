@@ -194,9 +194,9 @@
 /* 대시보드 초기 숨김 및 등장 애니메이션 */
 .sidebar, .main-content {
   transition:
-    transform 1.0s cubic-bezier(0.16, 1, 0.3, 1),
-    margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-    width 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transform   1.0s cubic-bezier(0.16, 1, 0.3, 1),
+    margin-left 0.5s  cubic-bezier(0.4, 0, 0.2, 1),
+    width       0.5s  cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 .dashboard-hidden .sidebar {
   transform: translateX(-40px) !important;
@@ -276,8 +276,7 @@ body {
   z-index: 100;
   flex-shrink: 0;
   overflow: hidden;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-              height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* width transition controlled by the .sidebar,.main-content !important rule above */
 }
 
 body.light-theme .sidebar {
@@ -311,7 +310,11 @@ body.light-theme .sidebar {
   cursor: pointer;
   font-size: 0.875rem; font-weight: 500;
   color: var(--text-secondary);
-  transition: all 0.18s ease;
+  transition:
+    background 0.18s ease,
+    color      0.18s ease,
+    gap        0.5s  cubic-bezier(0.4, 0, 0.2, 1),
+    padding    0.5s  cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 2px;
   user-select: none;
 }
@@ -338,9 +341,10 @@ body.light-theme .nav-item:hover {
   white-space: nowrap;
   max-width: 180px;
   opacity: 1;
+  /* Expanding: fade IN after sidebar has opened (0.2s delay) */
   transition:
-    max-width 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity   0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width 0.5s  cubic-bezier(0.4, 0, 0.2, 1) 0.2s,
+    opacity   0.25s ease                          0.2s;
 }
 
 /* Nav admin section header */
@@ -349,10 +353,11 @@ body.light-theme .nav-item:hover {
   white-space: nowrap;
   max-height: 40px;
   opacity: 1;
+  /* Expanding: fade in after sidebar opened */
   transition:
-    max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity    0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    padding    0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    max-height 0.5s  cubic-bezier(0.4, 0, 0.2, 1) 0.2s,
+    opacity    0.25s ease                          0.2s,
+    padding    0.5s  cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 
@@ -1432,17 +1437,19 @@ input:disabled, select:disabled, button:disabled {
   }
 }
 
-/* ── Collapsed: fade out all text labels ── */
+/* ── Collapsed: fade OUT immediately (no delay), then sidebar shrinks ── */
 .sidebar.collapsed .nav-item span,
 .sidebar.collapsed .sidebar-toggle-wrap .toggle-label,
 .sidebar.collapsed #btn-logout span {
   max-width: 0;
   opacity: 0;
+  transition-delay: 0s; /* Override the expand-delay: fade out right away */
 }
 
 .sidebar.collapsed .project-badge span:not(.badge-dot) {
   max-width: 0;
   opacity: 0;
+  transition-delay: 0s;
 }
 
 .sidebar.collapsed .nav-admin-header {
@@ -1450,6 +1457,7 @@ input:disabled, select:disabled, button:disabled {
   opacity: 0;
   padding-top: 0;
   padding-bottom: 0;
+  transition-delay: 0s;
 }
 
 .sidebar.collapsed .sidebar-logo {
@@ -1461,19 +1469,18 @@ input:disabled, select:disabled, button:disabled {
 .sidebar.collapsed .sidebar-toggle-wrap {
   padding: 0 0 12px !important;
   justify-content: center !important;
-  transition: padding 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar.collapsed .nav-menu {
   padding: 0 6px;
 }
 
+/* Gap:0 removes the space between icon and (now-hidden) text,
+   allowing the icon to be truly centered */
 .sidebar.collapsed .nav-item {
   justify-content: center;
+  gap: 0;
   padding: 12px 0;
-  transition:
-    justify-content 0s,
-    padding 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar.collapsed .sidebar-footer {
