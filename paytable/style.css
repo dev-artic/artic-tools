@@ -285,7 +285,7 @@ body.light-theme .sidebar {
 }
 
 .sidebar-logo {
-  display: none; /* Hidden on desktop — logo is in global header */
+  display: none !important; /* Desktop: hidden — logo is in global header */
 }
 
 .logo-mark {
@@ -1127,6 +1127,11 @@ body.light-theme .settle-completed-badge-all {
     overflow-y: auto;
   }
 
+  /* Restore sidebar logo visibility in mobile drawer */
+  .sidebar-logo {
+    display: flex !important;
+  }
+
   .sidebar.active {
     transform: translateX(0);
     box-shadow: 10px 0 40px rgba(0,0,0,0.6); /* 열렸을 때만 그림자 */
@@ -1468,19 +1473,18 @@ input:disabled, select:disabled, button:disabled {
 
 .sidebar.collapsed .sidebar-toggle-wrap {
   padding: 0 0 12px !important;
-  justify-content: center !important;
+  justify-content: flex-start !important; /* icon stays at left, doesn't jump */
 }
 
 .sidebar.collapsed .nav-menu {
-  padding: 0 6px;
+  padding: 0 10px; /* same as expanded — no change */
 }
 
-/* Gap:0 removes the space between icon and (now-hidden) text,
-   allowing the icon to be truly centered */
+/* Icons stay exactly where they are.
+   Only text labels fade (handled by max-width/opacity above).
+   No padding, gap, or justify-content change → zero icon movement. */
 .sidebar.collapsed .nav-item {
-  justify-content: center;
-  gap: 0;
-  padding: 12px 0;
+  /* intentionally empty — do NOT move the icon */
 }
 
 .sidebar.collapsed .sidebar-footer {
