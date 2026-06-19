@@ -76,23 +76,22 @@ function initTheme() {
   }
 }
 
-/* ────────── iframe integration ────────── */
-(function setupIframeSync() {
-  if (window === window.top) return; // Only in child frames
-  document.body.classList.add('in-iframe');
-  window.addEventListener('message', function(event) {
-    if (!event.data) return;
-    if (event.data.type === 'SET_THEME') {
-      setTheme(event.data.theme);
-    } else if (event.data.type === 'TOGGLE_SIDEBAR') {
-      /* Let the app handle this; expose a hook if needed */
-      if (typeof toggleMobileSidebar === 'function') toggleMobileSidebar();
-    }
-  });
-})();
-
 /* ────────── Auto-init on DOM ready ────────── */
 document.addEventListener('DOMContentLoaded', function () {
   initClock();
   initTheme();
+
+  /* iframe integration — runs after DOM is ready so document.body is safe */
+  if (window !== window.top) {
+    /* in-iframe class is already set by the paytable inline script;
+       we just need to register the message listener here */
+    window.addEventListener('message', function (event) {
+      if (!event.data) return;
+      if (event.data.type === 'SET_THEME') {
+        setTheme(event.data.theme);
+      } else if (event.data.type === 'TOGGLE_SIDEBAR') {
+        if (typeof toggleMobileSidebar === 'function') toggleMobileSidebar();
+      }
+    });
+  }
 });
