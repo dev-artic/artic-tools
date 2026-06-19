@@ -863,11 +863,8 @@ function executeTabSwitch(tabId) {
   // 모바일 드로어 메뉴 및 오버레이 닫기
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebar-overlay');
-  if (sidebar && sidebar.classList.contains('active')) {
-    sidebar.classList.remove('active');
-  }
-  if (overlay && overlay.classList.contains('active')) {
-    overlay.classList.remove('active');
+  if (sidebar?.classList.contains('active') || overlay?.classList.contains('active')) {
+    setMobileSidebarOpen(false);
   }
 
   document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
@@ -2677,9 +2674,45 @@ function updateEpisodeData(epIndex, field, value) {
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
+    if (window.matchMedia('(max-width: 1200px)').matches) {
+      toggleMobileSidebar();
+      return;
+    }
     sidebar.classList.toggle('collapsed');
+    const isExpanded = !sidebar.classList.contains('collapsed');
+    const button = document.getElementById('sidebar-toggle');
+    if (button) {
+      button.setAttribute('aria-expanded', String(isExpanded));
+      button.setAttribute('aria-label', isExpanded ? '메뉴 축소' : '메뉴 확대');
+    }
   }
 }
+
+function syncSidebarForViewport() {
+  const sidebar = document.getElementById('sidebar');
+  const button = document.getElementById('sidebar-toggle');
+  const label = button?.querySelector('.toggle-label');
+  if (!sidebar || !button) return;
+
+  const isDesktop = window.matchMedia('(min-width: 1201px)').matches;
+  if (isDesktop && sidebar.classList.contains('active')) {
+    setMobileSidebarOpen(false);
+  }
+
+  const isExpanded = isDesktop
+    ? !sidebar.classList.contains('collapsed')
+    : sidebar.classList.contains('active');
+  const buttonLabel = isDesktop
+    ? (isExpanded ? '메뉴 축소' : '메뉴 확대')
+    : (isExpanded ? '메뉴 닫기' : '메뉴 열기');
+
+  button.setAttribute('aria-expanded', String(isExpanded));
+  button.setAttribute('aria-label', buttonLabel);
+  if (label) label.textContent = buttonLabel;
+}
+
+window.addEventListener('resize', syncSidebarForViewport);
+document.addEventListener('DOMContentLoaded', syncSidebarForViewport);
 
 function updateAdminCost(month, value) {
   if (!DATA.blackmagicCosts) {
@@ -2848,19 +2881,29 @@ function deleteEpisode(epIndex) {
 // ============================================================
 // MOBILE DRAWER TOGGLE HELPER
 // ============================================================
-function toggleMobileSidebar() {
+function setMobileSidebarOpen(isActive) {
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebar-overlay');
   if (sidebar && overlay) {
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-    
+    sidebar.classList.toggle('active', isActive);
+    overlay.classList.toggle('active', isActive);
+    document.querySelectorAll('#sidebar-toggle, .mobile-menu-toggle').forEach(button => {
+      button.setAttribute('aria-expanded', String(isActive));
+      button.setAttribute('aria-label', isActive ? '메뉴 닫기' : '메뉴 열기');
+    });
+    const label = document.querySelector('#sidebar-toggle .toggle-label');
+    if (label) label.textContent = isActive ? '메뉴 닫기' : '메뉴 열기';
+
     // Notify parent about the sidebar active state
     if (window.parent && window.parent !== window) {
-      const isActive = sidebar.classList.contains('active');
       window.parent.postMessage({ type: 'SIDEBAR_STATE', active: isActive }, '*');
     }
   }
+}
+
+function toggleMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  setMobileSidebarOpen(!sidebar?.classList.contains('active'));
 }
 
 // ============================================================

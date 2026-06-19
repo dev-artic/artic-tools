@@ -285,7 +285,27 @@ body.light-theme .sidebar {
 }
 
 .sidebar-logo {
-  display: none !important; /* Desktop: hidden — logo is in global header */
+  /* Visible on desktop — shows artic icon + PTR text when expanded */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  cursor: pointer;
+  justify-content: flex-start;
+  transition: gap 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Logo text block (PTR + Pay Table) fades with sidebar — same timing as nav labels */
+.sidebar-logo .logo-text {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 180px;
+  opacity: 1;
+  transition:
+    max-width 0.5s  cubic-bezier(0.4, 0, 0.2, 1) 0.2s,
+    opacity   0.25s ease                          0.2s;
 }
 
 .logo-mark {
@@ -300,6 +320,31 @@ body.light-theme .sidebar {
 .logo-text { display: flex; flex-direction: column; }
 .logo-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); }
 .logo-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.05em; }
+
+.sidebar-toggle-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0 17px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  transition: padding-bottom 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sidebar-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 4px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s, gap 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 .nav-menu { list-style: none; padding: 0 10px; flex: 1; overflow-y: auto; }
 
@@ -368,8 +413,15 @@ body.light-theme .nav-item:hover {
   transition: padding 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+#btn-logout {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+}
+
 .project-badge {
   display: flex; align-items: center; gap: 8px;
+  justify-content: center;
   font-size: 0.78rem; color: var(--text-muted);
 }
 .badge-dot {
@@ -399,6 +451,7 @@ body.light-theme .nav-item:hover {
 .page-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   margin-bottom: 28px;
+  padding-left: 8px;
 }
 .page-title { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); }
 .page-desc { font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; }
@@ -1465,15 +1518,21 @@ input:disabled, select:disabled, button:disabled {
   transition-delay: 0s;
 }
 
+/* Keep the logo icon on the same axis while its label collapses. */
 .sidebar.collapsed .sidebar-logo {
-  padding: 0 0 16px !important;
-  justify-content: center !important;
-  gap: 0 !important;
+  justify-content: flex-start;
+  padding: 8px 12px 16px;
+  gap: 0;
+}
+.sidebar.collapsed .sidebar-logo .logo-text {
+  max-width: 0;
+  opacity: 0;
+  transition-delay: 0s;
 }
 
 .sidebar.collapsed .sidebar-toggle-wrap {
-  padding: 0 0 12px !important;
-  justify-content: flex-start !important; /* icon stays at left, doesn't jump */
+  padding: 0 17px 12px !important;
+  justify-content: flex-start !important;
 }
 
 .sidebar.collapsed .nav-menu {
@@ -1488,19 +1547,135 @@ input:disabled, select:disabled, button:disabled {
 }
 
 .sidebar.collapsed .sidebar-footer {
-  padding: 12px 6px 8px;
+  padding: 12px 10px 8px;
+}
+
+.sidebar.collapsed .project-badge {
+  justify-content: center;
+  gap: 0;
 }
 
 .sidebar.collapsed #btn-logout,
 .sidebar.collapsed #btn-theme-toggle {
-  padding: 10px 0;
-  justify-content: center;
+  padding: 9px 12px;
+  justify-content: flex-start;
   border-radius: var(--radius-sm);
 }
 
 .sidebar.collapsed #sidebar-toggle {
-  justify-content: center;
-  width: 100%;
+  justify-content: flex-start;
+  width: auto;
+  gap: 0;
+}
+
+/* Tablet: keep the real sidebar as a fixed collapsed rail, then expand it
+   into the existing drawer. Phone layouts continue to use the portal button. */
+@media (min-width: 769px) and (max-width: 1200px) {
+  body.in-iframe .sidebar {
+    top: var(--sidebar-offset-top);
+    left: var(--sidebar-offset-left);
+    width: 60px !important;
+    height: calc(100dvh - var(--sidebar-offset-top) - 16px);
+    padding: 16px 0;
+    transform: none;
+    border-radius: 20px;
+    z-index: 100 !important;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.4s ease,
+                border-color 0.4s ease,
+                box-shadow 0.4s ease !important;
+  }
+
+  body.light-theme.in-iframe .sidebar {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+  }
+
+  body.in-iframe .sidebar.active {
+    width: min(216px, 80vw) !important;
+    transform: none;
+    z-index: 10020 !important;
+    box-shadow: 10px 0 40px rgba(0,0,0,0.6);
+  }
+
+  body.in-iframe .sidebar-toggle-wrap {
+    display: flex !important;
+    padding: 0 17px 12px !important;
+    justify-content: flex-start !important;
+  }
+
+  body.in-iframe .sidebar:not(.active) .logo-text,
+  body.in-iframe .sidebar:not(.active) .nav-item span,
+  body.in-iframe .sidebar:not(.active) .sidebar-toggle-wrap .toggle-label,
+  body.in-iframe .sidebar:not(.active) .project-badge span:not(.badge-dot),
+  body.in-iframe .sidebar:not(.active) #btn-logout span {
+    display: block !important;
+    max-width: 0 !important;
+    opacity: 0 !important;
+    transition-delay: 0s !important;
+  }
+
+  body.in-iframe .sidebar:not(.active) .nav-admin-header {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  body.in-iframe .sidebar:not(.active) .sidebar-logo {
+    padding: 8px 12px 16px !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+  }
+
+  body.in-iframe .sidebar:not(.active) .sidebar-footer {
+    padding: 12px 10px 8px;
+  }
+
+  body.in-iframe .sidebar:not(.active) .project-badge {
+    justify-content: center;
+    gap: 0;
+  }
+
+  body.in-iframe .sidebar:not(.active) #btn-logout {
+    padding: 9px 12px;
+    justify-content: flex-start;
+  }
+
+  body.in-iframe .sidebar:not(.active) #sidebar-toggle {
+    width: auto;
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  body.in-iframe .sidebar.active .logo-text,
+  body.in-iframe .sidebar.active .nav-item span,
+  body.in-iframe .sidebar.active .sidebar-toggle-wrap .toggle-label,
+  body.in-iframe .sidebar.active .project-badge span:not(.badge-dot),
+  body.in-iframe .sidebar.active #btn-logout span {
+    display: block !important;
+    max-width: 180px !important;
+    opacity: 1 !important;
+  }
+
+  body.in-iframe .sidebar.active .nav-admin-header {
+    max-height: 40px !important;
+    opacity: 1 !important;
+  }
+
+  body.in-iframe .sidebar.active .sidebar-logo {
+    padding: 8px 12px 16px !important;
+    gap: 12px !important;
+  }
+
+  body.in-iframe .sidebar.active .project-badge {
+    gap: 8px;
+  }
+
+  body.in-iframe .main-content {
+    padding-left: 88px !important;
+  }
 }
 
 /* ===== Horizontal Admin Episode Cards (1-Column Row Layout) ===== */
@@ -3036,4 +3211,3 @@ body.light-theme .modal-container {
     grid-template-columns: 1fr !important;
   }
 }
-
