@@ -191,12 +191,19 @@
   margin-top: 20px;
 }
 
-/* 대시보드 초기 숨김 및 등장 애니메이션 */
+/* 대시보드 초기 숨김 및 등장 애니메이션 + 테마 전환 통합 */
 .sidebar, .main-content {
   transition:
     transform   1.0s cubic-bezier(0.16, 1, 0.3, 1),
-    margin-left 0.5s  cubic-bezier(0.4, 0, 0.2, 1),
-    width       0.5s  cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin-left 0.5s  cubic-bezier(0.16, 1, 0.3, 1),
+    width       0.5s  cubic-bezier(0.16, 1, 0.3, 1),
+    background  0.4s ease,
+    background-color 0.4s ease,
+    color 0.4s ease,
+    border-color 0.4s ease,
+    box-shadow 0.4s ease,
+    backdrop-filter 0.4s ease,
+    -webkit-backdrop-filter 0.4s ease !important;
 }
 .dashboard-hidden .sidebar {
   transform: translateX(-40px) !important;
@@ -301,10 +308,10 @@ body.light-theme .sidebar {
 .sidebar-logo .logo-text {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 180px;
+  max-width: 100px;
   opacity: 1;
   transition:
-    max-width 0.5s  cubic-bezier(0.4, 0, 0.2, 1) 0.2s,
+    max-width 0.5s  cubic-bezier(0.16, 1, 0.3, 1) 0.2s,
     opacity   0.25s ease                          0.2s;
 }
 
@@ -383,11 +390,11 @@ body.light-theme .nav-item:hover {
 .sidebar-footer .project-badge span:not(.badge-dot) {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 180px;
+  max-width: 100px;
   opacity: 1;
   /* Expanding: fade IN after sidebar has opened (0.2s delay) */
   transition:
-    max-width 0.5s  cubic-bezier(0.4, 0, 0.2, 1) 0.2s,
+    max-width 0.5s  cubic-bezier(0.16, 1, 0.3, 1) 0.2s,
     opacity   0.25s ease                          0.2s;
 }
 
@@ -399,9 +406,9 @@ body.light-theme .nav-item:hover {
   opacity: 1;
   /* Expanding: fade in after sidebar opened */
   transition:
-    max-height 0.5s  cubic-bezier(0.4, 0, 0.2, 1) 0.2s,
+    max-height 0.5s  cubic-bezier(0.16, 1, 0.3, 1) 0.2s,
     opacity    0.25s ease                          0.2s,
-    padding    0.5s  cubic-bezier(0.4, 0, 0.2, 1);
+    padding    0.5s  cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 
@@ -413,9 +420,25 @@ body.light-theme .nav-item:hover {
 }
 
 .project-badge {
-  display: flex; align-items: center; gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  justify-content: flex-start;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  transition:
+    gap 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.badge-dot-container {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  font-size: 0.78rem; color: var(--text-muted);
+  flex-shrink: 0;
 }
 .badge-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -1485,24 +1508,22 @@ input:disabled, select:disabled, button:disabled {
 
 /* ── Collapsed: fade OUT immediately (no delay), then sidebar shrinks ── */
 .sidebar.collapsed .nav-item span,
-.sidebar.collapsed .sidebar-toggle-wrap .toggle-label {
-  max-width: 0;
-  opacity: 0;
-  transition-delay: 0s; /* Override the expand-delay: fade out right away */
-}
-
+.sidebar.collapsed .sidebar-toggle-wrap .toggle-label,
 .sidebar.collapsed .project-badge span:not(.badge-dot) {
   max-width: 0;
   opacity: 0;
-  transition-delay: 0s;
+  transition:
+    max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity   0.15s ease;
 }
 
 .sidebar.collapsed .nav-admin-header {
-  max-height: 0;
   opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  transition-delay: 0s;
+  max-width: 0;
+  /* Do NOT change max-height or padding to prevent vertical jumping! */
+  transition:
+    max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity   0.15s ease;
 }
 
 /* Keep the logo icon on the same axis while its label collapses. */
@@ -1514,11 +1535,13 @@ input:disabled, select:disabled, button:disabled {
 .sidebar.collapsed .sidebar-logo .logo-text {
   max-width: 0;
   opacity: 0;
-  transition-delay: 0s;
+  transition:
+    max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity   0.15s ease;
 }
 
 .sidebar.collapsed .sidebar-toggle-wrap {
-  padding: 0 17px 12px !important;
+  padding: 0 17px 16px !important; /* Keep vertical padding same as expanded */
   justify-content: flex-start !important;
 }
 
@@ -1538,7 +1561,7 @@ input:disabled, select:disabled, button:disabled {
 }
 
 .sidebar.collapsed .project-badge {
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0;
 }
 
@@ -1568,7 +1591,7 @@ input:disabled, select:disabled, button:disabled {
     z-index: 100 !important;
     overflow: hidden;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05);
-    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1),
                 background 0.4s ease,
                 border-color 0.4s ease,
                 box-shadow 0.4s ease !important;
@@ -1587,7 +1610,7 @@ input:disabled, select:disabled, button:disabled {
 
   body.in-iframe .sidebar-toggle-wrap {
     display: flex !important;
-    padding: 0 17px 12px !important;
+    padding: 0 17px 16px !important; /* Keep vertical padding same as expanded */
     justify-content: flex-start !important;
   }
 
@@ -1598,14 +1621,15 @@ input:disabled, select:disabled, button:disabled {
     display: block !important;
     max-width: 0 !important;
     opacity: 0 !important;
-    transition-delay: 0s !important;
+    transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease !important;
   }
 
   body.in-iframe .sidebar:not(.active) .nav-admin-header {
-    max-height: 0 !important;
+    max-height: 40px !important; /* Keep height/space to prevent jumping */
     opacity: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding-top: 18px !important;
+    padding-bottom: 6px !important;
+    transition: opacity 0.15s ease, max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   body.in-iframe .sidebar:not(.active) .sidebar-logo {
@@ -1619,8 +1643,8 @@ input:disabled, select:disabled, button:disabled {
   }
 
   body.in-iframe .sidebar:not(.active) .project-badge {
-    justify-content: center;
-    gap: 0;
+    justify-content: flex-start !important;
+    gap: 0 !important;
   }
 
   body.in-iframe .sidebar:not(.active) #sidebar-toggle {
@@ -1634,13 +1658,15 @@ input:disabled, select:disabled, button:disabled {
   body.in-iframe .sidebar.active .sidebar-toggle-wrap .toggle-label,
   body.in-iframe .sidebar.active .project-badge span:not(.badge-dot) {
     display: block !important;
-    max-width: 180px !important;
+    max-width: 100px !important; /* Limit to 100px */
     opacity: 1 !important;
   }
 
   body.in-iframe .sidebar.active .nav-admin-header {
     max-height: 40px !important;
     opacity: 1 !important;
+    padding-top: 18px !important;
+    padding-bottom: 6px !important;
   }
 
   body.in-iframe .sidebar.active .sidebar-logo {
@@ -1649,7 +1675,8 @@ input:disabled, select:disabled, button:disabled {
   }
 
   body.in-iframe .sidebar.active .project-badge {
-    gap: 8px;
+    gap: 10px !important;
+    padding: 6px 12px !important;
   }
 
   body.in-iframe .main-content {

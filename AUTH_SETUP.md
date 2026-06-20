@@ -42,7 +42,7 @@ Initial role assignments:
 | 박광규 | member | member |
 | 조경엽 | member | - |
 | 김정호 | member | - |
-| 현명은 | - | - |
+| 현명은 | - | member |
 
 ## 4. Deploy security rules
 
