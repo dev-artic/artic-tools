@@ -87,8 +87,10 @@
   }
 
   async function loadProfile(user) {
-    if (!isAllowedEmail(user.email)) return null;
-    const bootstrap = TEAM_DIRECTORY.find(member => member.email.toLowerCase() === user.email?.toLowerCase());
+    const emails = [user.email, ...(user.providerData || []).map(p => p.email)].filter(Boolean);
+    const articEmail = emails.find(email => isAllowedEmail(email));
+    if (!articEmail) return null;
+    const bootstrap = TEAM_DIRECTORY.find(member => member.email.toLowerCase() === articEmail.toLowerCase());
     let storedProfile = null;
     try {
       const snapshot = await db.collection('users').doc(user.uid).get();
@@ -102,7 +104,7 @@
       ...(bootstrap || {}),
       ...storedProfile,
       uid: user.uid,
-      email: user.email,
+      email: articEmail,
       projects: storedProfile.projects || {},
     };
   }
@@ -160,15 +162,36 @@
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     const credential = await auth.signInWithPopup(provider);
-    if (!isAllowedEmail(credential.user.email)) {
-      return rejectGoogleCredential(credential, 'artic.live 도메인의 Google 계정만 사용할 수 있습니다.');
-    }
     const profile = await loadProfile(credential.user);
     if (!profile) {
-      return rejectGoogleCredential(credential, '관리자가 등록한 artic.live 계정이 아닙니다.');
+      return rejectGoogleCredential(credential, 'artic. 도메인으로 등록되지 않은 계정입니다.');
     }
     cacheProfile(profile);
     return profile;
+  }
+
+  async function linkGoogle() {
+    const user = auth.currentUser;
+    if (!user) throw new Error('로그인이 필요합니다.');
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await user.linkWithPopup(provider);
+    const profile = await loadProfile(user);
+    cacheProfile(profile);
+    return profile;
+  }
+
+  async function unlinkGoogle() {
+    const user = auth.currentUser;
+    if (!user) throw new Error('로그인이 필요합니다.');
+    await user.unlink('google.com');
+    const profile = await loadProfile(user);
+    cacheProfile(profile);
+    return profile;
+  }
+
+  function isGoogleLinked() {
+    return auth.currentUser?.providerData.some(p => p.providerId === 'google.com') || false;
   }
 
   async function adminCreateMember(displayName, email, password) {
@@ -260,6 +283,9 @@
     ready: () => readyPromise,
     signIn,
     signInWithGoogle,
+    linkGoogle,
+    unlinkGoogle,
+    isGoogleLinked,
     adminCreateMember,
     requestProjectParticipation,
     sendPasswordReset,

@@ -28,7 +28,18 @@
     byId('control-center-name').textContent = profile.displayName || profile.loginId;
     byId('control-center-email').textContent = profile.email;
     byId('admin-register-tile').hidden = !ArticAuth.isPortalAdmin();
-    byId('project-join-tile').classList.toggle('wide', !ArticAuth.isPortalAdmin());
+
+    // Update Google Link status in UI
+    const isLinked = ArticAuth.isGoogleLinked();
+    const badge = byId('google-link-badge');
+    const linkBtn = byId('btn-google-link');
+    if (badge && linkBtn) {
+      badge.textContent = isLinked ? '연동 완료' : '미연동';
+      badge.className = `google-link-badge ${isLinked ? 'linked' : 'unlinked'}`;
+      linkBtn.textContent = isLinked ? '구글 연동 해제' : '구글 연동하기';
+      linkBtn.className = `btn-google-link ${isLinked ? 'linked' : ''}`;
+    }
+
     byId('control-center-projects').innerHTML = Object.entries(profile.projects || {}).map(([project, role]) => `
       <div class="control-project-card">
         <span class="control-project-id">${PROJECT_NAMES[project] || project.toUpperCase()}</span>
@@ -140,35 +151,54 @@
     openApp(event, url);
   };
 
+  function collapseAllTilesExcept(activeTileId) {
+    const ids = ['tile-account-settings', 'project-join-tile', 'admin-register-tile'];
+    ids.forEach(id => {
+      const tile = byId(id);
+      if (tile && id !== activeTileId) {
+        tile.classList.remove('expanded');
+      }
+    });
+  }
+
   window.toggleControlCenter = function (force) {
     const backdrop = byId('control-center-backdrop');
     const shouldOpen = typeof force === 'boolean' ? force : !backdrop.classList.contains('open');
     backdrop.classList.toggle('open', shouldOpen);
     byId('account-center-button').setAttribute('aria-expanded', String(shouldOpen));
+    if (!shouldOpen) {
+      collapseAllTilesExcept(null);
+    }
   };
 
   window.toggleAccountSettings = function () {
-    const form = byId('global-account-settings');
-    byId('project-join-form').hidden = true;
-    byId('admin-register-form').hidden = true;
-    form.hidden = !form.hidden;
-    if (!form.hidden) byId('global-current-password').focus();
+    const tile = byId('tile-account-settings');
+    if (!tile) return;
+    collapseAllTilesExcept('tile-account-settings');
+    const isExpanded = tile.classList.toggle('expanded');
+    if (isExpanded) {
+      const input = byId('global-current-password');
+      if (input) input.focus();
+    }
   };
 
   window.toggleProjectJoin = function () {
-    const form = byId('project-join-form');
-    byId('global-account-settings').hidden = true;
-    byId('admin-register-form').hidden = true;
-    form.hidden = !form.hidden;
+    const tile = byId('project-join-tile');
+    if (!tile) return;
+    collapseAllTilesExcept('project-join-tile');
+    tile.classList.toggle('expanded');
   };
 
   window.toggleAdminRegistration = function () {
     if (!ArticAuth.isPortalAdmin()) return;
-    const form = byId('admin-register-form');
-    byId('global-account-settings').hidden = true;
-    byId('project-join-form').hidden = true;
-    form.hidden = !form.hidden;
-    if (!form.hidden) byId('admin-register-name').focus();
+    const tile = byId('admin-register-tile');
+    if (!tile) return;
+    collapseAllTilesExcept('admin-register-tile');
+    const isExpanded = tile.classList.toggle('expanded');
+    if (isExpanded) {
+      const input = byId('admin-register-name');
+      if (input) input.focus();
+    }
   };
 
   async function submitProjectJoin(event) {
@@ -250,6 +280,35 @@
     byId('control-center-backdrop').addEventListener('click', event => {
       if (event.target === event.currentTarget) toggleControlCenter(false);
     });
+
+    const btnGoogleLink = byId('btn-google-link');
+    if (btnGoogleLink) {
+      btnGoogleLink.addEventListener('click', async () => {
+        btnGoogleLink.disabled = true;
+        const isLinked = ArticAuth.isGoogleLinked();
+        const message = byId('global-account-message');
+        if (message) message.textContent = '';
+        try {
+          if (isLinked) {
+            await ArticAuth.unlinkGoogle();
+            if (message) message.textContent = '구글 계정 연동이 해제되었습니다.';
+          } else {
+            await ArticAuth.linkGoogle();
+            if (message) message.textContent = '구글 계정이 성공적으로 연동되었습니다.';
+          }
+          renderProfile(ArticAuth.getProfile());
+        } catch (error) {
+          if (message) {
+            message.textContent = error.code === 'auth/credential-already-in-use'
+              ? '이미 다른 계정에 연동된 구글 계정입니다.'
+              : (error.message || '구글 연동 작업에 실패했습니다.');
+          }
+        } finally {
+          btnGoogleLink.disabled = false;
+        }
+      });
+    }
+
     window.addEventListener('keydown', event => {
       if (event.key === 'Escape') toggleControlCenter(false);
     });
