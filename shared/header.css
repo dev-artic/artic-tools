@@ -45,7 +45,7 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255,255,255,0.06);
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -114,6 +114,12 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.theme-toggle-btn,
+.mobile-menu-toggle.visible {
+  box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .clock-dot {
   width: 6px;

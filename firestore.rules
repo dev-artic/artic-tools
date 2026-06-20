@@ -1,0 +1,65 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasProject(projectId) {
+      return signedIn()
+        && profile().data.projects[projectId] in ['member', 'admin'];
+    }
+
+    function isProjectAdmin(projectId) {
+      return signedIn() && profile().data.projects[projectId] == 'admin';
+    }
+
+    function isPortalAdmin() {
+      return signedIn() && request.auth.token.email == 'admin@artic.live';
+    }
+
+    function hasArticEmail() {
+      return signedIn() && request.auth.token.email.matches('.*@artic[.]live$');
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if isPortalAdmin()
+        && request.resource.data.keys().hasOnly(['loginId', 'displayName', 'memberKey', 'projects'])
+        && request.resource.data.loginId is string
+        && request.resource.data.loginId.matches('.*@artic[.]live$')
+        && request.resource.data.displayName is string
+        && request.resource.data.memberKey == ''
+        && request.resource.data.projects == {};
+      allow update, delete: if false;
+    }
+
+    match /projectJoinRequests/{requestId} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isPortalAdmin());
+      allow create: if hasArticEmail()
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'projectId', 'status', 'requestedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.displayName is string
+        && request.resource.data.projectId in ['ptr', 'tnt']
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requestedAt == request.time;
+      allow update: if isPortalAdmin();
+      allow delete: if false;
+    }
+
+    match /paytable/{documentId} {
+      allow read: if hasProject('ptr');
+      allow create, update, delete: if isProjectAdmin('ptr');
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

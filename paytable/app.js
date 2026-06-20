@@ -6,18 +6,7 @@
 // ============================================================
 // FIREBASE INITIALIZATION
 // ============================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyDeJrfj6Oz5yklVdTqZXPtbwE4Rz57AXrM",
-  authDomain: "artic-ptr-paytable.firebaseapp.com",
-  projectId: "artic-ptr-paytable",
-  storageBucket: "artic-ptr-paytable.firebasestorage.app",
-  messagingSenderId: "38387099281",
-  appId: "1:38387099281:web:ae82ec20509e5dc2bd8130",
-  measurementId: "G-L7X886BBW4"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = ArticAuth.db();
 const FIRESTORE_COL = 'paytable';
 const FIRESTORE_DOC = 'main';
 
@@ -37,12 +26,6 @@ const DEFAULT_DATA = {
     blackmagicCost: 64025,
   },
   members: ['민제', '광규', '경엽', '정호'],
-  credentials: {
-    '민제': '1211',
-    '광규': '1211',
-    '경엽': '0128',
-    '정호': '0000',
-  },
   memberColors: {
     '민제':  'linear-gradient(135deg, #4f8ef7, #7c5ff5)',
     '광규':  'linear-gradient(135deg, #3ecf8e, #22b8e0)',
@@ -265,7 +248,44 @@ function refreshAllViews() {
  * 관리자 여부 확인 헬퍼 함수
  */
 function isAdmin() {
-  return sessionStorage.getItem('artic-auth') === '민제';
+  return ArticAuth.hasRole('ptr', 'admin');
+}
+
+function getCurrentMemberKey() {
+  return ArticAuth.getProfile()?.memberKey || '';
+}
+
+let adminPermissionToastTimer = null;
+
+function showAdminOnlyToast() {
+  const toast = document.getElementById('admin-permission-toast');
+  if (!toast) return;
+  clearTimeout(adminPermissionToastTimer);
+  toast.classList.add('show');
+  adminPermissionToastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+}
+
+function requireAdmin() {
+  if (isAdmin()) return true;
+  showAdminOnlyToast();
+  return false;
+}
+
+function installAdminReadOnlyGuard() {
+  const selector = '#tab-admin, #tab-roles, #tab-episodes';
+  const blockEdit = event => {
+    if (isAdmin() || !(event.target instanceof Element) || !event.target.closest(selector)) return;
+    const editable = event.target.closest('button, input, select, textarea, [contenteditable="true"]');
+    const directManipulation = ['contextmenu', 'dragstart', 'drop'].includes(event.type);
+    if (!editable && !directManipulation) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    showAdminOnlyToast();
+  };
+  ['pointerdown', 'click', 'beforeinput', 'change', 'submit', 'contextmenu', 'dragstart', 'drop'].forEach(type => {
+    document.addEventListener(type, blockEdit, true);
+  });
+  document.addEventListener('keydown', blockEdit, true);
 }
 
 function getEpisodeStatus(ep) {
@@ -356,15 +376,8 @@ function normalizeData() {
       if (ep.settled === undefined) ep.settled = ep.paid;
     }
   }
-  // credentials 정규화: Firestore 문서에 없으면 기본값 설정
-  if (!DATA.credentials) {
-    DATA.credentials = {
-      '민제': '1211',
-      '광규': '1211',
-      '경엽': '0128',
-      '정호': '0000',
-    };
-  }
+  // Legacy plaintext credentials must never remain in cached or saved project data.
+  if (DATA.credentials) delete DATA.credentials;
 
   // invoices 정규화 및 자동 시드 생성
   if (!DATA.invoices) {
@@ -415,6 +428,7 @@ function normalizeData() {
 }
 
 async function saveData(silent = false) {
+  if (!requireAdmin()) return false;
   // 자동 인보이스 생성/삭제 트리거
   if (DATA.episodes && DATA.invoices) {
     const matrix = buildPayMatrix();
@@ -843,12 +857,6 @@ function parseKRWString(val) {
 // TAB NAVIGATION (Dirty check exit alert implemented)
 // ============================================================
 async function switchTab(tabId) {
-  const adminTabs = ['admin', 'roles', 'episodes'];
-  if (adminTabs.includes(tabId) && !isAdmin()) {
-    alert('해당 페이지는 관리자(김민제)만 접근 가능합니다.');
-    return;
-  }
-
   // 변경사항이 있을 때 시스템 confirm 팝업 대신 커스텀 우하단 그래픽 팝업을 띄우고 원래 탭 유지
   if (isDirty) {
     pendingTargetTabId = tabId;
@@ -1300,10 +1308,7 @@ function renderEpisodeRoleTable() {
 }
 
 function toggleParticipation(roleId, memberName, epIndex) {
-  if (!isAdmin()) {
-    alert('관리자(민제)만 에피소드 참여 설정을 수정할 수 있습니다.');
-    return;
-  }
+  if (!requireAdmin()) return;
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (ep && ep.settled) {
     alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
@@ -1380,7 +1385,8 @@ function renderMemberCards() {
     '정호': ['기획', '촬영 스태프', '편집-B(어시)'],
   };
 
-  const currentUser = sessionStorage.getItem('artic-auth') || '민제';
+  const currentUser = getCurrentMemberKey();
+  if (!currentUser) return;
 
   // '나' 카드 데이터 추출
   const myToReceive = getMemberToReceive(currentUser);
@@ -1760,6 +1766,7 @@ function renderRolesGrid() {
 }
 
 function updateRoleDesc(roleId, val) {
+  if (!requireAdmin()) return;
   const role = DATA.roles.find(r => r.id === roleId);
   if (role) {
     pushState();
@@ -1769,6 +1776,7 @@ function updateRoleDesc(roleId, val) {
 }
 
 function updateRoleCost(roleId, val) {
+  if (!requireAdmin()) return;
   const role = DATA.roles.find(r => r.id === roleId);
   if (role) {
     pushState();
@@ -1782,6 +1790,7 @@ function updateRoleCost(roleId, val) {
 }
 
 function updateRoleHeadcount(roleId, val) {
+  if (!requireAdmin()) return;
   const role = DATA.roles.find(r => r.id === roleId);
   if (role) {
     pushState();
@@ -1989,91 +1998,6 @@ function exportSummary() {
 }
 
 // ============================================================
-// LOGIN
-// ============================================================
-const CREDENTIALS = {
-  '민제':  '1211',
-  '광규':  '1211',
-  '경엽':  '0128',
-  '정호':  '0000',
-};
-
-function attemptLogin() {
-  const name = document.getElementById('login-name').value;
-  const pw   = document.getElementById('login-pw').value;
-  const errorEl = document.getElementById('login-error');
-  const card = document.getElementById('login-card');
-  const btn  = document.getElementById('login-btn');
-
-  // 빈 값 체크
-  if (!name) {
-    showLoginError('이름을 선택해주세요.');
-    shakeCard();
-    return;
-  }
-  if (!pw) {
-    showLoginError('비밀번호를 입력해주세요.');
-    shakeCard();
-    return;
-  }
-
-  // 인증
-  // DATA.credentials 우선, 로드 전이면 하드코딩 CREDENTIALS 폴백
-  const creds = (DATA && DATA.credentials) ? DATA.credentials : CREDENTIALS;
-  if (creds[name] && creds[name] === pw) {
-    // 성공 — 세션에 저장
-    sessionStorage.setItem('artic-auth', name);
-    // 버튼 로딩 상태
-    btn.disabled = true;
-    document.getElementById('login-btn-text').textContent = '인증 중...';
-    // 페이드 아웃 후 대시보드 표시
-    setTimeout(() => {
-      const overlay = document.getElementById('login-overlay');
-      overlay.classList.add('hide');
-      document.body.classList.remove('dashboard-hidden');
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ type: 'LOGIN_SUCCESS' }, '*');
-      }
-      init(); // 대시보드 갱신
-      setTimeout(() => overlay.remove(), 500);
-    }, 300);
-  } else {
-    showLoginError('이름 또는 비밀번호가 올바르지 않습니다.');
-    shakeCard();
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-pw').focus();
-  }
-}
-
-function showLoginError(msg) {
-  const errorEl = document.getElementById('login-error');
-  if (errorEl) {
-    document.getElementById('login-error-msg').textContent = msg;
-    errorEl.classList.add('show');
-    setTimeout(() => errorEl.classList.remove('show'), 3000);
-  }
-}
-
-function shakeCard() {
-  const card = document.getElementById('login-card');
-  if (card) {
-    card.classList.remove('shake');
-    void card.offsetWidth; // reflow
-    card.classList.add('shake');
-  }
-}
-
-function togglePw() {
-  const input = document.getElementById('login-pw');
-  if (!input) return;
-  const isText = input.type === 'text';
-  input.type = isText ? 'password' : 'text';
-  document.getElementById('pw-eye').innerHTML = isText
-    ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
-    : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
-}
-
-// ============================================================
 // INIT
 // ============================================================
 /**
@@ -2106,6 +2030,21 @@ function migratePplData() {
 async function init() {
   // initTheme() and initClock() are handled by shared/header.js
 
+  const profile = await ArticAuth.ready();
+  if (!profile || !ArticAuth.hasProject('ptr')) {
+    document.body.classList.add('dashboard-hidden');
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'PROJECT_ACCESS_DENIED', project: 'ptr' }, '*');
+    } else {
+      window.location.replace('../#paytable');
+    }
+    return;
+  }
+  sessionStorage.setItem('artic-auth', profile.memberKey);
+  document.body.classList.remove('dashboard-hidden');
+  document.body.classList.toggle('admin-readonly', !isAdmin());
+  installAdminReadOnlyGuard();
+
   // Cmd+S (Mac) or Ctrl+S (Windows) global key listener
   window.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
@@ -2123,15 +2062,14 @@ async function init() {
   // Normalize blackmagicCosts structure
   normalizeBlackmagicCosts();
 
-  // Roles/Episodes 저장 버튼 및 관리자 메뉴 제어
-  const showAdmin = isAdmin();
+  // 관리자 페이지는 모든 PTR 멤버에게 표시하고, 일반 팀원은 읽기 전용으로 사용한다.
   const saveBtn = document.getElementById('btn-save-roles');
   const saveEpBtn = document.getElementById('btn-save-episodes');
   if (saveBtn) {
-    saveBtn.style.display = showAdmin ? 'flex' : 'none';
+    saveBtn.style.display = 'flex';
   }
   if (saveEpBtn) {
-    saveEpBtn.style.display = showAdmin ? 'flex' : 'none';
+    saveEpBtn.style.display = 'flex';
   }
   
   const adminHeader = document.getElementById('nav-admin-group-header');
@@ -2139,17 +2077,10 @@ async function init() {
   const rolesTab = document.getElementById('nav-roles-tab');
   const episodesTab = document.getElementById('nav-episodes-tab');
   
-  if (adminHeader) adminHeader.style.display = showAdmin ? 'block' : 'none';
-  if (adminTab) adminTab.style.display = showAdmin ? 'flex' : 'none';
-  if (rolesTab) rolesTab.style.display = showAdmin ? 'flex' : 'none';
-  if (episodesTab) episodesTab.style.display = showAdmin ? 'flex' : 'none';
-
-  // 로그인 체크
-  const authed = sessionStorage.getItem('artic-auth');
-  const logoutBtn = document.getElementById('btn-logout');
-  if (logoutBtn) {
-    logoutBtn.style.display = authed ? 'flex' : 'none';
-  }
+  if (adminHeader) adminHeader.style.display = 'block';
+  if (adminTab) adminTab.style.display = 'flex';
+  if (rolesTab) rolesTab.style.display = 'flex';
+  if (episodesTab) episodesTab.style.display = 'flex';
 
   renderOverview();
   renderEpisodeTab();
@@ -2158,28 +2089,8 @@ async function init() {
   renderRolesGrid();
   renderIncomeTab();
   renderAccountTab();
-  const credMap = (DATA && DATA.credentials) ? DATA.credentials : CREDENTIALS;
-  if (authed && credMap[authed]) {
-    // 이미 인증된 세션 — 오버레이 즉시 제거
-    const overlay = document.getElementById('login-overlay');
-    if (overlay) overlay.remove();
-    document.body.classList.remove('dashboard-hidden');
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'LOGIN_SUCCESS' }, '*');
-    }
-  } else {
-    // 로그인 화면 표시, 대시보드 숨김
-    document.body.classList.add('dashboard-hidden');
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'LOGOUT' }, '*');
-    }
-    const pwInput = document.getElementById('login-pw');
-    if (pwInput) {
-      pwInput.addEventListener('input', () => {
-        const err = document.getElementById('login-error');
-        if (err) err.classList.remove('show');
-      });
-    }
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'LOGIN_SUCCESS' }, '*');
   }
 
   updateUndoRedoButtons();
@@ -2234,8 +2145,6 @@ function recalculateProjectMetrics() {
 }
 
 function renderAdminTab() {
-  if (!isAdmin()) return;
-
   // 1. 에피소드별 정산 리스트 카드 그리드 그리기 (1열 가로 카드 레이아웃에 최적화)
   const grid = document.getElementById('admin-episodes-grid');
   if (!grid) return;
@@ -2444,6 +2353,7 @@ function renderAdminTab() {
 // ADMIN ACTIONS FOR MULTI-STAGE PPL
 // ============================================================
 function addPplPayment(epIndex) {
+  if (!requireAdmin()) return;
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
 
@@ -2529,6 +2439,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function deletePplPayment(epIndex, pplId) {
+  if (!requireAdmin()) return;
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
 
@@ -2548,6 +2459,7 @@ async function deletePplPayment(epIndex, pplId) {
 }
 
 function updatePplPaymentField(epIndex, pplId, field, value) {
+  if (!requireAdmin()) return;
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
 
@@ -2601,12 +2513,8 @@ function updatePplPaymentField(epIndex, pplId, field, value) {
   renderAdminTab();
 }
 
-function logout() {
-  sessionStorage.removeItem('artic-auth');
-  location.reload();
-}
-
 function updateEpisodeArtists(epIndex, rawValue) {
+  if (!requireAdmin()) return;
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
 
@@ -2621,6 +2529,7 @@ function updateEpisodeArtists(epIndex, rawValue) {
 }
 
 function updateEpisodeData(epIndex, field, value) {
+  if (!requireAdmin()) return;
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (!ep) return;
 
@@ -2715,6 +2624,7 @@ window.addEventListener('resize', syncSidebarForViewport);
 document.addEventListener('DOMContentLoaded', syncSidebarForViewport);
 
 function updateAdminCost(month, value) {
+  if (!requireAdmin()) return;
   if (!DATA.blackmagicCosts) {
     DATA.blackmagicCosts = { jan: 21153, feb: 21239, mar: 21633 };
   }
@@ -2734,6 +2644,7 @@ function updateAdminCost(month, value) {
 let selectedEpIndexForDelete = null;
 
 function addNewEpisode() {
+  if (!requireAdmin()) return;
   pushState();
   // 현재 최대 인덱스를 찾아 새 인덱스 지정
   const maxIdx = DATA.episodes.length > 0 ? Math.max(...DATA.episodes.map(e => e.index)) : 0;
@@ -2774,7 +2685,7 @@ function addNewEpisode() {
 }
 
 async function handleDeleteEpisodeDirect(epIndex) {
-  if (!isAdmin()) return;
+  if (!requireAdmin()) return;
   if (epIndex === 0) {
     alert("리허설 에피소드는 삭제할 수 없습니다.");
     return;
@@ -2787,7 +2698,7 @@ async function handleDeleteEpisodeDirect(epIndex) {
 
 function handleEpisodeCardContextMenu(e) {
   e.preventDefault();
-  if (!isAdmin()) return;
+  if (!requireAdmin()) return;
 
   const card = e.currentTarget;
   const epIndex = parseInt(card.getAttribute('data-ep-index'));
@@ -2818,6 +2729,7 @@ window.addEventListener('click', () => {
 });
 
 async function handleDeleteEpisodeClick() {
+  if (!requireAdmin()) return;
   if (selectedEpIndexForDelete === null) return;
 
   // 컨텍스트 메뉴 닫기
@@ -2833,6 +2745,7 @@ async function handleDeleteEpisodeClick() {
 }
 
 function deleteEpisode(epIndex) {
+  if (!requireAdmin()) return;
   if (epIndex === 0) return; // 리허설 보호
 
   const targetIdx = DATA.episodes.findIndex(e => e.index === epIndex);
@@ -2910,10 +2823,7 @@ function toggleMobileSidebar() {
 // SHOOT ROLE DUAL TOGGLE INTERACTION (EXCLUSIVE D.O.P)
 // ============================================================
 function toggleShootRole(memberName, type, epIndex) {
-  if (!isAdmin()) {
-    alert('관리자(민제)만 에피소드 참여 설정을 수정할 수 있습니다.');
-    return;
-  }
+  if (!requireAdmin()) return;
   const ep = DATA.episodes.find(e => e.index === epIndex);
   if (ep && ep.settled) {
     alert('정산 완료된 회차의 페이 배분은 수정할 수 없습니다.');
@@ -2990,6 +2900,7 @@ function normalizeBlackmagicCosts() {
 }
 
 function addCostItem() {
+  if (!requireAdmin()) return;
   normalizeBlackmagicCosts();
   pushState();
 
@@ -3008,6 +2919,7 @@ function addCostItem() {
 }
 
 async function deleteCostItem(id) {
+  if (!requireAdmin()) return;
   normalizeBlackmagicCosts();
   const idx = DATA.blackmagicCosts.findIndex(item => item.id === id);
   if (idx === -1) return;
@@ -3025,6 +2937,7 @@ async function deleteCostItem(id) {
 }
 
 function updateCostItemLabel(id, label) {
+  if (!requireAdmin()) return;
   normalizeBlackmagicCosts();
   const item = DATA.blackmagicCosts.find(item => item.id === id);
   if (item) {
@@ -3037,6 +2950,7 @@ function updateCostItemLabel(id, label) {
 }
 
 function updateCostItemCost(id, val) {
+  if (!requireAdmin()) return;
   normalizeBlackmagicCosts();
   const item = DATA.blackmagicCosts.find(item => item.id === id);
   if (item) {
@@ -3119,11 +3033,11 @@ const MEMBER_FULL_NAMES = {
 };
 
 function renderAccountTab() {
-  const authed = sessionStorage.getItem('artic-auth');
+  const authed = getCurrentMemberKey();
   if (!authed) return;
 
-  const fullName = MEMBER_FULL_NAMES[authed] || authed;
-  const isAdminUser = authed === '민제';
+  const fullName = ArticAuth.getProfile()?.displayName || MEMBER_FULL_NAMES[authed] || authed;
+  const isAdminUser = isAdmin();
 
   // 아바타 & 이름
   const avatarEl = document.getElementById('account-avatar');
@@ -3199,7 +3113,7 @@ function renderAccountTab() {
   // 관리자 전용 정산 인보이스 관리 영역 표시 여부 제어
   const invoiceSection = document.getElementById('admin-invoice-section');
   if (invoiceSection) {
-    if (authed === '민제') {
+    if (isAdminUser) {
       invoiceSection.style.display = 'block';
       renderInvoicesTable();
     } else {
@@ -3209,8 +3123,8 @@ function renderAccountTab() {
 }
 
 async function changePassword() {
-  const authed = sessionStorage.getItem('artic-auth');
-  if (!authed) return;
+  const user = ArticAuth.auth().currentUser;
+  if (!user) return;
 
   const currentVal = document.getElementById('pw-current')?.value;
   const newVal     = document.getElementById('pw-new')?.value;
@@ -3225,11 +3139,7 @@ async function changePassword() {
     setTimeout(() => { msgEl.style.display = 'none'; }, 3500);
   }
 
-  const creds = DATA.credentials || {};
-  if (!currentVal || creds[authed] !== currentVal) {
-    showMsg('현재 비밀번호가 올바르지 않습니다.', true);
-    return;
-  }
+  if (!currentVal) return showMsg('현재 비밀번호를 입력해주세요.', true);
   if (!newVal) {
     showMsg('새 비밀번호를 입력해주세요.', true);
     return;
@@ -3239,8 +3149,16 @@ async function changePassword() {
     return;
   }
 
-  DATA.credentials[authed] = newVal;
-  await saveData(true); // silent save
+  try {
+    const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentVal);
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newVal);
+  } catch (error) {
+    showMsg(error.code === 'auth/wrong-password'
+      ? '현재 비밀번호가 올바르지 않습니다.'
+      : '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
+    return;
+  }
 
   // 입력창 초기화
   document.getElementById('pw-current').value = '';

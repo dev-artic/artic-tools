@@ -1,4 +1,4 @@
-@import '../shared/header.css';
+@import '../shared/header.css?v=20260620-2';
 /* ===== CSS Variables & Reset ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -380,8 +380,7 @@ body.light-theme .nav-item:hover {
 /* Text labels inside nav items — animated with sidebar width */
 .nav-item span,
 .sidebar-toggle-wrap .toggle-label,
-.sidebar-footer .project-badge span:not(.badge-dot),
-#btn-logout span {
+.sidebar-footer .project-badge span:not(.badge-dot) {
   overflow: hidden;
   white-space: nowrap;
   max-width: 180px;
@@ -411,12 +410,6 @@ body.light-theme .nav-item:hover {
   border-top: 1px solid var(--border);
   margin-top: auto;
   transition: padding 0.32s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-#btn-logout {
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 9px 12px;
 }
 
 .project-badge {
@@ -1222,11 +1215,6 @@ body.light-theme .settle-completed-badge-all {
   .sidebar.collapsed .nav-menu   { padding: 0 12px; }
   .sidebar.collapsed .nav-item   { justify-content: flex-start; padding: 10px 12px; }
   .sidebar.collapsed .sidebar-footer { padding: 16px 20px 0; }
-  .sidebar.collapsed #btn-logout {
-    padding: 9px 16px;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-  }
   .sidebar.collapsed #sidebar-toggle {
     justify-content: flex-start;
     width: auto;
@@ -1497,8 +1485,7 @@ input:disabled, select:disabled, button:disabled {
 
 /* ── Collapsed: fade OUT immediately (no delay), then sidebar shrinks ── */
 .sidebar.collapsed .nav-item span,
-.sidebar.collapsed .sidebar-toggle-wrap .toggle-label,
-.sidebar.collapsed #btn-logout span {
+.sidebar.collapsed .sidebar-toggle-wrap .toggle-label {
   max-width: 0;
   opacity: 0;
   transition-delay: 0s; /* Override the expand-delay: fade out right away */
@@ -1555,7 +1542,6 @@ input:disabled, select:disabled, button:disabled {
   gap: 0;
 }
 
-.sidebar.collapsed #btn-logout,
 .sidebar.collapsed #btn-theme-toggle {
   padding: 9px 12px;
   justify-content: flex-start;
@@ -1608,8 +1594,7 @@ input:disabled, select:disabled, button:disabled {
   body.in-iframe .sidebar:not(.active) .logo-text,
   body.in-iframe .sidebar:not(.active) .nav-item span,
   body.in-iframe .sidebar:not(.active) .sidebar-toggle-wrap .toggle-label,
-  body.in-iframe .sidebar:not(.active) .project-badge span:not(.badge-dot),
-  body.in-iframe .sidebar:not(.active) #btn-logout span {
+  body.in-iframe .sidebar:not(.active) .project-badge span:not(.badge-dot) {
     display: block !important;
     max-width: 0 !important;
     opacity: 0 !important;
@@ -1638,11 +1623,6 @@ input:disabled, select:disabled, button:disabled {
     gap: 0;
   }
 
-  body.in-iframe .sidebar:not(.active) #btn-logout {
-    padding: 9px 12px;
-    justify-content: flex-start;
-  }
-
   body.in-iframe .sidebar:not(.active) #sidebar-toggle {
     width: auto;
     justify-content: flex-start;
@@ -1652,8 +1632,7 @@ input:disabled, select:disabled, button:disabled {
   body.in-iframe .sidebar.active .logo-text,
   body.in-iframe .sidebar.active .nav-item span,
   body.in-iframe .sidebar.active .sidebar-toggle-wrap .toggle-label,
-  body.in-iframe .sidebar.active .project-badge span:not(.badge-dot),
-  body.in-iframe .sidebar.active #btn-logout span {
+  body.in-iframe .sidebar.active .project-badge span:not(.badge-dot) {
     display: block !important;
     max-width: 180px !important;
     opacity: 1 !important;
@@ -2002,6 +1981,18 @@ body.light-theme .login-theme-btn {
   transform: none;
   opacity: 1;
   pointer-events: auto;
+}
+
+.permission-toast {
+  pointer-events: none;
+}
+.permission-toast.show {
+  pointer-events: none;
+}
+body.admin-readonly #tab-admin :is(button, input, select, textarea),
+body.admin-readonly #tab-roles :is(button, input, select, textarea),
+body.admin-readonly #tab-episodes :is(button, input, select, textarea) {
+  cursor: not-allowed !important;
 }
 
 .nav-guard-content {
