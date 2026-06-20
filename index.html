@@ -11,8 +11,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/header.css?v=20260620-2">
-  <link rel="stylesheet" href="shared/auth.css?v=20260620-5">
+  <link rel="stylesheet" href="shared/auth.css?v=20260620-11">
   <script src="shared/header.js?v=20260620-2" defer></script>
+  <script>
+    (function() {
+      try {
+        const savedWallpaper = localStorage.getItem('artic-portal-wallpaper');
+        if (savedWallpaper) {
+          const style = document.createElement('style');
+          style.id = 'custom-wallpaper-style';
+          style.innerHTML = 'body { background-image: url(' + savedWallpaper + ') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; } .bg-glow-1, .bg-glow-2 { opacity: 0.3 !important; }';
+          document.head.appendChild(style);
+        }
+      } catch (e) {}
+    })();
+  </script>
   
   <style>
     /* ===== Modern CSS Reset & Custom Properties ===== */
@@ -465,6 +478,48 @@
     }
 
     /* ===== Responsive Adjustments ===== */
+    @media (max-width: 1200px) {
+      @keyframes revealHamburger {
+        0% { width: 0; opacity: 0; transform: scale(0); margin-left: -8px; }
+        100% { width: 38px; opacity: 1; transform: scale(1); margin-left: 0; }
+      }
+      .mobile-menu-toggle.visible {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        color: var(--text-primary);
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: all 0.4s ease;
+        outline: none;
+        padding: 0;
+        animation: revealHamburger 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        transform-origin: right center;
+        overflow: hidden;
+      }
+      .mobile-menu-toggle.visible:hover {
+        border-color: var(--border-hover);
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 0 12px var(--accent-blue-glow, rgba(79, 142, 247, 0.25));
+      }
+      body.light-theme .mobile-menu-toggle.visible {
+        background: rgba(15, 23, 42, 0.03);
+        border-color: rgba(15, 23, 42, 0.08);
+      }
+      body.light-theme .mobile-menu-toggle.visible:hover {
+        background: rgba(15, 23, 42, 0.06);
+        border-color: rgba(29, 78, 216, 0.45);
+        box-shadow: 0 0 12px rgba(29, 78, 216, 0.15);
+      }
+    }
+
     @media (max-width: 768px) {
       .bg-glow-1 {
         width: 100%;
@@ -495,44 +550,6 @@
         padding: 0 12px !important;
         font-size: 0.78rem !important;
         gap: 6px !important;
-      }
-      
-      @keyframes revealHamburger {
-        0% { width: 0; opacity: 0; transform: scale(0); margin-left: -8px; }
-        100% { width: 38px; opacity: 1; transform: scale(1); margin-left: 0; }
-      }
-      .mobile-menu-toggle.visible {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border);
-        border-radius: 50%;
-        width: 38px;
-        height: 38px;
-        color: var(--text-secondary);
-        cursor: pointer;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        transition: all 0.4s ease;
-        outline: none;
-        padding: 0;
-        animation: revealHamburger 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        transform-origin: right center;
-        overflow: hidden;
-      }
-      .mobile-menu-toggle.visible:hover {
-        border-color: var(--border-hover);
-        color: var(--text-primary);
-        background: rgba(255, 255, 255, 0.06);
-      }
-      body.light-theme .mobile-menu-toggle.visible {
-        background: rgba(15, 23, 42, 0.03);
-        border-color: rgba(15, 23, 42, 0.08);
-      }
-      body.light-theme .mobile-menu-toggle.visible:hover {
-        background: rgba(15, 23, 42, 0.06);
-        border-color: rgba(29, 78, 216, 0.35);
       }
 
       .welcome-title {
@@ -621,6 +638,7 @@
   </header>
 
   <div class="control-center-backdrop" id="control-center-backdrop">
+    <div class="control-center-blur-bg"></div>
     <section class="control-center-panel" aria-label="계정 제어센터">
       <div class="control-center-head">
         <div class="control-center-user-avatar" id="control-center-avatar">A</div>
@@ -647,12 +665,38 @@
             <span class="control-tile-label">마이페이지</span>
           </div>
           <div class="control-tile-details">
+            <div class="control-details-header">
+              <button class="btn-detail-back" type="button" onclick="event.stopPropagation(); collapseAllTilesExcept(null);" title="뒤로 가기" aria-label="뒤로 가기">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <span class="control-details-title">마이페이지</span>
+            </div>
             <div class="google-link-wrapper">
               <span class="google-link-title">구글 로그인 연동</span>
               <div class="google-link-row">
-                <span id="google-link-badge" class="google-link-badge unlinked">미연동</span>
+                <div class="google-status-wrap">
+                  <span id="google-link-icon" class="google-link-icon unlinked">
+                    <svg class="google-svg" viewBox="0 0 24 24" width="16" height="16">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69c-.29 1.5-.1.85-2.5 2.5v2.08h4.05c2.37-2.18 3.74-5.39 3.74-8.43z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-3.87-3c-1.08.72-2.45 1.16-4.09 1.16-3.15 0-5.81-2.13-6.76-5.01H1.17v3.19C3.15 21.23 7.27 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.24 14.24a7.17 7.17 0 0 1 0-4.48V6.57H1.17a11.94 11.94 0 0 0 0 10.86l4.07-3.19z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.96 1.19 15.24 0 12 0 7.27 0 3.15 2.77 1.17 6.57l4.07 3.19c.95-2.88 3.61-5.01 6.76-5.01z"/>
+                    </svg>
+                  </span>
+                  <span id="google-link-email" class="google-link-email"></span>
+                </div>
                 <button id="btn-google-link" class="btn-google-link" type="button">구글 연동하기</button>
               </div>
+            </div>
+            <div class="wallpaper-settings-wrapper">
+              <span class="wallpaper-settings-title">배경화면 변경</span>
+              <div class="wallpaper-search-row">
+                <input type="text" id="wallpaper-search-input" placeholder="배경 검색 (예: space, nature, minimal)" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchWallpaper();}">
+                <button class="btn-wallpaper-search" type="button" onclick="searchWallpaper()">검색</button>
+                <button class="btn-wallpaper-reset" type="button" onclick="resetWallpaper()" title="기본값 복원">초기화</button>
+              </div>
+              <div class="pexels-search-results" id="pexels-results"></div>
+              <div id="wallpaper-message" class="wallpaper-message" role="status"></div>
             </div>
             <form class="global-account-settings" id="global-account-settings">
               <strong>비밀번호 변경</strong>
@@ -673,6 +717,12 @@
             <span class="control-tile-label">프로젝트 참여</span>
           </div>
           <div class="control-tile-details">
+            <div class="control-details-header">
+              <button class="btn-detail-back" type="button" onclick="event.stopPropagation(); collapseAllTilesExcept(null);" title="뒤로 가기" aria-label="뒤로 가기">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <span class="control-details-title">프로젝트 참여</span>
+            </div>
             <form class="control-center-form" id="project-join-form">
               <strong>프로젝트 참여 요청</strong>
               <select id="project-join-select" required>
@@ -693,6 +743,12 @@
             <span class="control-tile-label">새 멤버 등록</span>
           </div>
           <div class="control-tile-details">
+            <div class="control-details-header">
+              <button class="btn-detail-back" type="button" onclick="event.stopPropagation(); collapseAllTilesExcept(null);" title="뒤로 가기" aria-label="뒤로 가기">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <span class="control-details-title">새 멤버 등록</span>
+            </div>
             <form class="control-center-form" id="admin-register-form">
               <strong>새 멤버 등록</strong>
               <input type="text" id="admin-register-name" autocomplete="name" placeholder="이름" required>
@@ -754,7 +810,7 @@
         </a>
         
         <!-- APP 2: N-BBANG CALCULATOR -->
-        <a href="n-bbang-calculator/" onclick="openAuthorizedApp(event, 'n-bbang-calculator/', 'tnt')" class="app-card animate-fade-up" data-projects="tnt" data-action-label="정산기 열기" style="animation-delay: 0.2s;">
+        <a href="n-bbang-calculator/" onclick="openAuthorizedApp(event, 'n-bbang-calculator/', 'tnt')" class="app-card animate-fade-up" data-projects="tnt" data-action-label="프로젝트 열기" style="animation-delay: 0.2s;">
           <div class="app-top">
             <div class="app-icon-wrap">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -767,8 +823,8 @@
             <span class="status-badge active">운영 중</span>
           </div>
           <div class="app-info">
-            <h2 class="app-title">TNT 정산기</h2>
-            <p class="app-desc">TNT 크루 활동 정산을 위해 결제 내역과 멤버를 입력하면 자동으로 각 1인 부담액과 최종 송금 명세를 정밀 계산합니다.</p>
+            <h2 class="app-title">TNT 프로젝트 매니저</h2>
+            <p class="app-desc">Tasting Note의 게스트 섭외, 에피소드 제작 일정, 공통 체크리스트와 제작비 정산을 한곳에서 관리합니다.</p>
             <div class="app-project-labels">
               <span class="app-project-label">TNT</span>
             </div>
@@ -842,7 +898,7 @@
       const brandLogo = document.getElementById('global-logo');
       const hamburger = document.getElementById('global-hamburger');
       
-      if (currentApp === 'paytable' && isLoggedIn) {
+      if ((currentApp === 'paytable' && isLoggedIn) || currentApp === 'n-bbang-calculator') {
         brandLogo.style.display = 'none';
         hamburger.classList.add('visible');
       } else {
@@ -1020,6 +1076,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="shared/auth.js?v=20260620-3"></script>
-  <script src="shared/portal-auth.js?v=20260620-3"></script>
+  <script src="shared/portal-auth.js?v=20260620-4"></script>
 </body>
 </html>

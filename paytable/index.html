@@ -9,122 +9,56 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../shared/layout.css" />
   <link rel="stylesheet" href="style.css?v=1.2.5" />
-  <script src="../shared/header.js?v=20260620-2"></script>
+  <script src="../shared/layout.js" defer></script>
 </head>
 <body class="dashboard-hidden">
-  <script>
-    if (window === window.top) {
-      window.location.replace('../#paytable');
-    } else {
-      document.body.classList.add('in-iframe');
-    }
-    const savedTheme = localStorage.getItem('artic-theme');
-    if (savedTheme === 'light') {
-      document.body.classList.add('light-theme');
-    }
-  </script>
+  <div id="artic-app-layout"
+       data-title="PTR"
+       data-subtitle="Pay Table"
+       data-short-name="PT"
+       data-project-key="ptr"
+       data-app-key="paytable"
+       data-badge="시즌 1 · 12EP">
+       
+    <!-- Navigation Menu Slot -->
+    <nav>
+      <ul>
+        <li class="nav-item active" data-tab="overview" onclick="switchTab('overview')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>개요</span>
+        </li>
+        <li class="nav-item" data-tab="members" onclick="switchTab('members')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>인원별 정산</span>
+        </li>
+        <li class="nav-item" data-tab="income" onclick="switchTab('income')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>입금 현황</span>
+        </li>
 
-  <!-- Unified Header -->
-  <header class="portal-header">
-    <div class="brand-wrap" onclick="location.href='../'" style="cursor:pointer;">
-      <img src="../artic-logo-full-ver.svg" alt="ARTIC Logo" class="logo-img">
-    </div>
-    
-    <!-- Actions Wrap -->
-    <div class="header-actions-wrap">
-      <!-- Theme Toggle Button -->
-      <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="테마 변경">
-        <svg id="theme-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path id="theme-icon-path" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-      </button>
+        <!-- Admin Grouped Section -->
+        <li class="nav-admin-header" data-admin-only="true" style="font-size:0.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; padding:18px 12px 6px; user-select:none; transition:all 0.2s;">
+          관리자 메뉴
+        </li>
+        <li class="nav-item" data-tab="admin" onclick="switchTab('admin')" data-admin-only="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="3"/></svg>
+          <span>관리자 설정</span>
+        </li>
+        <li class="nav-item" data-tab="roles" onclick="switchTab('roles')" data-admin-only="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 9H17v1.5c0 .83-.67 1.5-1.5 1.5S14 11.33 14 10.5V9"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 15H7v-1.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5V15"/></svg>
+          <span>역할 설정</span>
+        </li>
+        <li class="nav-item" data-tab="episodes" onclick="switchTab('episodes')" data-admin-only="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+          <span>에피소드 배분</span>
+        </li>
+      </ul>
+    </nav>
 
-      <!-- Live Clock Widget -->
-      <div class="clock-widget">
-        <div class="clock-dot"></div>
-        <span id="kst-clock">KST --:--:--</span>
-      </div>
-
-      <!-- Mobile Menu Toggle Button -->
-      <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-    </div>
-  </header>
-
-  <!-- Sidebar Overlay for Mobile -->
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
-
-  <!-- Sidebar Nav -->
-  <nav class="sidebar" id="sidebar">
-    <div class="sidebar-logo" onclick="switchTab('overview')">
-      <div style="background:#fff; border-radius:8px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
-        <img src="../artic-logo-full-ver.svg" alt="artic." style="width:26px; height:26px; object-fit:contain; display:block;"/>
-      </div>
-      <div class="logo-text">
-        <span class="logo-title">PTR</span>
-        <span class="logo-sub">Pay Table</span>
-      </div>
-    </div>
-    
-    <div class="sidebar-toggle-wrap">
-      <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="메뉴 축소" aria-expanded="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        <span class="toggle-label" style="transition:opacity 0.2s;">메뉴 축소</span>
-      </button>
-    </div>
-
-    <ul class="nav-menu">
-      <li class="nav-item active" data-tab="overview" onclick="switchTab('overview')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        <span>개요</span>
-      </li>
-      <li class="nav-item" data-tab="members" onclick="switchTab('members')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>인원별 정산</span>
-      </li>
-      <li class="nav-item" data-tab="income" onclick="switchTab('income')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span>입금 현황</span>
-      </li>
-
-      <!-- Admin Grouped Section -->
-      <li class="nav-admin-header" id="nav-admin-group-header" style="display:none; font-size:0.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; padding:18px 12px 6px; user-select:none; transition:all 0.2s;">
-        관리자 메뉴
-      </li>
-      <li class="nav-item" id="nav-admin-tab" data-tab="admin" onclick="switchTab('admin')" style="display:none">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="3"/></svg>
-        <span>관리자 설정</span>
-      </li>
-      <li class="nav-item" id="nav-roles-tab" data-tab="roles" onclick="switchTab('roles')" style="display:none">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 9H17v1.5c0 .83-.67 1.5-1.5 1.5S14 11.33 14 10.5V9"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 15H7v-1.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5V15"/></svg>
-        <span>역할 설정</span>
-      </li>
-      <li class="nav-item" id="nav-episodes-tab" data-tab="episodes" onclick="switchTab('episodes')" style="display:none">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
-        <span>에피소드 배분</span>
-      </li>
-    </ul>
-
-    <div class="sidebar-footer">
-      <!-- 내 계정 메뉴 -->
-      <li class="nav-item" id="nav-account-tab" data-tab="account" onclick="switchTab('account')" style="list-style:none; margin-bottom:8px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        <span>내 계정</span>
-      </li>
-
-      <div class="project-badge">
-        <div class="badge-dot-container">
-          <span class="badge-dot"></span>
-        </div>
-        <span>시즌 1 · 12EP</span>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Main Content -->
-  <main class="main-content" id="main-content">
+    <!-- Main Content Slot -->
+    <main class="main-content" id="main-content">
 
     <!-- ============ TAB: 개요 ============ -->
     <section class="tab-section active" id="tab-overview">
@@ -607,6 +541,7 @@
     </section>
 
   </main>
+  </div>
 
   <!-- Custom Context Menu for deletion -->
   <div id="custom-context-menu" class="context-menu" style="display:none; position:fixed; z-index:10000;">

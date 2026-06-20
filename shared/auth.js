@@ -194,6 +194,11 @@
     return auth.currentUser?.providerData.some(p => p.providerId === 'google.com') || false;
   }
 
+  function getGoogleLinkedEmail() {
+    const googleProvider = auth.currentUser?.providerData.find(p => p.providerId === 'google.com');
+    return googleProvider?.email || null;
+  }
+
   async function adminCreateMember(displayName, email, password) {
     if (!isPortalAdmin()) throw new Error('관리자만 새 멤버를 등록할 수 있습니다.');
     const normalizedEmail = email.trim().toLowerCase();
@@ -286,6 +291,7 @@
     linkGoogle,
     unlinkGoogle,
     isGoogleLinked,
+    getGoogleLinkedEmail,
     adminCreateMember,
     requestProjectParticipation,
     sendPasswordReset,

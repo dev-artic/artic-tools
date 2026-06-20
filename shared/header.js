@@ -67,12 +67,17 @@ function toggleTheme() {
 }
 
 function initTheme() {
-  const saved = localStorage.getItem('artic-theme');
-  if (saved) {
-    setTheme(saved);
+  const savedWallpaper = localStorage.getItem('artic-portal-wallpaper');
+  if (savedWallpaper) {
+    const brightness = localStorage.getItem('artic-portal-wallpaper-brightness') || 'dark';
+    setTheme(brightness === 'light' ? 'light' : 'dark');
   } else {
-    const h = new Date().getHours();
-    setTheme((h >= 7 && h < 19) ? 'light' : 'dark');
+    const saved = localStorage.getItem('artic-theme');
+    if (saved) {
+      setTheme(saved);
+    } else {
+      setTheme('light');
+    }
   }
 }
 

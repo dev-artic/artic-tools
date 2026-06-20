@@ -82,7 +82,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -110,16 +110,29 @@
   gap: 10px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255,255,255,0.06);
+  cursor: default;
+}
+.clock-widget:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 12px var(--accent-blue-glow, rgba(79, 142, 247, 0.25));
 }
 
 .theme-toggle-btn,
 .mobile-menu-toggle.visible {
   box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mobile-menu-toggle.visible:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 12px var(--accent-blue-glow, rgba(79, 142, 247, 0.25));
 }
 .clock-dot {
   width: 6px;
@@ -155,9 +168,37 @@ body.in-iframe .main-content { padding-top: 80px !important; }
 
 /* ===== Light Theme ===== */
 body.light-theme .portal-header { background: transparent !important; border-bottom: none !important; }
-body.light-theme .brand-wrap { background: rgba(15,23,42,0.03); border-color: rgba(15,23,42,0.08); }
-body.light-theme .brand-wrap:hover { background: rgba(15,23,42,0.06); border-color: rgba(29,78,216,0.35); box-shadow: 0 0 12px rgba(29,78,216,0.15); }
+body.light-theme .brand-wrap { background: rgba(15,23,42,0.04); border-color: rgba(15,23,42,0.12); }
+body.light-theme .brand-wrap:hover { background: rgba(15,23,42,0.08); border-color: rgba(29,78,216,0.45); box-shadow: 0 0 12px rgba(29,78,216,0.15); }
 body.light-theme .logo-img { filter: drop-shadow(0 0 8px rgba(0,0,0,0.08)); }
-body.light-theme .theme-toggle-btn { background: rgba(15,23,42,0.03); }
-body.light-theme .theme-toggle-btn:hover { background: rgba(15,23,42,0.06); }
-body.light-theme .clock-widget { background: rgba(15,23,42,0.03); color: var(--text-secondary); }
+body.light-theme .theme-toggle-btn {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: var(--text-primary);
+}
+body.light-theme .theme-toggle-btn:hover {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.2);
+  color: #000;
+}
+body.light-theme .clock-widget {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: var(--text-primary);
+}
+body.light-theme .clock-widget:hover {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(29, 78, 216, 0.45);
+  box-shadow: 0 0 12px rgba(29, 78, 216, 0.15);
+}
+body.light-theme .mobile-menu-toggle.visible {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: var(--text-primary);
+}
+body.light-theme .mobile-menu-toggle.visible:hover {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(29, 78, 216, 0.45);
+  color: #000;
+  box-shadow: 0 0 12px rgba(29, 78, 216, 0.15);
+}

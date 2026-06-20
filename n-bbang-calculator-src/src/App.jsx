@@ -1,539 +1,521 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Receipt, ArrowRight, RotateCcw, Calculator, Users, CreditCard, ChevronRight, ChevronLeft, Share, Check, Download } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Archive,
+  Banknote,
+  BookOpen,
+  CalendarDays,
+  ChevronRight,
+  Clapperboard,
+  ExternalLink,
+  FileText,
+  HeartHandshake,
+  LayoutDashboard,
+  MapPinned,
+  Menu,
+  MessageSquareText,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Search,
+  Sun,
+  Trash2,
+  Users,
+  Wrench,
+  X
+} from 'lucide-react';
+import SettlementPanel from './SettlementPanel.jsx';
 
-export default function App() {
-  const [step, setStep] = useState(1);
-  const [members, setMembers] = useState([
-    { id: 1, name: '' },
-    { id: 2, name: '' }
-  ]);
-  const [expenses, setExpenses] = useState([
-    { id: 1, memberId: '', detail: '', amount: '' }
-  ]);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
-  const getInitialTheme = () => {
-    const saved = localStorage.getItem('artic-theme');
-    let activeTheme = 'dark';
-    if (saved) {
-      activeTheme = saved;
-    } else {
-      const hour = new Date().getHours();
-      activeTheme = (hour >= 7 && hour < 19) ? 'light' : 'dark';
-    }
-    
-    // Apply classes immediately to avoid initial render flash
-    document.documentElement.classList.toggle('dark', activeTheme === 'dark');
-    document.body.classList.toggle('light-theme', activeTheme === 'light');
-    
-    return activeTheme;
-  };
+const STORAGE_KEY = 'artic-tnt-project-manager-v1';
 
-  const [theme, setThemeState] = useState(getInitialTheme());
+const NAV_ITEMS = [
+  { id: 'overview', label: '대시보드', icon: LayoutDashboard, group: 'PROJECT' },
+  { id: 'project', label: '프로젝트 기획', icon: BookOpen, group: 'PROJECT' },
+  { id: 'guests', label: '게스트 섭외', icon: Users, group: 'OPERATIONS' },
+  { id: 'episodes', label: '회차 제작', icon: Clapperboard, group: 'OPERATIONS' },
+  { id: 'production', label: '촬영 준비', icon: Wrench, group: 'OPERATIONS' },
+  { id: 'resources', label: '장소 · 장비', icon: MapPinned, group: 'OPERATIONS' },
+  { id: 'settlement', label: '비용 · 정산', icon: Banknote, group: 'MANAGEMENT' },
+  { id: 'meetings', label: '회의 · 피드백', icon: MessageSquareText, group: 'MANAGEMENT' },
+  { id: 'partnerships', label: 'PPL · 협찬', icon: HeartHandshake, group: 'MANAGEMENT' }
+];
 
-  const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
-    setThemeState(nextTheme);
-    localStorage.setItem('artic-theme', nextTheme);
-    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
-    document.body.classList.toggle('light-theme', nextTheme === 'light');
-  };
+const EPISODE_STAGES = [
+  { id: 'planning', label: '기획', color: 'slate' },
+  { id: 'casting', label: '섭외', color: 'violet' },
+  { id: 'preproduction', label: '촬영 준비', color: 'amber' },
+  { id: 'production', label: '촬영', color: 'blue' },
+  { id: 'editing', label: '편집', color: 'cyan' },
+  { id: 'published', label: '발행', color: 'emerald' }
+];
 
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem('artic-theme');
-    let activeTheme = 'dark';
-    if (savedTheme) {
-      activeTheme = savedTheme;
-    } else {
-      const hour = new Date().getHours();
-      activeTheme = (hour >= 7 && hour < 19) ? 'light' : 'dark';
-    }
-    setThemeState(activeTheme);
-    document.documentElement.classList.toggle('dark', activeTheme === 'dark');
-    document.body.classList.toggle('light-theme', activeTheme === 'light');
-    
-    const updateClock = () => {
-      const now = new Date();
-      const options = {
-        timeZone: 'Asia/Seoul',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      };
-      const timeString = now.toLocaleTimeString('ko-KR', options);
-      const clockEl = document.getElementById('kst-clock-calc');
-      if (clockEl) clockEl.textContent = `KST ${timeString}`;
-    };
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
+const GUEST_STATUSES = [
+  '컨택 전',
+  '컨택 예정',
+  '출연 문의',
+  '발송 완료',
+  '확인 및 답변 대기중',
+  '촬영 일정 조율중',
+  '섭외 완료',
+  '섭외 완료 + PPL',
+  '촬영 완료',
+  '섭외 거절',
+  '유가 출연 거절',
+  '섭외 취소'
+];
 
-    const handleParentMessage = (event) => {
-      if (event.data && event.data.type === 'SET_THEME') {
-        const nextTheme = event.data.theme;
-        setThemeState(nextTheme);
-        document.documentElement.classList.toggle('dark', nextTheme === 'dark');
-        document.body.classList.toggle('light-theme', nextTheme === 'light');
-      }
-    };
-    window.addEventListener('message', handleParentMessage);
+const WORKFLOW = [
+  '출연 의사와 10~14일 촬영 후보 기간 확인',
+  '사전 질문지 전달 및 응답 회수',
+  '촬영 장소와 기본 3개 앵글 확정',
+  '장비, 대관료, 출연료 예산 확인',
+  '촬영본 백업과 편집 담당자 인계',
+  '제목, 썸네일, 업로드 일정 확정'
+];
 
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('message', handleParentMessage);
-    };
-  }, []);
+const NOTION_LINKS = [
+  {
+    label: 'TASTING NOTE 홈',
+    description: '기획안, 회의와 운영 문서',
+    href: 'https://app.notion.com/p/26dffc3c3af58095bb20fd89297d34a0'
+  },
+  {
+    label: '게스트 섭외 트래커',
+    description: '기존 섭외 이력과 연락 기록',
+    href: 'https://app.notion.com/p/2ceffc3c3af580ef8ad2f30504dc8aea'
+  },
+  {
+    label: '섭외 후 준비 프로세스',
+    description: '질문지와 촬영 전 요청사항',
+    href: 'https://app.notion.com/p/2f6ffc3c3af5806daf2ee60e92b2383d'
+  }
+];
 
-  const copyScreenshot = async () => {
-    const element = document.getElementById('screenshot-target');
-    if (!element) return;
-    
-    setCopied('loading');
-    
-    try {
-      const canvas = await window.html2canvas(element, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          alert('이미지 생성에 실패했습니다.');
-          setCopied(false);
-          return;
-        }
-        
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({
-              [blob.type]: blob
-            })
-          ]);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2500);
-        } catch (clipboardErr) {
-          console.warn('Clipboard copy failed, downloading fallback:', clipboardErr);
-          
-          const link = document.createElement('a');
-          link.download = 'TNT-정산결과.png';
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-          
-          setCopied('fallback');
-          setTimeout(() => setCopied(false), 3000);
-        }
-      }, 'image/png');
-    } catch (err) {
-      console.error('Screenshot failed:', err);
-      alert('정산 결과를 이미지로 만드는 중 오류가 발생했습니다.');
-      setCopied(false);
-    }
-  };
+const PROJECT_DOCUMENTS = [
+  { type: '기획', title: 'TASTING NOTE 기획안', status: '문서', description: '프로젝트 정의, 질문 구조, 연출 방향과 공개 일정', href: 'https://app.notion.com/p/31affc3c3af58078b79dca263dbf3e55' },
+  { type: '가이드', title: '게스트 참여 가이드라인', status: '진행 중', description: '90분 촬영 흐름과 아티스트 사전 준비 안내', href: 'https://app.notion.com/p/2c0ffc3c3af5804fbed2e0f5f726209c' },
+  { type: '프로세스', title: '섭외 전 메일 · DM', status: '완료', description: '섭외 대상 논의와 채널별 발송 템플릿', href: 'https://app.notion.com/p/304ffc3c3af5805db01cddfde25ce78f' },
+  { type: '프로세스', title: '섭외 후 촬영 준비', status: '문서', description: '사전 질문지와 게스트 요청사항 관리', href: 'https://app.notion.com/p/2f6ffc3c3af5806daf2ee60e92b2383d' },
+  { type: '촬영 양식', title: '아티스트 작성 양식', status: '문서', description: '촬영일에 사용하는 17개 질문과 기록 양식', href: 'https://app.notion.com/p/2f6ffc3c3af58043a041c43bc4c43a77' }
+];
 
-  const addMember = () => setMembers([...members, { id: Date.now(), name: '' }]);
-  
-  const removeMember = (id) => {
-    if (members.length <= 2) {
-      setError('최소 2명 이상이어야 합니다.');
-      setTimeout(() => setError(''), 3000);
-      return;
-    }
-    setMembers(members.filter(m => m.id !== id));
-    setExpenses(expenses.filter(e => e.memberId !== id));
-  };
+const MEETING_DOCUMENTS = [
+  { title: 'EP.1 사전 회의', status: '완료', date: '2026-01-24', href: 'https://app.notion.com/p/2f2ffc3c3af5805f8011fb154c9f9065', note: '장비, 앵글, 질문, 준비물' },
+  { title: 'EP.1 촬영 피드백', status: '완료', date: '2026-01-28', href: 'https://app.notion.com/p/2f6ffc3c3af580db99e3d10546c3262e', note: '조명, 앵글, 오디오, 백업' },
+  { title: '정산 · 장소 · 연출 피드백', status: '시작 전', date: '2026-03-05', href: 'https://app.notion.com/p/318ffc3c3af5809fb960e9713fa5c2e1', note: '회당 부담, 장소 조건, 연출 문구' },
+  { title: 'EP.4 이후 장비 세팅', status: '시작 전', date: '2026-04-04', href: 'https://app.notion.com/p/338ffc3c3af5804d993dfc3f8e7d64d2', note: '차기 장비 세팅 문서' }
+];
 
-  const handleMemberChange = (id, value) => {
-    setMembers(members.map(m => m.id === id ? { ...m, name: value } : m));
-  };
+const QUESTIONS = [
+  '플레이리스트의 첫 곡에는 어떤 음악이 들어가야 하는가?', '나는 누구인가?', '주변에서 별로라고 하는데 나만 좋아하는 곡',
+  '내 취향은 아니지만 듣게 되는 곡', '나만 혼자 몰래 숨어 듣던 음악', '저작권료를 더 받았으면 하는 음악',
+  '새로운 것을 시작할 때의 기분', '내가 한때 열중했던 것', '요즘 내가 빠져있는 것', '내가 좋아하는 것들',
+  '내 음악의 시작점', '내 음악의 지향점', '인생에 불변의 진리가 있다면', '나에게 행복이란',
+  '작은 후회가 있다면', '앞으로 하고 싶은 것', '맺으며'
+];
 
-  const goToNextStep = () => {
-    setError('');
-    const validMembers = members.filter(m => m.name.trim() !== '');
-    if (validMembers.length < 2) {
-      setError('참여할 멤버의 이름을 2명 이상 입력해주세요.');
-      return;
-    }
-    setStep(2);
-    
-    const updatedExpenses = expenses.map(exp => {
-      const memberExists = validMembers.find(m => m.id === exp.memberId);
-      return memberExists ? exp : { ...exp, memberId: '' };
-    });
-    setExpenses(updatedExpenses);
-  };
+const EMPTY_STATE = { episodes: [], guests: [], checklist: {}, resources: [], meetings: [], partnerships: [] };
 
-  const handleStepNavigation = (targetStep) => {
-    if (targetStep === step) return;
-    setError('');
+function getInitialTheme() {
+  const saved = localStorage.getItem('artic-theme');
+  if (saved) return saved;
+  const hour = new Date().getHours();
+  return hour >= 7 && hour < 19 ? 'light' : 'dark';
+}
 
-    if (targetStep === 1) {
-      setStep(1);
-    } else if (targetStep === 2) {
-      if (step === 1) goToNextStep();
-      else setStep(2);
-    } else if (targetStep === 3) {
-      if (step === 2) calculate();
-      else if (step === 1) setError('지출 내역을 먼저 입력해야 결과를 확인할 수 있습니다.');
-    }
-  };
+function loadWorkspace() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return saved && typeof saved === 'object' ? { ...EMPTY_STATE, ...saved } : EMPTY_STATE;
+  } catch {
+    return EMPTY_STATE;
+  }
+}
 
-  const addExpense = () => setExpenses([...expenses, { id: Date.now(), memberId: '', detail: '', amount: '' }]);
-  const removeExpense = (id) => setExpenses(expenses.filter(e => e.id !== id));
+function formatDate(value) {
+  if (!value) return '미정';
+  return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric' }).format(
+    new Date(`${value}T00:00:00`)
+  );
+}
 
-  const handleExpenseChange = (id, field, value) => {
-    if (field === 'amount') value = value.replace(/[^0-9]/g, '');
-    if (field === 'memberId') value = value ? Number(value) : '';
-    setExpenses(expenses.map(e => e.id === id ? { ...e, [field]: value } : e));
-  };
+function StatusBadge({ stage }) {
+  const item = EPISODE_STAGES.find((candidate) => candidate.id === stage) || EPISODE_STAGES[0];
+  return <span className={`status-badge status-${item.color}`}>{item.label}</span>;
+}
 
-  const calculate = () => {
-    setError('');
-    const validMembers = members.filter(m => m.name.trim() !== '');
-    const validExpenses = expenses.filter(e => e.memberId !== '' && e.amount !== '');
+function EmptyPanel({ icon: Icon, title, description, action }) {
+  return (
+    <div className="empty-panel">
+      <span className="empty-icon"><Icon size={22} /></span>
+      <strong>{title}</strong>
+      <p>{description}</p>
+      {action}
+    </div>
+  );
+}
 
-    if (validExpenses.length === 0) {
-      setError('지출 내역을 1건 이상 올바르게 입력해주세요.');
-      return;
-    }
-
-    const memberTotals = {};
-    validMembers.forEach(m => { memberTotals[m.id] = { name: m.name, total: 0 }; });
-
-    let total = 0;
-    validExpenses.forEach(e => {
-      const amount = Number(e.amount);
-      if (memberTotals[e.memberId]) {
-        memberTotals[e.memberId].total += amount;
-        total += amount;
-      }
-    });
-
-    const average = total / validMembers.length;
-    let receivers = [];
-    let senders = [];
-
-    Object.values(memberTotals).forEach(m => {
-      const balance = m.total - average;
-      if (balance > 0.1) receivers.push({ name: m.name, amount: balance });
-      else if (balance < -0.1) senders.push({ name: m.name, amount: -balance });
-    });
-
-    const transfers = [];
-    let i = 0, j = 0;
-
-    while (i < senders.length && j < receivers.length) {
-      let sender = senders[i];
-      let receiver = receivers[j];
-      let transferAmount = Math.min(sender.amount, receiver.amount);
-
-      transfers.push({ sender: sender.name, receiver: receiver.name, amount: transferAmount });
-      sender.amount -= transferAmount;
-      receiver.amount -= transferAmount;
-      if (sender.amount < 0.1) i++;
-      if (receiver.amount < 0.1) j++;
-    }
-
-    setResults({ total, average, transfers, memberCount: validMembers.length });
-    setStep(3);
-  };
-
-  const reset = () => {
-    setMembers([{ id: 1, name: '' }, { id: 2, name: '' }]);
-    setExpenses([{ id: 1, memberId: '', detail: '', amount: '' }]);
-    setResults(null);
-    setError('');
-    setStep(1);
-  };
-
-  const validMembers = members.filter(m => m.name.trim() !== '');
+function Overview({ workspace, onNavigate }) {
+  const activeEpisodes = workspace.episodes.filter((item) => item.stage !== 'published').length;
+  const confirmedGuests = workspace.guests.filter((item) => item.status.includes('섭외 완료')).length;
+  const completedChecks = Object.values(workspace.checklist).filter(Boolean).length;
 
   return (
-    <div className={`min-h-screen w-full transition-colors duration-300 font-sans flex flex-col items-center ${theme === 'light' ? 'bg-[#f5f6fa] text-slate-800' : 'bg-[#0d0f14] text-slate-100'}`}>
-      
-      {/* Unified Top Branding Header */}
-      {window === window.top && (
-        <header className="w-full h-[70px] flex items-center justify-between px-4 md:px-6 z-50 sticky top-0 bg-transparent border-none backdrop-blur-none pointer-events-none">
-          <div 
-            onClick={() => location.href = '../'} 
-            className={`cursor-pointer flex items-center gap-2 px-4 h-[38px] box-border rounded-full border transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${
-              theme === 'light' 
-                ? 'bg-slate-900/[0.03] border-slate-900/[0.08] hover:bg-slate-900/[0.06] hover:border-slate-900/20 hover:shadow-md' 
-                : 'bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/20 hover:shadow-[0_0_12px_rgba(255,255,255,0.05)]'
-            }`}
-          >
-            <img 
-              src="../artic-logo-full-ver.svg" 
-              alt="ARTIC Logo" 
-              className={`h-[14px] w-auto my-0 transition-all ${theme === 'dark' ? 'invert' : ''}`} 
-            />
-          </div>
-          
-          <div className="flex items-center gap-2 md:gap-3 pointer-events-auto">
-            {/* Theme Toggle Button */}
-            <button 
-              onClick={toggleTheme} 
-              title="테마 변경"
-              className={`w-[38px] h-[38px] rounded-full border flex items-center justify-center cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${
-                theme === 'light' 
-                  ? 'bg-slate-900/[0.03] border-slate-900/[0.08] text-slate-600 hover:bg-slate-900/[0.06] hover:border-slate-900/20 hover:shadow-md' 
-                  : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:bg-white/[0.06] hover:border-white/20 hover:shadow-md'
-              }`}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d={theme === 'light' ? "M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0z" : "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"} />
-              </svg>
-            </button>
-
-            {/* Live Clock Widget */}
-            <div className={`rounded-full border px-3 md:px-[18px] h-[38px] box-border flex items-center gap-1.5 md:gap-[10px] font-mono text-[0.78rem] md:text-[0.85rem] transition-all duration-300 backdrop-blur-md shadow-sm pointer-events-auto ${theme === 'light' ? 'bg-slate-900/[0.03] border-slate-900/[0.08] text-slate-600' : 'bg-white/[0.03] border-white/[0.08] text-slate-400'}`}>
-              <div className="w-[6px] h-[6px] rounded-full bg-blue-600 shadow-[0_0_8px_#2563eb] animate-pulse" />
-              <span id="kst-clock-calc">KST --:--:--</span>
-            </div>
-          </div>
-        </header>
-      )}
-
-      {/* Main Container below header */}
-      <div className="flex-1 w-full flex items-center justify-center p-4">
-        <div 
-          className={`w-full max-w-lg rounded-2xl shadow-xl overflow-hidden flex flex-col h-[85vh] sm:h-auto sm:max-h-[90vh] border transition-all animate-fade-up ${
-            theme === 'light' ? 'bg-white border-slate-100' : 'bg-[#181c27] border-white/5'
-          }`}
-          style={{ animationDelay: '0.15s' }}
-        >
-        
-        {/* 헤더 부분 */}
-        <div className="bg-blue-600 p-5 text-white flex-shrink-0">
-          <div className="flex items-center gap-3 mb-4">
-            <Receipt size={28} />
-            <h1 className="text-xl font-bold">깔끔한 TNT 정산기</h1>
-          </div>
-          
-          <div className="flex items-center justify-between text-xs font-medium text-blue-200 px-2">
-            <button onClick={() => handleStepNavigation(1)} className={`hover:text-white transition-colors outline-none cursor-pointer ${step === 1 ? "text-white font-bold" : ""}`}>
-              1. 멤버 입력
-            </button>
-            <span className="flex-1 mx-2 h-px bg-blue-400 opacity-50"></span>
-            
-            <button onClick={() => handleStepNavigation(2)} className={`hover:text-white transition-colors outline-none cursor-pointer ${step === 2 ? "text-white font-bold" : ""}`}>
-              2. 지출 입력
-            </button>
-            <span className="flex-1 mx-2 h-px bg-blue-400 opacity-50"></span>
-            
-            <button onClick={() => handleStepNavigation(3)} className={`hover:text-white transition-colors outline-none cursor-pointer ${step === 3 ? "text-white font-bold" : ""}`}>
-              3. 결과 확인
-            </button>
-          </div>
+    <div className="page-stack">
+      <section className="hero-card">
+        <div>
+          <span className="eyebrow">TASTING NOTE OPERATIONS</span>
+          <h2>한 편의 노트를 완성하는 모든 과정</h2>
+          <p>게스트 섭외부터 촬영, 편집, 정산과 발행까지 TNT 제작 흐름을 한곳에서 관리합니다.</p>
         </div>
+        <button className="primary-button" onClick={() => onNavigate('episodes')}>
+          에피소드 시작 <ChevronRight size={17} />
+        </button>
+      </section>
 
-        {/* 메인 콘텐츠 영역 */}
-        <div className="p-5 overflow-y-auto flex-1">
-          {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm text-center">{error}</div>}
+      <section className="metric-grid">
+        <article className="metric-card"><Clapperboard /><span>진행 에피소드</span><strong>{activeEpisodes}</strong></article>
+        <article className="metric-card"><Users /><span>섭외 확정</span><strong>{confirmedGuests}</strong></article>
+        <article className="metric-card"><CalendarDays /><span>운영 체크</span><strong>{completedChecks}/{WORKFLOW.length}</strong></article>
+        <article className="metric-card"><Archive /><span>발행 완료</span><strong>{workspace.episodes.length - activeEpisodes}</strong></article>
+      </section>
 
-          {/* [STEP 1] 멤버 입력 */}
-          {step === 1 && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="text-sm font-semibold text-gray-500 mb-2 flex items-center gap-2">
-                <Users size={16} /> 누가 함께 했나요?
+      <div className="overview-grid">
+        <section className="panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">PRODUCTION LINE</span><h3>제작 워크플로우</h3></div>
+          </div>
+          <div className="stage-track">
+            {EPISODE_STAGES.map((stage, index) => (
+              <div className="stage-item" key={stage.id}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <strong>{stage.label}</strong>
               </div>
-              
-              <div className="space-y-3">
-                {members.map((member, index) => (
-                  <div key={member.id} className="flex gap-2 items-center">
-                    <div className="w-8 text-center text-gray-400 font-bold text-sm">{index + 1}</div>
-                    <input
-                      type="text"
-                      placeholder="이름"
-                      value={member.name}
-                      onChange={(e) => handleMemberChange(member.id, e.target.value)}
-                      className="flex-1 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                    <button onClick={() => removeMember(member.id)} className="p-2 text-gray-400 hover:text-red-500">
-                      <Trash2 size={20} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+            ))}
+          </div>
+        </section>
 
-              <button onClick={addMember} className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 text-sm mt-4">
-                <Plus size={18} /> 멤버 추가하기
-              </button>
-
-              <button onClick={goToNextStep} className="w-full mt-6 bg-blue-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md">
-                다음 단계로 <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
-
-          {/* [STEP 2] 지출 내역 입력 */}
-          {step === 2 && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-2">
-              <div className="flex justify-between items-center mb-2">
-                <div className="text-sm font-semibold text-gray-500 flex items-center gap-2">
-                  <CreditCard size={16} /> 결제 내역을 추가해주세요
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {expenses.map((expense, index) => (
-                  <div key={expense.id} className="p-4 border border-gray-100 bg-gray-50 rounded-xl space-y-3 relative shadow-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-gray-400">결제 건 #{index + 1}</span>
-                      <button onClick={() => removeExpense(expense.id)} className="text-gray-400 hover:text-red-500 p-1">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <select
-                        value={expense.memberId}
-                        onChange={(e) => handleExpenseChange(expense.id, 'memberId', e.target.value)}
-                        className="w-1/3 sm:w-2/5 border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 bg-white outline-none"
-                      >
-                        <option value="">결제자 선택</option>
-                        {validMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </select>
-                      
-                      <input
-                        type="text"
-                        placeholder="결제 내용"
-                        value={expense.detail}
-                        onChange={(e) => handleExpenseChange(expense.id, 'detail', e.target.value)}
-                        className="flex-1 border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                    </div>
-
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="금액을 입력하세요"
-                        value={expense.amount ? Number(expense.amount).toLocaleString() : ''}
-                        onChange={(e) => handleExpenseChange(expense.id, 'amount', e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg p-3 pr-8 text-sm text-right focus:ring-2 focus:ring-blue-500 font-bold outline-none"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">원</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button onClick={addExpense} className="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 text-sm mt-2">
-                <Plus size={18} /> 결제 내역 추가하기
-              </button>
-
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setStep(1)} className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-xl font-bold flex justify-center gap-2">
-                  <ChevronLeft size={20} /> 이전
-                </button>
-                <button onClick={calculate} className="flex-[2] bg-blue-600 text-white py-4 rounded-xl font-bold text-lg flex justify-center gap-2 hover:bg-blue-700 shadow-md">
-                  <Calculator size={20} /> 정산하기
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* [STEP 3] 결과 화면 */}
-          {step === 3 && results && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
-              
-              {/* Screenshot Target Card */}
-              <div id="screenshot-target" className="bg-white p-4 rounded-xl border border-gray-100 space-y-5">
-                <div className="border-b border-gray-100 pb-3 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="text-blue-600" size={20} />
-                    <span className="font-bold text-gray-800 text-sm">TNT 정산 결과서</span>
-                  </div>
-                  <span className="text-xs text-gray-400 font-medium">발행일: {new Date().toLocaleDateString('ko-KR')}</span>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <h3 className="text-xs font-bold text-gray-400 mb-3 text-center uppercase tracking-wide">정산 요약</h3>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600 text-sm">총 지출액 ({results.memberCount}명)</span>
-                    <span className="font-bold text-base text-gray-800">{Math.round(results.total).toLocaleString()}원</span>
-                  </div>
-                  <div className="flex justify-between items-center text-blue-600">
-                    <span className="font-bold text-sm">1인당 부담액</span>
-                    <span className="font-black text-lg">{Math.round(results.average).toLocaleString()}원</span>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-bold text-gray-400 mb-3 text-center uppercase tracking-wide">💸 최종 송금 내역</h3>
-                  {results.transfers.length === 0 ? (
-                    <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-xl text-xs">
-                      모두가 정확히 같은 금액을 지출했습니다.<br/>송금할 필요가 없어요! 🎉
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {results.transfers.map((transfer, idx) => (
-                        <div key={idx} className="bg-white border border-blue-50 p-3 rounded-xl flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md text-xs">{transfer.sender}</span>
-                            <ArrowRight size={14} className="text-blue-400" />
-                            <span className="font-bold text-gray-700 bg-blue-50 px-2 py-0.5 rounded-md text-xs">{transfer.receiver}</span>
-                          </div>
-                          <div className="font-bold text-blue-600 text-sm">{Math.round(transfer.amount).toLocaleString()}원</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-3 mt-6">
-                <button 
-                  onClick={copyScreenshot}
-                  disabled={copied === 'loading'}
-                  className={`w-full py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-md transition-all outline-none ${
-                    copied === 'loading'
-                      ? 'bg-blue-400 text-white cursor-wait'
-                      : copied === true
-                      ? 'bg-green-600 text-white hover:bg-green-700'
-                      : copied === 'fallback'
-                      ? 'bg-amber-600 text-white hover:bg-amber-700'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {copied === 'loading' ? (
-                    <>이미지 생성 중...</>
-                  ) : copied === true ? (
-                    <>
-                      <Check size={20} />
-                      클립보드 이미지 복사 완료!
-                    </>
-                  ) : copied === 'fallback' ? (
-                    <>
-                      <Download size={20} />
-                      기기에 정산서(PNG) 저장 완료!
-                    </>
-                  ) : (
-                    <>
-                      <Share size={20} />
-                      정산 결과 화면 이미지 복사 (공유)
-                    </>
-                  )}
-                </button>
-
-                <div className="flex gap-3">
-                  <button onClick={() => setStep(2)} className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-200">
-                    <ChevronLeft size={20} /> 지출 수정
-                  </button>
-                  <button onClick={reset} className="flex-[2] bg-gray-800 text-white py-4 rounded-xl font-bold flex justify-center gap-2 hover:bg-gray-900">
-                    <RotateCcw size={20} /> 처음부터 다시하기
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          )}
-        </div>
+        <section className="panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">NOTION SOURCE</span><h3>기존 운영 문서</h3></div>
+          </div>
+          <div className="link-list">
+            {NOTION_LINKS.map((link) => (
+              <a key={link.href} href={link.href} target="_blank" rel="noreferrer">
+                <span><strong>{link.label}</strong><small>{link.description}</small></span>
+                <ExternalLink size={15} />
+              </a>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
+  );
+}
+
+function ProjectPage() {
+  return (
+    <div className="page-stack">
+      <section className="page-heading">
+        <div><span className="eyebrow">PROJECT WIKI</span><h2>프로젝트 기획</h2><p>TASTING NOTE의 기준 문서와 반복 운영 프로세스를 관리합니다.</p></div>
+        <a className="primary-button" href="https://app.notion.com/p/26dffc3c3af58095bb20fd89297d34a0" target="_blank" rel="noreferrer">Notion 원본 <ExternalLink size={16} /></a>
+      </section>
+      <section className="project-brief">
+        <div><span className="eyebrow">FORMAT</span><strong>말 대신 선곡으로 답하는<br />플레이리스트형 인터뷰</strong></div>
+        <dl><div><dt>러닝타임</dt><dd>60분 내외</dd></div><div><dt>질문</dt><dd>17개</dd></div><div><dt>업로드</dt><dd>월 1회</dd></div><div><dt>기본 촬영</dt><dd>3개 앵글</dd></div></dl>
+      </section>
+      <section className="document-grid">
+        {PROJECT_DOCUMENTS.map((document) => (
+          <a className="document-card" href={document.href} target="_blank" rel="noreferrer" key={document.href}>
+            <div className="document-card-top"><span>{document.type}</span><ExternalLink size={15} /></div>
+            <FileText size={21} />
+            <h3>{document.title}</h3>
+            <p>{document.description}</p>
+            <small>{document.status}</small>
+          </a>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function ProductionPage({ checklist, onToggleCheck }) {
+  return (
+    <div className="page-stack">
+      <section className="page-heading"><div><span className="eyebrow">PRODUCTION PLAYBOOK</span><h2>촬영 준비</h2><p>섭외 확정부터 촬영본 인계까지 반복되는 제작 절차입니다.</p></div></section>
+      <div className="production-grid">
+        <section className="panel">
+          <div className="panel-heading"><div><span className="eyebrow">RUN OF SHOW</span><h3>회차 공통 체크리스트</h3></div><span className="progress-label">{Object.values(checklist).filter(Boolean).length}/{WORKFLOW.length}</span></div>
+          <div className="check-list single-column">
+            {WORKFLOW.map((item, index) => <label key={item} className={checklist[index] ? 'checked' : ''}><input type="checkbox" checked={Boolean(checklist[index])} onChange={() => onToggleCheck(index)} /><span>{item}</span></label>)}
+          </div>
+          <div className="source-note"><ExternalLink size={14} /><span>섭외 후 준비, 장소 운영, EP.1 사전 회의 문서를 기준으로 구성</span></div>
+        </section>
+        <section className="panel question-panel">
+          <div className="panel-heading"><div><span className="eyebrow">ARTIST NOTE</span><h3>촬영일 질문 양식</h3></div><a href="https://app.notion.com/p/2f6ffc3c3af58043a041c43bc4c43a77" target="_blank" rel="noreferrer"><ExternalLink size={15} /></a></div>
+          <div className="question-list">{QUESTIONS.map((question, index) => <div key={question}><span>{String(index + 1).padStart(2, '0')}</span><p>{question}</p></div>)}</div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function TrackerPage({ kind, title, eyebrow, description, records, onAdd, onUpdate, onDelete }) {
+  const configs = {
+    resources: { types: ['촬영 장소', '카메라', '렌즈', '오디오', '조명', '기타 장비'], statuses: ['후보', '확인 중', '예약 완료', '사용 완료'], source: 'https://app.notion.com/p/2fcffc3c3af580eaa676f20dcf88042d' },
+    partnerships: { types: ['PPL', '공간 협찬', '장비 협찬', '콘텐츠 제휴'], statuses: ['리드', '제안 준비', '제안 발송', '협의 중', '확정', '종료'], source: 'https://app.notion.com/p/312e76b3d4ed4831bd026663eb02dd5d' }
+  };
+  const config = configs[kind];
+  const [isAdding, setIsAdding] = useState(false);
+  const [draft, setDraft] = useState({ title: '', type: config.types[0], status: config.statuses[0], owner: '', date: '', note: '' });
+  const submit = (event) => {
+    event.preventDefault();
+    if (!draft.title.trim()) return;
+    onAdd(draft);
+    setDraft({ title: '', type: config.types[0], status: config.statuses[0], owner: '', date: '', note: '' });
+    setIsAdding(false);
+  };
+  return (
+    <div className="page-stack">
+      <section className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2><p>{description}</p></div><button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 항목 추가</button></section>
+      <div className="source-strip"><span><BookOpen size={15} /> Notion 기준 문서와 병행 운영 중</span><a href={config.source} target="_blank" rel="noreferrer">원본 열기 <ExternalLink size={14} /></a></div>
+      {isAdding && <form className="editor-card" onSubmit={submit}><div className="editor-title"><strong>관리 항목 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div><div className="form-grid"><label className="wide">이름<input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label><label>구분<select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>{config.types.map((type) => <option key={type}>{type}</option>)}</select></label><label>상태<select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>{config.statuses.map((status) => <option key={status}>{status}</option>)}</select></label><label>담당자<input value={draft.owner} onChange={(e) => setDraft({ ...draft, owner: e.target.value })} /></label><label>일정<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="wide">메모<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></label></div><button className="primary-button" type="submit">추가하기</button></form>}
+      {records.length === 0 ? <EmptyPanel icon={kind === 'resources' ? MapPinned : HeartHandshake} title="등록된 관리 항목이 없습니다" description="기존 Notion 데이터는 아직 이관하지 않았습니다. 신규 항목부터 이 관리페이지에 등록합니다." /> : <section className="tracker-grid">{records.map((record) => <article className="tracker-card" key={record.id}><div className="card-top"><span className="tracker-type">{record.type}</span><button className="icon-button danger" onClick={() => onDelete(record.id)}><Trash2 size={15} /></button></div><h3>{record.title}</h3><p>{record.note || '메모 없음'}</p><div className="tracker-meta"><span>{record.owner || '담당자 미정'}</span><span>{formatDate(record.date)}</span></div><select value={record.status} onChange={(e) => onUpdate(record.id, { status: e.target.value })}>{config.statuses.map((status) => <option key={status}>{status}</option>)}</select></article>)}</section>}
+    </div>
+  );
+}
+
+function MeetingsPage({ meetings, onAdd, onUpdate, onDelete }) {
+  const combined = [...MEETING_DOCUMENTS.map((item) => ({ ...item, fixed: true, id: item.href })), ...meetings];
+  const [isAdding, setIsAdding] = useState(false);
+  const [draft, setDraft] = useState({ title: '', status: '시작 전', date: '', note: '' });
+  const submit = (event) => { event.preventDefault(); if (!draft.title.trim()) return; onAdd(draft); setDraft({ title: '', status: '시작 전', date: '', note: '' }); setIsAdding(false); };
+  return (
+    <div className="page-stack">
+      <section className="page-heading"><div><span className="eyebrow">MEETINGS & LEARNINGS</span><h2>회의 · 피드백</h2><p>회차별 의사결정과 다음 촬영에 반영할 학습을 누적합니다.</p></div><button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 회의 추가</button></section>
+      {isAdding && <form className="editor-card" onSubmit={submit}><div className="editor-title"><strong>회의 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div><div className="form-grid"><label className="wide">회의 제목<input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label><label>상태<select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}><option>시작 전</option><option>진행 중</option><option>완료</option><option>문서</option></select></label><label>일정<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="wide">안건 · 메모<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></label></div><button className="primary-button" type="submit">추가하기</button></form>}
+      <section className="meeting-list">{combined.map((meeting) => <article key={meeting.id}><span className="meeting-date">{formatDate(meeting.date)}</span><div><strong>{meeting.title}</strong><p>{meeting.note || '안건 없음'}</p></div><span className="meeting-status">{meeting.status}</span>{meeting.fixed ? <a href={meeting.href} target="_blank" rel="noreferrer"><ExternalLink size={15} /></a> : <><select value={meeting.status} onChange={(e) => onUpdate(meeting.id, { status: e.target.value })}><option>시작 전</option><option>진행 중</option><option>완료</option><option>문서</option></select><button className="icon-button danger" onClick={() => onDelete(meeting.id)}><Trash2 size={15} /></button></>}</article>)}</section>
+    </div>
+  );
+}
+
+function Episodes({ episodes, checklist, onAdd, onUpdate, onDelete, onToggleCheck }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [draft, setDraft] = useState({ title: '', owner: '', stage: 'planning', shootDate: '', publishDate: '' });
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!draft.title.trim()) return;
+    onAdd(draft);
+    setDraft({ title: '', owner: '', stage: 'planning', shootDate: '', publishDate: '' });
+    setIsAdding(false);
+  };
+
+  return (
+    <div className="page-stack">
+      <section className="page-heading">
+        <div><span className="eyebrow">EPISODE BOARD</span><h2>에피소드</h2><p>각 회차의 현재 단계와 핵심 일정을 관리합니다.</p></div>
+        <button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 새 에피소드</button>
+      </section>
+
+      {isAdding && (
+        <form className="editor-card" onSubmit={submit}>
+          <div className="editor-title"><strong>에피소드 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div>
+          <div className="form-grid">
+            <label className="wide">에피소드/게스트 이름<input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="예: EP.07 | Artist" /></label>
+            <label>담당자<input value={draft.owner} onChange={(e) => setDraft({ ...draft, owner: e.target.value })} placeholder="이름" /></label>
+            <label>단계<select value={draft.stage} onChange={(e) => setDraft({ ...draft, stage: e.target.value })}>{EPISODE_STAGES.map((stage) => <option value={stage.id} key={stage.id}>{stage.label}</option>)}</select></label>
+            <label>촬영일<input type="date" value={draft.shootDate} onChange={(e) => setDraft({ ...draft, shootDate: e.target.value })} /></label>
+            <label>업로드일<input type="date" value={draft.publishDate} onChange={(e) => setDraft({ ...draft, publishDate: e.target.value })} /></label>
+          </div>
+          <button className="primary-button" type="submit">추가하기</button>
+        </form>
+      )}
+
+      {episodes.length === 0 ? (
+        <EmptyPanel icon={Clapperboard} title="아직 등록된 에피소드가 없습니다" description="실제 게스트 정보는 자동으로 가져오지 않았습니다. 새 회차부터 안전하게 등록해보세요." action={<button className="text-button" onClick={() => setIsAdding(true)}>첫 에피소드 만들기</button>} />
+      ) : (
+        <section className="episode-grid">
+          {episodes.map((episode) => (
+            <article className="episode-card" key={episode.id}>
+              <div className="card-top"><StatusBadge stage={episode.stage} /><button className="icon-button danger" onClick={() => onDelete(episode.id)} title="삭제"><Trash2 size={16} /></button></div>
+              <h3>{episode.title}</h3>
+              <p>{episode.owner || '담당자 미정'}</p>
+              <div className="date-row"><span>촬영 <strong>{formatDate(episode.shootDate)}</strong></span><span>발행 <strong>{formatDate(episode.publishDate)}</strong></span></div>
+              <select value={episode.stage} onChange={(e) => onUpdate(episode.id, { stage: e.target.value })}>{EPISODE_STAGES.map((stage) => <option value={stage.id} key={stage.id}>{stage.label}</option>)}</select>
+            </article>
+          ))}
+        </section>
+      )}
+
+      <section className="panel">
+        <div className="panel-heading"><div><span className="eyebrow">REPEATABLE CHECKLIST</span><h3>회차 공통 준비 항목</h3></div></div>
+        <div className="check-list">
+          {WORKFLOW.map((item, index) => (
+            <label key={item} className={checklist[index] ? 'checked' : ''}>
+              <input type="checkbox" checked={Boolean(checklist[index])} onChange={() => onToggleCheck(index)} />
+              <span>{item}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Guests({ guests, onAdd, onUpdate, onDelete }) {
+  const [query, setQuery] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [draft, setDraft] = useState({ name: '', status: '컨택 전', owner: '', contact: '', note: '' });
+  const filtered = guests.filter((guest) => `${guest.name} ${guest.owner} ${guest.status}`.toLowerCase().includes(query.toLowerCase()));
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!draft.name.trim()) return;
+    onAdd(draft);
+    setDraft({ name: '', status: '컨택 전', owner: '', contact: '', note: '' });
+    setIsAdding(false);
+  };
+
+  return (
+    <div className="page-stack">
+      <section className="page-heading">
+        <div><span className="eyebrow">GUEST PIPELINE</span><h2>게스트 섭외</h2><p>Notion의 기존 상태 체계를 유지해 연락부터 촬영 완료까지 추적합니다.</p></div>
+        <button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 게스트 추가</button>
+      </section>
+
+      {isAdding && (
+        <form className="editor-card" onSubmit={submit}>
+          <div className="editor-title"><strong>게스트 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div>
+          <div className="form-grid">
+            <label>이름<input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
+            <label>담당자<input value={draft.owner} onChange={(e) => setDraft({ ...draft, owner: e.target.value })} /></label>
+            <label>상태<select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>{GUEST_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
+            <label>연락처<input value={draft.contact} onChange={(e) => setDraft({ ...draft, contact: e.target.value })} placeholder="이메일 또는 연락 채널" /></label>
+            <label className="wide">메모<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></label>
+          </div>
+          <button className="primary-button" type="submit">추가하기</button>
+        </form>
+      )}
+
+      <div className="toolbar">
+        <label className="search-field"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름, 담당자, 상태 검색" /></label>
+        <span>{filtered.length}명</span>
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyPanel icon={Users} title={guests.length ? '검색 결과가 없습니다' : '게스트 파이프라인이 비어 있습니다'} description="Notion 데이터는 아직 이전하지 않았습니다. 신규 섭외 건부터 이곳에서 시작할 수 있습니다." />
+      ) : (
+        <section className="guest-table-wrap">
+          <table className="guest-table">
+            <thead><tr><th>게스트</th><th>상태</th><th>담당자</th><th>연락처</th><th></th></tr></thead>
+            <tbody>
+              {filtered.map((guest) => (
+                <tr key={guest.id}>
+                  <td><strong>{guest.name}</strong><small>{guest.note || '메모 없음'}</small></td>
+                  <td><select value={guest.status} onChange={(e) => onUpdate(guest.id, { status: e.target.value })}>{GUEST_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td>
+                  <td>{guest.owner || '미정'}</td>
+                  <td>{guest.contact || '-'}</td>
+                  <td><button className="icon-button danger" onClick={() => onDelete(guest.id)}><Trash2 size={16} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const [activeView, setActiveView] = useState('overview');
+  const [workspace, setWorkspace] = useState(loadWorkspace);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  const [theme, setTheme] = useState(getInitialTheme);
+  const isEmbedded = window !== window.top;
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+  }, [workspace]);
+
+  useEffect(() => {
+    const applyTheme = (nextTheme) => {
+      setTheme(nextTheme);
+      document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+      document.body.classList.toggle('light-theme', nextTheme === 'light');
+    };
+    applyTheme(theme);
+    const receiveMessage = (event) => {
+      if (event.data?.type === 'SET_THEME') applyTheme(event.data.theme);
+      if (event.data?.type === 'TOGGLE_SIDEBAR') setSidebarOpen((open) => !open);
+    };
+    window.addEventListener('message', receiveMessage);
+    return () => window.removeEventListener('message', receiveMessage);
+  }, []);
+
+  useEffect(() => {
+    if (isEmbedded) window.parent.postMessage({ type: 'SIDEBAR_STATE', active: sidebarOpen }, '*');
+  }, [isEmbedded, sidebarOpen]);
+
+  useEffect(() => {
+    const syncViewport = () => {
+      setViewportWidth(window.innerWidth);
+      if (window.innerWidth > 1200) setSidebarOpen(false);
+    };
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
+
+  const activeLabel = useMemo(() => NAV_ITEMS.find((item) => item.id === activeView)?.label, [activeView]);
+  const sidebarExpanded = viewportWidth > 1200 ? !sidebarCollapsed : sidebarOpen;
+  const navigate = (view) => { setActiveView(view); if (window.innerWidth <= 1200) setSidebarOpen(false); };
+  const toggleSidebar = () => {
+    if (window.innerWidth > 1200) setSidebarCollapsed((collapsed) => !collapsed);
+    else setSidebarOpen((open) => !open);
+  };
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('artic-theme', next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    document.body.classList.toggle('light-theme', next === 'light');
+  };
+  const addRecord = (collection, record) => setWorkspace((current) => ({ ...current, [collection]: [...current[collection], { ...record, id: crypto.randomUUID() }] }));
+  const updateRecord = (collection, id, patch) => setWorkspace((current) => ({ ...current, [collection]: current[collection].map((item) => item.id === id ? { ...item, ...patch } : item) }));
+  const deleteRecord = (collection, id) => setWorkspace((current) => ({ ...current, [collection]: current[collection].filter((item) => item.id !== id) }));
+
+  return (
+    <div className={`workspace-shell ${isEmbedded ? 'embedded' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      <aside className="workspace-sidebar">
+        <button className="project-mark" onClick={() => navigate('overview')}>
+          <span>TN</span><div className="sidebar-label"><strong>Tasting Note</strong><small>Project Manager</small></div>
+        </button>
+        <div className="sidebar-toggle-wrap"><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={sidebarExpanded ? '메뉴 축소' : '메뉴 확대'} aria-expanded={sidebarExpanded}>{sidebarExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}<span className="sidebar-label">{sidebarExpanded ? (viewportWidth > 1200 ? '메뉴 축소' : '메뉴 닫기') : '메뉴 확대'}</span></button></div>
+        <nav>
+          {['PROJECT', 'OPERATIONS', 'MANAGEMENT'].map((group) => <div className="nav-group" key={group}><span className="nav-group-label sidebar-label">{group}</span>{NAV_ITEMS.filter((item) => item.group === group).map(({ id, label, icon: Icon }) => <button key={id} className={activeView === id ? 'active' : ''} onClick={() => navigate(id)} title={label}><Icon size={18} /><span className="sidebar-label">{label}</span></button>)}</div>)}
+        </nav>
+        <div className="sidebar-note"><span className="sync-dot" /><span className="sidebar-label">Notion 병행 운영<small>Firestore 연결 전</small></span></div>
+      </aside>
+
+      {sidebarOpen && <button className="mobile-scrim" aria-label="메뉴 닫기" onClick={() => setSidebarOpen(false)} />}
+
+      <main className="workspace-main">
+        {!isEmbedded && <header className="workspace-header"><button className="mobile-menu" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button><div><span className="header-path">TNT /</span><strong>{activeLabel}</strong></div><div className="header-actions"><a href="https://app.notion.com/p/26dffc3c3af58095bb20fd89297d34a0" target="_blank" rel="noreferrer" title="Notion 원본 열기"><ExternalLink size={17} /></a><button onClick={toggleTheme} title="테마 변경">{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button></div></header>}
+
+        <div className="workspace-content">
+          {activeView === 'overview' && <Overview workspace={workspace} onNavigate={navigate} />}
+          {activeView === 'project' && <ProjectPage />}
+          {activeView === 'episodes' && <Episodes episodes={workspace.episodes} checklist={workspace.checklist} onAdd={(record) => addRecord('episodes', record)} onUpdate={(id, patch) => updateRecord('episodes', id, patch)} onDelete={(id) => deleteRecord('episodes', id)} onToggleCheck={(index) => setWorkspace((current) => ({ ...current, checklist: { ...current.checklist, [index]: !current.checklist[index] } }))} />}
+          {activeView === 'guests' && <Guests guests={workspace.guests} onAdd={(record) => addRecord('guests', record)} onUpdate={(id, patch) => updateRecord('guests', id, patch)} onDelete={(id) => deleteRecord('guests', id)} />}
+          {activeView === 'production' && <ProductionPage checklist={workspace.checklist} onToggleCheck={(index) => setWorkspace((current) => ({ ...current, checklist: { ...current.checklist, [index]: !current.checklist[index] } }))} />}
+          {activeView === 'resources' && <TrackerPage kind="resources" title="장소 · 장비" eyebrow="PRODUCTION RESOURCES" description="촬영 장소 후보, 예약 상태와 회차별 장비 준비를 관리합니다." records={workspace.resources} onAdd={(record) => addRecord('resources', record)} onUpdate={(id, patch) => updateRecord('resources', id, patch)} onDelete={(id) => deleteRecord('resources', id)} />}
+          {activeView === 'settlement' && <SettlementPanel />}
+          {activeView === 'meetings' && <MeetingsPage meetings={workspace.meetings} onAdd={(record) => addRecord('meetings', record)} onUpdate={(id, patch) => updateRecord('meetings', id, patch)} onDelete={(id) => deleteRecord('meetings', id)} />}
+          {activeView === 'partnerships' && <TrackerPage kind="partnerships" title="PPL · 협찬" eyebrow="PARTNERSHIPS" description="브랜드 제안, 협찬 패키지와 회차별 노출 협의를 추적합니다." records={workspace.partnerships} onAdd={(record) => addRecord('partnerships', record)} onUpdate={(id, patch) => updateRecord('partnerships', id, patch)} onDelete={(id) => deleteRecord('partnerships', id)} />}
+        </div>
+      </main>
     </div>
   );
 }

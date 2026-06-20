@@ -31,13 +31,25 @@
 
     // Update Google Link status in UI
     const isLinked = ArticAuth.isGoogleLinked();
-    const badge = byId('google-link-badge');
+    const iconEl = byId('google-link-icon');
     const linkBtn = byId('btn-google-link');
-    if (badge && linkBtn) {
-      badge.textContent = isLinked ? '연동 완료' : '미연동';
-      badge.className = `google-link-badge ${isLinked ? 'linked' : 'unlinked'}`;
+    const emailEl = byId('google-link-email');
+    if (iconEl) {
+      iconEl.className = `google-link-icon ${isLinked ? 'linked' : 'unlinked'}`;
+    }
+    if (linkBtn) {
       linkBtn.textContent = isLinked ? '구글 연동 해제' : '구글 연동하기';
       linkBtn.className = `btn-google-link ${isLinked ? 'linked' : ''}`;
+    }
+    if (emailEl) {
+      if (isLinked) {
+        const linkedEmail = ArticAuth.getGoogleLinkedEmail();
+        emailEl.textContent = linkedEmail || '';
+        emailEl.style.display = 'inline';
+      } else {
+        emailEl.textContent = '';
+        emailEl.style.display = 'none';
+      }
     }
 
     byId('control-center-projects').innerHTML = Object.entries(profile.projects || {}).map(([project, role]) => `
@@ -50,7 +62,13 @@
     if (shouldWelcome) {
       const accountButton = byId('account-center-button');
       clearTimeout(welcomeTimer);
-      accountButton.style.setProperty('--welcome-width', `${Math.ceil(welcomeText.scrollWidth + 28)}px`);
+      
+      // Temporarily unconstrain max-width to calculate exact scrollWidth without wrapping constraints
+      welcomeText.style.maxWidth = 'none';
+      const textWidth = welcomeText.scrollWidth;
+      welcomeText.style.maxWidth = '';
+      
+      accountButton.style.setProperty('--welcome-width', `${Math.ceil(textWidth + 48)}px`);
       accountButton.classList.add('welcoming');
       welcomeTimer = setTimeout(() => accountButton.classList.remove('welcoming'), 4000);
     }
@@ -151,53 +169,114 @@
     openApp(event, url);
   };
 
+  let detailTransitionTimeout = null;
+
   function collapseAllTilesExcept(activeTileId) {
     const ids = ['tile-account-settings', 'project-join-tile', 'admin-register-tile'];
-    ids.forEach(id => {
-      const tile = byId(id);
-      if (tile && id !== activeTileId) {
-        tile.classList.remove('expanded');
+    const panel = document.querySelector('.control-center-panel');
+    
+    if (detailTransitionTimeout) {
+      clearTimeout(detailTransitionTimeout);
+      detailTransitionTimeout = null;
+    }
+
+    if (!activeTileId) {
+      // COLLAPSING / GOING BACK TO MAIN
+      // 1. Remove expanded class from all tiles and layout-collapsed from panel
+      ids.forEach(id => {
+        const tile = byId(id);
+        if (tile) tile.classList.remove('expanded');
+      });
+      if (panel) {
+        panel.classList.remove('layout-collapsed');
+        // 2. Wait for layout to restore (400ms), then fade back in other tiles
+        detailTransitionTimeout = setTimeout(() => {
+          panel.classList.remove('detail-active');
+        }, 400);
       }
-    });
+    } else {
+      // EXPANDING
+      // 1. Fade out other elements first
+      if (panel) {
+        panel.classList.add('detail-active');
+      }
+      // 2. Wait 150ms for fade out, then expand the active tile and collapse layout
+      detailTransitionTimeout = setTimeout(() => {
+        const activeTile = byId(activeTileId);
+        if (activeTile) {
+          activeTile.classList.add('expanded');
+          // Focus input if any
+          if (activeTileId === 'tile-account-settings') {
+            const input = byId('global-current-password');
+            if (input) input.focus();
+          } else if (activeTileId === 'admin-register-tile') {
+            const input = byId('admin-register-name');
+            if (input) input.focus();
+          }
+        }
+        if (panel) {
+          panel.classList.add('layout-collapsed');
+        }
+        // Remove expanded class from other tiles
+        ids.forEach(id => {
+          if (id !== activeTileId) {
+            const tile = byId(id);
+            if (tile) tile.classList.remove('expanded');
+          }
+        });
+      }, 150);
+    }
   }
+  window.collapseAllTilesExcept = collapseAllTilesExcept;
 
   window.toggleControlCenter = function (force) {
     const backdrop = byId('control-center-backdrop');
     const shouldOpen = typeof force === 'boolean' ? force : !backdrop.classList.contains('open');
-    backdrop.classList.toggle('open', shouldOpen);
-    byId('account-center-button').setAttribute('aria-expanded', String(shouldOpen));
-    if (!shouldOpen) {
-      collapseAllTilesExcept(null);
+    if (shouldOpen) {
+      backdrop.classList.remove('closing');
+      backdrop.classList.add('open');
+      byId('account-center-button').setAttribute('aria-expanded', 'true');
+    } else {
+      if (backdrop.classList.contains('open')) {
+        backdrop.classList.remove('open');
+        backdrop.classList.add('closing');
+        byId('account-center-button').setAttribute('aria-expanded', 'false');
+        collapseAllTilesExcept(null);
+        setTimeout(() => {
+          backdrop.classList.remove('closing');
+        }, 600);
+      }
     }
   };
 
   window.toggleAccountSettings = function () {
     const tile = byId('tile-account-settings');
     if (!tile) return;
-    collapseAllTilesExcept('tile-account-settings');
-    const isExpanded = tile.classList.toggle('expanded');
-    if (isExpanded) {
-      const input = byId('global-current-password');
-      if (input) input.focus();
+    if (tile.classList.contains('expanded')) {
+      collapseAllTilesExcept(null);
+    } else {
+      collapseAllTilesExcept('tile-account-settings');
     }
   };
 
   window.toggleProjectJoin = function () {
     const tile = byId('project-join-tile');
     if (!tile) return;
-    collapseAllTilesExcept('project-join-tile');
-    tile.classList.toggle('expanded');
+    if (tile.classList.contains('expanded')) {
+      collapseAllTilesExcept(null);
+    } else {
+      collapseAllTilesExcept('project-join-tile');
+    }
   };
 
   window.toggleAdminRegistration = function () {
     if (!ArticAuth.isPortalAdmin()) return;
     const tile = byId('admin-register-tile');
     if (!tile) return;
-    collapseAllTilesExcept('admin-register-tile');
-    const isExpanded = tile.classList.toggle('expanded');
-    if (isExpanded) {
-      const input = byId('admin-register-name');
-      if (input) input.focus();
+    if (tile.classList.contains('expanded')) {
+      collapseAllTilesExcept(null);
+    } else {
+      collapseAllTilesExcept('admin-register-tile');
     }
   };
 
@@ -269,6 +348,184 @@
     if (typeof goToHome === 'function') goToHome(null);
     await ArticAuth.signOut();
   };
+
+  const PEXELS_API_KEY = 'uZc288kN05Vq7jR5bb8ZqZNnpUeRxgSUEsIpCPofxv8WXQgNvCoBaZnl';
+
+  window.searchWallpaper = async function () {
+    const input = byId('wallpaper-search-input');
+    const query = input ? input.value.trim() : '';
+    const resultsContainer = byId('pexels-results');
+    const message = byId('wallpaper-message');
+
+    if (!query) {
+      if (message) message.textContent = '검색어를 입력해주세요.';
+      return;
+    }
+
+    if (message) message.textContent = '검색 중...';
+    if (resultsContainer) resultsContainer.innerHTML = '';
+
+    try {
+      const response = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=6&size=large`, {
+        headers: {
+          Authorization: PEXELS_API_KEY
+        }
+      });
+
+      if (!response.ok) throw new Error('API request failed');
+
+      const data = await response.json();
+      if (message) message.textContent = '';
+
+      if (!data.photos || data.photos.length === 0) {
+        if (message) message.textContent = '검색 결과가 없습니다.';
+        return;
+      }
+
+      if (resultsContainer) {
+        data.photos.forEach(photo => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'pexels-thumb-wrapper';
+          wrapper.onclick = () => selectWallpaper(photo.src.original, photo.photographer, photo.src.tiny);
+
+          const img = document.createElement('img');
+          img.className = 'pexels-thumb';
+          img.src = photo.src.tiny;
+          img.alt = photo.alt || 'Pexels wallpaper';
+          img.loading = 'lazy';
+
+          const credit = document.createElement('div');
+          credit.className = 'pexels-photographer';
+          credit.textContent = `Photo by ${photo.photographer}`;
+
+          wrapper.appendChild(img);
+          wrapper.appendChild(credit);
+          resultsContainer.appendChild(wrapper);
+        });
+      }
+    } catch (error) {
+      if (message) message.textContent = '이미지를 불러오지 못했습니다.';
+    }
+  };
+
+  function analyzeImageBrightness(url, callback) {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 10;
+      canvas.height = 10;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 10, 10);
+      try {
+        const imgData = ctx.getImageData(0, 0, 10, 10);
+        let totalLuminance = 0;
+        for (let i = 0; i < imgData.data.length; i += 4) {
+          const r = imgData.data[i];
+          const g = imgData.data[i+1];
+          const b = imgData.data[i+2];
+          const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b);
+          totalLuminance += luminance;
+        }
+        const avgLuminance = totalLuminance / (imgData.data.length / 4);
+        callback(avgLuminance > 128 ? 'light' : 'dark');
+      } catch (e) {
+        callback('dark');
+      }
+    };
+    img.onerror = function() {
+      callback('dark');
+    };
+    img.src = url;
+  }
+
+  function updateHomeThemeContrast() {
+    const savedWallpaper = localStorage.getItem('artic-portal-wallpaper');
+    if (savedWallpaper) {
+      const brightness = localStorage.getItem('artic-portal-wallpaper-brightness') || 'dark';
+      if (brightness === 'light') {
+        document.body.classList.add('light-theme');
+      } else {
+        document.body.classList.remove('light-theme');
+      }
+    } else {
+      const savedTheme = localStorage.getItem('artic-theme') || 'light';
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+      } else {
+        document.body.classList.remove('light-theme');
+      }
+    }
+  }
+
+  window.selectWallpaper = function (url, photographer, tinyUrl) {
+    const message = byId('wallpaper-message');
+    try {
+      localStorage.setItem('artic-portal-wallpaper', url);
+      applyWallpaper(url);
+      if (message) message.textContent = '이미지 분석 중...';
+
+      const analysisUrl = tinyUrl || url;
+      analyzeImageBrightness(analysisUrl, (brightness) => {
+        localStorage.setItem('artic-portal-wallpaper-brightness', brightness);
+        updateHomeThemeContrast();
+        if (message) {
+          message.textContent = `Photo by ${photographer} 적용 완료. (${brightness === 'light' ? '라이트' : '다크'} 최적화)`;
+          setTimeout(() => { if (message && message.textContent.includes('적용 완료')) message.textContent = ''; }, 4000);
+        }
+      });
+    } catch (err) {
+      if (message) message.textContent = '배경화면을 적용하지 못했습니다.';
+    }
+  };
+
+  window.resetWallpaper = function () {
+    localStorage.removeItem('artic-portal-wallpaper');
+    localStorage.removeItem('artic-portal-wallpaper-brightness');
+    applyWallpaper(null);
+    updateHomeThemeContrast();
+    const message = byId('wallpaper-message');
+    if (message) {
+      message.textContent = '기본 배경화면으로 복원되었습니다.';
+      setTimeout(() => { if (message && message.textContent.includes('복원되었습니다')) message.textContent = ''; }, 3000);
+    }
+    const resultsContainer = byId('pexels-results');
+    if (resultsContainer) resultsContainer.innerHTML = '';
+    const input = byId('wallpaper-search-input');
+    if (input) input.value = '';
+  };
+
+  function applyWallpaper(dataUrl) {
+    let styleEl = byId('custom-wallpaper-style');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'custom-wallpaper-style';
+      document.head.appendChild(styleEl);
+    }
+
+    if (dataUrl) {
+      styleEl.innerHTML = `
+        body {
+          background-image: url(${dataUrl}) !important;
+          background-size: cover !important;
+          background-position: center !important;
+          background-attachment: fixed !important;
+        }
+        .bg-glow-1, .bg-glow-2 {
+          opacity: 0.3 !important;
+        }
+      `;
+    } else {
+      styleEl.innerHTML = '';
+    }
+  }
+
+  // Apply saved wallpaper on initialization
+  const savedWallpaper = localStorage.getItem('artic-portal-wallpaper');
+  if (savedWallpaper) {
+    applyWallpaper(savedWallpaper);
+  }
+  updateHomeThemeContrast();
 
   async function initializePortalAuth() {
     byId('portal-login-form').addEventListener('submit', submitLogin);
