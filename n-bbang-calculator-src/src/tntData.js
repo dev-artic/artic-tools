@@ -31,6 +31,16 @@ function serverTimestamp() {
   return window.parent.firebase.firestore.FieldValue.serverTimestamp();
 }
 
+export function toFirebaseData(value, ParentObject = window.parent.Object) {
+  if (Array.isArray(value)) return value.map((item) => toFirebaseData(item, ParentObject));
+  if (!value || typeof value !== 'object') return value;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return value;
+  const bridged = new ParentObject();
+  Object.entries(value).forEach(([key, item]) => { bridged[key] = toFirebaseData(item, ParentObject); });
+  return bridged;
+}
+
 function inferContentType(file) {
   if (file.type) return file.type;
   const extension = file.name.split('.').pop()?.toLowerCase();
@@ -116,9 +126,9 @@ export async function mutateDocument(collection, id, patch, expectedVersion, act
     const current = snapshot.data();
     if (expectedVersion != null && current.version !== expectedVersion) throw new Error('다른 관리자가 먼저 수정했습니다. 최신 데이터를 다시 확인해주세요.');
     const nextVersion = (current.version || 0) + 1;
-    transaction.update(ref, { ...patch, version: nextVersion, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+    transaction.update(ref, toFirebaseData({ ...patch, version: nextVersion, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
     const activity = projectRef(db).collection('activity').doc();
-    transaction.set(activity, { entityType: collection, entityId: id, action, patch, fromVersion: current.version || 0, toVersion: nextVersion, actorId: profile.uid, createdAt: serverTimestamp() });
+    transaction.set(activity, toFirebaseData({ entityType: collection, entityId: id, action, patch, fromVersion: current.version || 0, toVersion: nextVersion, actorId: profile.uid, createdAt: serverTimestamp() }));
   });
 }
 
@@ -129,8 +139,8 @@ export async function createDocument(collection, data) {
   const ref = data.id ? projectRef(db).collection(collection).doc(data.id) : projectRef(db).collection(collection).doc();
   const payload = { ...data, id: ref.id, version: 1, schemaVersion: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid, updatedAt: serverTimestamp(), updatedBy: profile.uid };
   const batch = db.batch();
-  batch.set(ref, payload);
-  batch.set(projectRef(db).collection('activity').doc(), { entityType: collection, entityId: ref.id, action: 'create', toVersion: 1, actorId: profile.uid, createdAt: serverTimestamp() });
+  batch.set(ref, toFirebaseData(payload));
+  batch.set(projectRef(db).collection('activity').doc(), toFirebaseData({ entityType: collection, entityId: ref.id, action: 'create', toVersion: 1, actorId: profile.uid, createdAt: serverTimestamp() }));
   await batch.commit();
   return ref.id;
 }
@@ -150,10 +160,10 @@ export async function archiveDocument(collection, item) {
     if (!snapshot.exists || snapshot.data().version !== item.version) throw new Error('항목이 먼저 변경되었습니다. 최신 데이터를 다시 확인해주세요.');
     if (collection === 'episodes' && item.sequenceState === 'verified' && item.sequence != null) {
       const claimKey = `season-1-${String(item.sequence).padStart(2, '0')}`;
-      transaction.set(root.collection('sequenceClaims').doc(claimKey), { archivedAt: serverTimestamp(), archivedBy: profile.uid }, { merge: true });
+      transaction.set(root.collection('sequenceClaims').doc(claimKey), toFirebaseData({ archivedAt: serverTimestamp(), archivedBy: profile.uid }), toFirebaseData({ merge: true }));
     }
-    transaction.update(ref, { archivedAt: serverTimestamp(), archivedBy: profile.uid, version: item.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
-    transaction.set(root.collection('activity').doc(), { entityType: collection, entityId: item.id, action: 'archive', actorId: profile.uid, createdAt: serverTimestamp() });
+    transaction.update(ref, toFirebaseData({ archivedAt: serverTimestamp(), archivedBy: profile.uid, version: item.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
+    transaction.set(root.collection('activity').doc(), toFirebaseData({ entityType: collection, entityId: item.id, action: 'archive', actorId: profile.uid, createdAt: serverTimestamp() }));
   });
 }
 
@@ -171,10 +181,10 @@ export async function restoreDocument(collection, item) {
       const claimRef = root.collection('sequenceClaims').doc(claimKey);
       const claim = await transaction.get(claimRef);
       if (claim.exists && !claim.data().archivedAt && claim.data().episodeId !== item.id) throw new Error('해당 회차를 다른 에피소드가 사용 중이라 복구할 수 없습니다.');
-      transaction.set(claimRef, { episodeId: item.id, archivedAt: null, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+      transaction.set(claimRef, toFirebaseData({ episodeId: item.id, archivedAt: null, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
     }
-    transaction.update(ref, { archivedAt: null, archivedBy: null, version: item.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
-    transaction.set(root.collection('activity').doc(), { entityType: collection, entityId: item.id, action: 'restore', actorId: profile.uid, createdAt: serverTimestamp() });
+    transaction.update(ref, toFirebaseData({ archivedAt: null, archivedBy: null, version: item.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
+    transaction.set(root.collection('activity').doc(), toFirebaseData({ entityType: collection, entityId: item.id, action: 'restore', actorId: profile.uid, createdAt: serverTimestamp() }));
   });
 }
 
@@ -188,8 +198,8 @@ export async function updateEpisodeTask(episodeId, task, patch) {
     const snapshot = await transaction.get(ref);
     const current = snapshot.data();
     if (!snapshot.exists || current.version !== (task.version || 1)) throw new Error('작업 상태가 변경되었습니다. 새로고침 후 다시 시도해주세요.');
-    transaction.update(ref, { ...patch, version: (current.version || 1) + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
-    transaction.set(projectRef(db).collection('activity').doc(), { entityType: 'task', entityId: task.id, episodeId, action: 'update', patch, actorId: profile.uid, createdAt: serverTimestamp() });
+    transaction.update(ref, toFirebaseData({ ...patch, version: (current.version || 1) + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
+    transaction.set(projectRef(db).collection('activity').doc(), toFirebaseData({ entityType: 'task', entityId: task.id, episodeId, action: 'update', patch, actorId: profile.uid, createdAt: serverTimestamp() }));
   });
 }
 
@@ -199,8 +209,8 @@ export async function createEpisodeSubdocument(episodeId, collection, data) {
   const db = authBridge.db();
   const collectionRef = projectRef(db).collection('episodes').doc(episodeId).collection(collection);
   const ref = data.id ? collectionRef.doc(data.id) : collectionRef.doc();
-  await ref.set({ ...data, id: ref.id, episodeId, version: 1, schemaVersion: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid, updatedAt: serverTimestamp(), updatedBy: profile.uid });
-  await projectRef(db).collection('activity').add({ entityType: collection, entityId: ref.id, episodeId, action: 'create', actorId: profile.uid, createdAt: serverTimestamp() });
+  await ref.set(toFirebaseData({ ...data, id: ref.id, episodeId, version: 1, schemaVersion: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
+  await projectRef(db).collection('activity').add(toFirebaseData({ entityType: collection, entityId: ref.id, episodeId, action: 'create', actorId: profile.uid, createdAt: serverTimestamp() }));
   return ref.id;
 }
 
@@ -212,7 +222,7 @@ export async function updateEpisodeSubdocument(episodeId, collection, item, patc
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists || snapshot.data().version !== (item.version || 1)) throw new Error('다른 변경사항이 먼저 저장되었습니다.');
-    transaction.update(ref, { ...patch, version: (item.version || 1) + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+    transaction.update(ref, toFirebaseData({ ...patch, version: (item.version || 1) + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
   });
 }
 
@@ -222,9 +232,9 @@ export async function createEpisodeFromGuest(guest) {
   const db = authBridge.db();
   const episodeRef = projectRef(db).collection('episodes').doc();
   const batch = db.batch();
-  batch.set(episodeRef, { id: episodeRef.id, guestId: guest.id, guestName: guest.name, title: '제목 미정', sequence: null, sequenceLabel: '회차 미정', sequenceState: 'unassigned', lifecycleState: 'active', shootBatchId: null, guestCallTime: null, plannedUploadDate: null, publishedAt: null, version: 1, schemaVersion: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid, updatedAt: serverTimestamp(), updatedBy: profile.uid });
-  createTasks(episodeRef.id, { castingOnly: ['confirmed', 'scheduling'].includes(guest.pipelineStatus) }).forEach((task) => batch.set(episodeRef.collection('tasks').doc(task.id), { ...task, version: 1, createdAt: serverTimestamp(), createdBy: profile.uid }));
-  batch.update(projectRef(db).collection('guestProspects').doc(guest.id), { 'episodeAssignment.state': 'unassigned', version: (guest.version || 1) + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+  batch.set(episodeRef, toFirebaseData({ id: episodeRef.id, guestId: guest.id, guestName: guest.name, title: '제목 미정', sequence: null, sequenceLabel: '회차 미정', sequenceState: 'unassigned', lifecycleState: 'active', shootBatchId: null, guestCallTime: null, plannedUploadDate: null, publishedAt: null, version: 1, schemaVersion: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
+  createTasks(episodeRef.id, { castingOnly: ['confirmed', 'scheduling'].includes(guest.pipelineStatus) }).forEach((task) => batch.set(episodeRef.collection('tasks').doc(task.id), toFirebaseData({ ...task, version: 1, createdAt: serverTimestamp(), createdBy: profile.uid })));
+  batch.update(projectRef(db).collection('guestProspects').doc(guest.id), toFirebaseData({ 'episodeAssignment.state': 'unassigned', version: (guest.version || 1) + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
   await batch.commit();
   return episodeRef.id;
 }
@@ -248,11 +258,11 @@ export async function assignEpisodeSequence(episode, sequence, sequenceState) {
       const claimRef = root.collection('sequenceClaims').doc(claimKey);
       const claim = await transaction.get(claimRef);
       if (claim.exists && !claim.data().archivedAt && claim.data().episodeId !== episode.id) throw new Error('이미 다른 에피소드가 사용 중인 회차입니다.');
-      transaction.set(claimRef, { episodeId: episode.id, archivedAt: null, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+      transaction.set(claimRef, toFirebaseData({ episodeId: episode.id, archivedAt: null, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
     }
-    if (oldClaimKey && oldClaimKey !== claimKey) transaction.set(root.collection('sequenceClaims').doc(oldClaimKey), { archivedAt: serverTimestamp(), archivedBy: profile.uid }, { merge: true });
-    transaction.update(episodeRef, { sequence: numericSequence, sequenceState, sequenceLabel: numericSequence == null ? '회차 미정' : `EP.${numericSequence}${sequenceState === 'provisional' ? ' (예정)' : ''}`, version: episode.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
-    transaction.set(root.collection('activity').doc(), { entityType: 'episodes', entityId: episode.id, action: 'assign_sequence', sequence: numericSequence, sequenceState, actorId: profile.uid, createdAt: serverTimestamp() });
+    if (oldClaimKey && oldClaimKey !== claimKey) transaction.set(root.collection('sequenceClaims').doc(oldClaimKey), toFirebaseData({ archivedAt: serverTimestamp(), archivedBy: profile.uid }), toFirebaseData({ merge: true }));
+    transaction.update(episodeRef, toFirebaseData({ sequence: numericSequence, sequenceState, sequenceLabel: numericSequence == null ? '회차 미정' : `EP.${numericSequence}${sequenceState === 'provisional' ? ' (예정)' : ''}`, version: episode.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid }));
+    transaction.set(root.collection('activity').doc(), toFirebaseData({ entityType: 'episodes', entityId: episode.id, action: 'assign_sequence', sequence: numericSequence, sequenceState, actorId: profile.uid, createdAt: serverTimestamp() }));
   });
 }
 
@@ -277,7 +287,7 @@ export async function initializeWorkspace() {
   PUBLIC_SEQUENCE_CLAIMS(seed.episodes).forEach(([key, episodeId]) => writes.push([root.collection('sequenceClaims').doc(key), { episodeId, createdAt: serverTimestamp(), createdBy: profile.uid }]));
   for (let index = 0; index < writes.length; index += 450) {
     const batch = db.batch();
-    writes.slice(index, index + 450).forEach(([ref, data]) => batch.set(ref, data));
+    writes.slice(index, index + 450).forEach(([ref, data]) => batch.set(ref, toFirebaseData(data)));
     await batch.commit();
   }
   return { skipped: false, counts: { guests: seed.guests.length, episodes: seed.episodes.length, tasks: seed.tasks.length } };
@@ -300,10 +310,10 @@ export async function uploadArtifact(episodeId, file, category = 'typing-json') 
   if (contentType === 'application/octet-stream') throw new Error('지원하지 않는 파일 형식입니다. JSON, CSV, PDF, 문서 또는 이미지를 업로드해주세요.');
   const checksumBuffer = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
   const checksumSha256 = [...new Uint8Array(checksumBuffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  const snapshot = await storage.ref(path).put(file, { contentType, customMetadata: { episodeId, category, uploadedBy: profile.uid } });
+  const snapshot = await storage.ref(path).put(file, toFirebaseData({ contentType, customMetadata: { episodeId, category, uploadedBy: profile.uid } }));
   const downloadUrl = await snapshot.ref.getDownloadURL();
   const db = authBridge.db();
-  await projectRef(db).collection('episodes').doc(episodeId).collection('artifacts').doc(artifactId).set({ id: artifactId, episodeId, category, name: file.name, path, downloadUrl, size: file.size, contentType, checksumSha256, version: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid });
+  await projectRef(db).collection('episodes').doc(episodeId).collection('artifacts').doc(artifactId).set(toFirebaseData({ id: artifactId, episodeId, category, name: file.name, path, downloadUrl, size: file.size, contentType, checksumSha256, version: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid }));
   return { id: artifactId, downloadUrl };
 }
 
@@ -312,6 +322,6 @@ export async function callAdminFunction(name, data = {}) {
   if (!isAdmin) throw new Error('TNT 관리자만 동기화를 실행할 수 있습니다.');
   const functions = authBridge.functions?.();
   if (!functions) throw new Error('Firebase Functions 연결이 아직 활성화되지 않았습니다.');
-  const result = await functions.httpsCallable(name)(data);
+  const result = await functions.httpsCallable(name)(toFirebaseData(data));
   return result.data;
 }

@@ -337,6 +337,20 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('artic-tnt-project-manager-v1') || 'null'); } catch { return null; }
   });
   const embedded = window !== window.top;
+
+  useEffect(() => {
+    if (!embedded) return undefined;
+    const handlePortalMessage = (event) => {
+      if (event.source !== window.parent || event.data?.type !== 'TOGGLE_SIDEBAR') return;
+      setSidebarOpen((open) => !open);
+    };
+    window.addEventListener('message', handlePortalMessage);
+    return () => window.removeEventListener('message', handlePortalMessage);
+  }, [embedded]);
+
+  useEffect(() => {
+    if (embedded) window.parent.postMessage({ type: 'SIDEBAR_STATE', active: sidebarOpen }, '*');
+  }, [embedded, sidebarOpen]);
   const onError = useMemo(() => (message) => setError(message), []);
   const episodeData = useEpisodeData(selectedEpisodeId, onError);
 

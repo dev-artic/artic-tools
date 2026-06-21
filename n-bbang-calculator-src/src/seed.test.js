@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSeedData, PUBLIC_EPISODES } from './seed.js';
+import { toFirebaseData } from './tntData.js';
+
+test('Firebase bridge rebuilds plain objects in the parent realm', () => {
+  function ParentObject() {}
+  const sentinel = Object.create({ fieldValue: true });
+  const source = { nested: { value: 1 }, list: [{ value: 2 }], sentinel };
+  const result = toFirebaseData(source, ParentObject);
+  assert.equal(Object.getPrototypeOf(result), ParentObject.prototype);
+  assert.equal(Object.getPrototypeOf(result.nested), ParentObject.prototype);
+  assert.equal(Object.getPrototypeOf(result.list[0]), ParentObject.prototype);
+  assert.equal(result.sentinel, sentinel);
+});
 
 test('seed contains the audited migration baseline', () => {
   const seed = buildSeedData();
