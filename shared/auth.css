@@ -1,8 +1,15 @@
+#home-view {
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .auth-locked #home-view {
   filter: blur(16px) saturate(0.75);
   transform: scale(1.015);
   pointer-events: none;
   user-select: none;
+  opacity: 0;
 }
 
 .portal-auth-overlay,
