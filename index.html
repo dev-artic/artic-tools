@@ -153,6 +153,8 @@
     
     .animate-fade-up {
       opacity: 0;
+    }
+    body:not(.auth-locked) .animate-fade-up {
       animation: floatUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     
