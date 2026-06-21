@@ -89,6 +89,8 @@ function useEpisodeData(episodeId, onError) {
 }
 
 function Dashboard({ workspace, taskCache, onOpenEpisode }) {
+  const [query, setQuery] = useState('');
+  const [showPublished, setShowPublished] = useState(false);
   const rows = workspace.episodes.map((episode) => {
     const guest = workspace.guestProspects.find((item) => item.id === episode.guestId);
     const batch = workspace.shootBatches.find((item) => item.id === episode.shootBatchId);
@@ -103,6 +105,13 @@ function Dashboard({ workspace, taskCache, onOpenEpisode }) {
     });
   const active = rows.filter(({ episode }) => !['published', 'cancelled'].includes(episode.lifecycleState));
   const warnings = rows.filter(({ derived }) => ['conflict', 'blocked', 'overdue', 'at_risk'].includes(derived.health));
+  const normalizedQuery = query.trim().toLocaleLowerCase('ko-KR');
+  const visibleRows = rows.filter(({ episode, derived }) => {
+    const matches = !normalizedQuery || `${episode.sequenceLabel} ${episode.guestName} ${episode.title}`.toLocaleLowerCase('ko-KR').includes(normalizedQuery);
+    const needsAttention = ['conflict', 'blocked', 'overdue', 'at_risk'].includes(derived.health);
+    return matches && (normalizedQuery || showPublished || episode.lifecycleState !== 'published' || needsAttention);
+  });
+  const collapsedPublishedCount = rows.filter(({ episode, derived }) => episode.lifecycleState === 'published' && !['conflict', 'blocked', 'overdue', 'at_risk'].includes(derived.health)).length;
   return <div className="page-stack">
     <section className="hero-card compact-hero"><div><span className="eyebrow">TASTING NOTE OPERATIONS</span><h2>제작 현황을 한눈에</h2><p>섭외부터 POST까지, 실제 완료 조건을 기준으로 다음 작업과 위험 신호를 계산합니다.</p></div><div className="hero-stats"><strong>{active.length}</strong><span>진행 회차</span></div></section>
     <section className="metric-grid">
@@ -113,9 +122,10 @@ function Dashboard({ workspace, taskCache, onOpenEpisode }) {
     </section>
     <section className="panel matrix-panel">
       <div className="panel-heading"><div><span className="eyebrow">EPISODE MATRIX</span><h3>에피소드 진행 매트릭스</h3></div><span className="muted-copy">단계는 필수 작업에서 자동 계산</span></div>
+      <div className="matrix-controls"><label><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회차, 게스트, 제목 검색" /></label>{collapsedPublishedCount > 0 && <button className="secondary-button" onClick={() => setShowPublished((value) => !value)}>{showPublished ? '공개 완료 접기' : `공개 완료 ${collapsedPublishedCount}편 펼치기`}</button>}</div>
       <div className="episode-matrix">
         <div className="matrix-head"><span>회차 / 게스트</span>{PHASES.map((phase) => <span key={phase.id}>{phase.label}</span>)}<span>다음 작업</span><span>상태</span></div>
-        {rows.map(({ episode, derived }) => {
+        {visibleRows.map(({ episode, derived }) => {
           const tasks = taskCache[episode.id] || [];
           return <button className="matrix-row" key={episode.id} onClick={() => onOpenEpisode(episode.id)}>
             <span className="matrix-title"><strong>{episode.sequenceLabel}</strong><small>{episode.guestName}</small></span>
@@ -128,6 +138,7 @@ function Dashboard({ workspace, taskCache, onOpenEpisode }) {
             <span className="next-task">{derived.nextTask?.title || '완료'}<small>{derived.progress}%</small></span><HealthBadge value={derived.health} />
           </button>;
         })}
+        {!visibleRows.length && <div className="matrix-empty">조건에 맞는 에피소드가 없습니다.</div>}
       </div>
     </section>
   </div>;
@@ -140,13 +151,15 @@ function EpisodeList({ episodes, selectedId, onSelect }) {
 }
 
 function TaskPanel({ episode, tasks, isAdmin, onError }) {
+  const [openPhases, setOpenPhases] = useState(() => new Set(PHASES.map((phase) => phase.id)));
   const change = async (task, status) => {
     const waiverReason = status === 'waived' ? window.prompt('필수 작업 면제 사유를 입력해주세요.') : null;
     if (status === 'waived' && !waiverReason?.trim()) return;
     try { await updateEpisodeTask(episode.id, task, { status, waiverReason: waiverReason || null, completedAt: status === 'done' ? new Date().toISOString() : null }); } catch (error) { onError(error.message); }
   };
+  const togglePhase = (phaseId, open) => setOpenPhases((current) => { const next = new Set(current); if (open) next.add(phaseId); else next.delete(phaseId); return next; });
   return <section className="detail-section"><div className="section-title"><ListChecks size={18} /><div><strong>제작 워크플로우</strong><small>필수 작업 완료율과 현재 단계</small></div></div>
-    <div className="phase-groups">{PHASES.map((phase) => <div className="phase-group" key={phase.id}><h4>{phase.label}</h4>{tasks.filter((task) => task.phase === phase.id).map((task) => <div className="task-row" key={task.id}><span className={`task-dot ${task.status}`} /><div><strong>{task.title}</strong><small>{task.waiverReason ? `면제: ${task.waiverReason}` : task.dueAt ? `기한 ${formatDate(task.dueAt)}` : '기한 미정'}</small></div><select disabled={!isAdmin} value={task.status} onChange={(event) => change(task, event.target.value)}><option value="todo">대기</option><option value="in_progress">진행 중</option><option value="blocked">차단</option><option value="done">완료</option><option value="waived">사유 면제</option></select></div>)}</div>)}</div>
+    <div className="phase-groups">{PHASES.map((phase) => { const phaseTasks = tasks.filter((task) => task.phase === phase.id); const completed = phaseTasks.filter((task) => ['done', 'waived'].includes(task.status)).length; return <details className="phase-group" key={phase.id} open={openPhases.has(phase.id)} onToggle={(event) => togglePhase(phase.id, event.currentTarget.open)}><summary><span>{phase.label}<small>{completed}/{phaseTasks.length}</small></span><ChevronRight size={15} /></summary>{phaseTasks.map((task) => <div className="task-row" key={task.id}><span className={`task-dot ${task.status}`} /><div><strong>{task.title}</strong><small>{task.waiverReason ? `면제: ${task.waiverReason}` : task.dueAt ? `기한 ${formatDate(task.dueAt)}` : '기한 미정'}</small></div><select disabled={!isAdmin} value={task.status} onChange={(event) => change(task, event.target.value)}><option value="todo">대기</option><option value="in_progress">진행 중</option><option value="blocked">차단</option><option value="done">완료</option><option value="waived">사유 면제</option></select></div>)}</details>; })}</div>
   </section>;
 }
 
@@ -203,9 +216,17 @@ function FinancePanel({ episode, entries, isAdmin, onError }) {
   </section>;
 }
 
-function DeliverablesPanel({ deliverables }) {
+function DeliverablesPanel({ episode, deliverables, isAdmin, onError }) {
+  const [draft, setDraft] = useState({ type: 'youtube_video', title: '', status: 'planned', uploadDate: '', url: '' });
+  const add = async () => {
+    if (!draft.title.trim()) return;
+    try { await createEpisodeSubdocument(episode.id, 'deliverables', { ...draft, title: draft.title.trim(), uploadDate: draft.uploadDate || null, url: draft.url || null }); setDraft({ type: 'youtube_video', title: '', status: 'planned', uploadDate: '', url: '' }); }
+    catch (error) { onError(error.message); }
+  };
+  const update = async (item, patch) => { try { await updateEpisodeSubdocument(episode.id, 'deliverables', item, patch); } catch (error) { onError(error.message); } };
   return <section className="detail-section"><div className="section-title"><Clapperboard size={18} /><div><strong>POST · 파생 콘텐츠</strong><small>본편과 쇼츠·릴스의 산출물을 분리 관리</small></div></div>
-    {deliverables.length ? <div className="deliverable-list">{deliverables.map((item) => <article key={item.id}><span className="status-pill">{item.type}</span><div><strong>{item.title}</strong><small>{item.status} · 업로드 {formatDate(item.uploadDate)}</small></div></article>)}</div> : <div className="inline-empty">등록된 파생 콘텐츠가 없습니다.</div>}
+    {isAdmin && <div className="deliverable-create"><select value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value })}><option value="youtube_video">YouTube 본편</option><option value="youtube_collab">YouTube 공동작업</option><option value="instagram_reel">Instagram Reel</option><option value="shorts">Shorts</option></select><input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="산출물 이름" /><input type="date" value={draft.uploadDate} onChange={(event) => setDraft({ ...draft, uploadDate: event.target.value })} /><button className="primary-button" onClick={add}><Plus size={14} /> 추가</button></div>}
+    {deliverables.length ? <div className="deliverable-list">{deliverables.map((item) => <article key={item.id}><span className="status-pill">{item.type}</span><div><strong>{item.title}</strong>{isAdmin ? <input type="url" defaultValue={item.url || ''} placeholder="공개/협업 링크" onBlur={(event) => event.target.value !== (item.url || '') && update(item, { url: event.target.value || null })} /> : <small>{item.url || '링크 미등록'}</small>}</div><select disabled={!isAdmin} value={item.status || 'planned'} onChange={(event) => update(item, { status: event.target.value })}><option value="planned">예정</option><option value="in_progress">제작 중</option><option value="review">검토 중</option><option value="approved">승인</option><option value="published">게시 완료</option><option value="blocked">차단</option></select><input disabled={!isAdmin} type="date" value={item.uploadDate || ''} onChange={(event) => update(item, { uploadDate: event.target.value || null })} /></article>)}</div> : <div className="inline-empty">등록된 파생 콘텐츠가 없습니다.</div>}
   </section>;
 }
 
@@ -244,7 +265,7 @@ function EpisodeDetail({ episode, guest, batches, inbox, resolutions, episodeDat
     {tab === 'questionnaire' && <QuestionnairePanel episode={episode} inbox={inbox} />}
     {tab === 'playlist' && <PlaylistPanel episode={episode} tracks={episodeData.playlistTracks} isAdmin={isAdmin} onError={onError} />}
     {tab === 'files' && <FilesPanel episode={episode} artifacts={episodeData.artifacts} isAdmin={isAdmin} onError={onError} />}
-    {tab === 'deliverables' && <DeliverablesPanel deliverables={episodeData.deliverables} />}
+    {tab === 'deliverables' && <DeliverablesPanel episode={episode} deliverables={episodeData.deliverables} isAdmin={isAdmin} onError={onError} />}
     {tab === 'finance' && <FinancePanel episode={episode} entries={episodeData.financialEntries} isAdmin={isAdmin} onError={onError} />}
     <NotionDiscrepancyPanel episode={episode} guest={guest} disparities={disparities} resolutions={resolutions} isAdmin={isAdmin} onError={onError} />
   </article>;
