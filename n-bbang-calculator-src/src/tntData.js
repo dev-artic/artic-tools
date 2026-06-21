@@ -3,6 +3,7 @@ import { createTasks } from './workflow.js';
 
 const PROJECT = 'tnt';
 const COLLECTIONS = ['episodes', 'guestProspects', 'shootBatches', 'meetings', 'resources', 'reservations', 'partnerships', 'notifications', 'syncConflicts', 'questionnaireInbox'];
+const ARCHIVABLE_COLLECTIONS = ['episodes', 'guestProspects', 'shootBatches', 'meetings', 'resources', 'reservations', 'partnerships'];
 
 function demoMode() {
   return ['localhost', '127.0.0.1'].includes(window.location.hostname) && new URLSearchParams(window.location.search).has('demo');
@@ -30,6 +31,12 @@ function serverTimestamp() {
   return window.parent.firebase.firestore.FieldValue.serverTimestamp();
 }
 
+function inferContentType(file) {
+  if (file.type) return file.type;
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  return ({ json: 'application/json', csv: 'text/csv', txt: 'text/plain', pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })[extension] || 'application/octet-stream';
+}
+
 export async function getSession() {
   if (demoMode()) return { profile: { uid: 'demo', displayName: 'Demo', projects: { tnt: 'member' } }, isAdmin: false, authBridge: null };
   const authBridge = requireBridge();
@@ -42,7 +49,7 @@ export async function getSession() {
 export function subscribeWorkspace(onChange, onError) {
   if (demoMode()) {
     const seed = buildSeedData();
-    queueMicrotask(() => onChange({ ...Object.fromEntries(COLLECTIONS.map((name) => [name, []])), episodes: seed.episodes, guestProspects: seed.guests, shootBatches: seed.shootBatches, meetings: seed.meetings }));
+    queueMicrotask(() => onChange({ ...Object.fromEntries(COLLECTIONS.map((name) => [name, []])), episodes: seed.episodes, guestProspects: seed.guests, shootBatches: seed.shootBatches, meetings: seed.meetings, resources: seed.resources, reservations: seed.reservations }));
     return () => {};
   }
   const authBridge = requireBridge();
@@ -53,6 +60,19 @@ export function subscribeWorkspace(onChange, onError) {
     state[name] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     loaded.add(name);
     if (loaded.size === COLLECTIONS.length) onChange({ ...state });
+  }, onError));
+  return () => unsubs.forEach((unsubscribe) => unsubscribe());
+}
+
+export function subscribeArchive(onChange, onError) {
+  if (demoMode()) { queueMicrotask(() => onChange([])); return () => {}; }
+  const db = requireBridge().db();
+  const state = Object.fromEntries(ARCHIVABLE_COLLECTIONS.map((name) => [name, []]));
+  const loaded = new Set();
+  const unsubs = ARCHIVABLE_COLLECTIONS.map((name) => projectRef(db).collection(name).where('archivedAt', '!=', null).onSnapshot((snapshot) => {
+    state[name] = snapshot.docs.map((doc) => ({ id: doc.id, collection: name, ...doc.data() }));
+    loaded.add(name);
+    if (loaded.size === ARCHIVABLE_COLLECTIONS.length) onChange(Object.values(state).flat());
   }, onError));
   return () => unsubs.forEach((unsubscribe) => unsubscribe());
 }
@@ -113,6 +133,49 @@ export async function createDocument(collection, data) {
   batch.set(projectRef(db).collection('activity').doc(), { entityType: collection, entityId: ref.id, action: 'create', toVersion: 1, actorId: profile.uid, createdAt: serverTimestamp() });
   await batch.commit();
   return ref.id;
+}
+
+export async function archiveDocument(collection, item) {
+  const { profile, isAdmin, authBridge } = await getSession();
+  if (!isAdmin) throw new Error('TNT 관리자만 항목을 보관할 수 있습니다.');
+  const db = authBridge.db();
+  const root = projectRef(db);
+  if (collection === 'guestProspects') {
+    const linked = await root.collection('episodes').where('guestId', '==', item.id).where('archivedAt', '==', null).limit(1).get();
+    if (!linked.empty) throw new Error('활성 에피소드가 연결된 게스트는 먼저 에피소드를 보관해야 합니다.');
+  }
+  const ref = root.collection(collection).doc(item.id);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data().version !== item.version) throw new Error('항목이 먼저 변경되었습니다. 최신 데이터를 다시 확인해주세요.');
+    if (collection === 'episodes' && item.sequenceState === 'verified' && item.sequence != null) {
+      const claimKey = `season-1-${String(item.sequence).padStart(2, '0')}`;
+      transaction.set(root.collection('sequenceClaims').doc(claimKey), { archivedAt: serverTimestamp(), archivedBy: profile.uid }, { merge: true });
+    }
+    transaction.update(ref, { archivedAt: serverTimestamp(), archivedBy: profile.uid, version: item.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+    transaction.set(root.collection('activity').doc(), { entityType: collection, entityId: item.id, action: 'archive', actorId: profile.uid, createdAt: serverTimestamp() });
+  });
+}
+
+export async function restoreDocument(collection, item) {
+  const { profile, isAdmin, authBridge } = await getSession();
+  if (!isAdmin) throw new Error('TNT 관리자만 항목을 복구할 수 있습니다.');
+  const db = authBridge.db();
+  const root = projectRef(db);
+  const ref = root.collection(collection).doc(item.id);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data().version !== item.version) throw new Error('항목이 먼저 변경되었습니다. 최신 데이터를 다시 확인해주세요.');
+    if (collection === 'episodes' && item.sequenceState === 'verified' && item.sequence != null) {
+      const claimKey = `season-1-${String(item.sequence).padStart(2, '0')}`;
+      const claimRef = root.collection('sequenceClaims').doc(claimKey);
+      const claim = await transaction.get(claimRef);
+      if (claim.exists && !claim.data().archivedAt && claim.data().episodeId !== item.id) throw new Error('해당 회차를 다른 에피소드가 사용 중이라 복구할 수 없습니다.');
+      transaction.set(claimRef, { episodeId: item.id, archivedAt: null, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+    }
+    transaction.update(ref, { archivedAt: null, archivedBy: null, version: item.version + 1, updatedAt: serverTimestamp(), updatedBy: profile.uid });
+    transaction.set(root.collection('activity').doc(), { entityType: collection, entityId: item.id, action: 'restore', actorId: profile.uid, createdAt: serverTimestamp() });
+  });
 }
 
 export async function updateEpisodeTask(episodeId, task, patch) {
@@ -206,6 +269,8 @@ export async function initializeWorkspace() {
   seed.guests.forEach((item) => writes.push([root.collection('guestProspects').doc(item.id), { ...item, createdAt: serverTimestamp(), createdBy: profile.uid, updatedAt: serverTimestamp(), updatedBy: profile.uid }]));
   seed.episodes.forEach((item) => writes.push([root.collection('episodes').doc(item.id), { ...item, createdAt: serverTimestamp(), createdBy: profile.uid, updatedAt: serverTimestamp(), updatedBy: profile.uid }]));
   seed.shootBatches.forEach((item) => writes.push([root.collection('shootBatches').doc(item.id), { ...item, createdAt: serverTimestamp(), createdBy: profile.uid }]));
+  seed.resources.forEach((item) => writes.push([root.collection('resources').doc(item.id), { ...item, createdAt: serverTimestamp(), createdBy: profile.uid }]));
+  seed.reservations.forEach((item) => writes.push([root.collection('reservations').doc(item.id), { ...item, createdAt: serverTimestamp(), createdBy: profile.uid }]));
   seed.meetings.forEach((item) => writes.push([root.collection('meetings').doc(item.id), { ...item, createdAt: serverTimestamp(), createdBy: profile.uid }]));
   seed.deliverables.forEach((item) => writes.push([root.collection('episodes').doc(item.episodeId).collection('deliverables').doc(item.id), { ...item, createdAt: serverTimestamp(), createdBy: profile.uid }]));
   seed.tasks.forEach((item) => writes.push([root.collection('episodes').doc(item.episodeId).collection('tasks').doc(item.id), { ...item, version: 1, createdAt: serverTimestamp(), createdBy: profile.uid }]));
@@ -231,12 +296,14 @@ export async function uploadArtifact(episodeId, file, category = 'typing-json') 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const artifactId = crypto.randomUUID();
   const path = `tnt/episodes/${episodeId}/${category}/${artifactId}-${safeName}`;
+  const contentType = inferContentType(file);
+  if (contentType === 'application/octet-stream') throw new Error('지원하지 않는 파일 형식입니다. JSON, CSV, PDF, 문서 또는 이미지를 업로드해주세요.');
   const checksumBuffer = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
   const checksumSha256 = [...new Uint8Array(checksumBuffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  const snapshot = await storage.ref(path).put(file, { contentType: file.type || 'application/octet-stream', customMetadata: { episodeId, category, uploadedBy: profile.uid } });
+  const snapshot = await storage.ref(path).put(file, { contentType, customMetadata: { episodeId, category, uploadedBy: profile.uid } });
   const downloadUrl = await snapshot.ref.getDownloadURL();
   const db = authBridge.db();
-  await projectRef(db).collection('episodes').doc(episodeId).collection('artifacts').doc(artifactId).set({ id: artifactId, episodeId, category, name: file.name, path, downloadUrl, size: file.size, contentType: file.type || 'application/octet-stream', checksumSha256, version: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid });
+  await projectRef(db).collection('episodes').doc(episodeId).collection('artifacts').doc(artifactId).set({ id: artifactId, episodeId, category, name: file.name, path, downloadUrl, size: file.size, contentType, checksumSha256, version: 1, archivedAt: null, createdAt: serverTimestamp(), createdBy: profile.uid });
   return { id: artifactId, downloadUrl };
 }
 

@@ -16,6 +16,14 @@
         { "fieldPath": "pipelineStatus", "order": "ASCENDING" },
         { "fieldPath": "name", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "episodes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "guestId", "order": "ASCENDING" },
+        { "fieldPath": "archivedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

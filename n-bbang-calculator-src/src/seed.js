@@ -71,6 +71,8 @@ export function buildSeedData() {
     episodes,
     tasks,
     shootBatches: guestPipeline.shootBatches.map((batch) => ({ ...batch, version: 1, schemaVersion: 1, archivedAt: null })),
+    resources: [{ id: 'studio-novea', title: '노브아 스튜디오', type: 'studio', status: 'candidate', note: 'TNT 촬영 스튜디오. 예약 상태는 촬영 건별로 별도 기록.', version: 1, schemaVersion: 1, archivedAt: null }],
+    reservations: [],
     meetings: [{ id: 'jo-kwon-shorts-planning', title: '조권 쇼츠 전환 회의', status: 'planned', scheduledAt: null, episodeId: 'cancelled-jo-kwon', deliverableId: 'jo-kwon-shorts', agenda: '촬영본 유실 이후 쇼츠 제작 범위와 소스 확정', version: 1, schemaVersion: 1, archivedAt: null }],
     deliverables: [{ id: 'jo-kwon-shorts', episodeId: 'cancelled-jo-kwon', type: 'shorts', status: 'planning', uploadDate: null, title: '조권 쇼츠', version: 1, schemaVersion: 1, archivedAt: null }],
   };

@@ -8,6 +8,8 @@ test('seed contains the audited migration baseline', () => {
   assert.equal(PUBLIC_EPISODES.length, 7);
   assert.equal(seed.episodes.filter((item) => item.lifecycleState === 'published').length, 7);
   assert.equal(seed.episodes.length, 10);
+  assert.equal(seed.resources.find((item) => item.id === 'studio-novea').title, '노브아 스튜디오');
+  assert.deepEqual(seed.reservations, []);
 });
 
 test('Hong Isaac and Gongwon share an unconfirmed shoot batch', () => {

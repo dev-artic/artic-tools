@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Archive, Bell, BookOpen, CalendarDays, CheckCircle2, ChevronRight,
+  AlertTriangle, Archive, Bell, BookOpen, CalendarCheck2, CalendarDays, CheckCircle2, ChevronRight,
   CircleDollarSign, Clapperboard, Cloud, ExternalLink, FileJson, FileText, FolderUp,
   LayoutDashboard, Link2, ListChecks, MapPinned, Menu, MessageSquareText, PanelLeftClose,
   PanelLeftOpen, Plus, RefreshCw, Search, Settings2, ShieldCheck, Users, X,
@@ -8,8 +8,8 @@ import {
 import SettlementPanel from './SettlementPanel.jsx';
 import { PHASES, deriveEpisodeState, parseTrackLines } from './workflow.js';
 import {
-  assignEpisodeSequence, callAdminFunction, createDocument, createEpisodeFromGuest, createEpisodeSubdocument,
-  getSession, initializeWorkspace, mutateDocument, subscribeEpisodeCollection,
+  archiveDocument, assignEpisodeSequence, callAdminFunction, createDocument, createEpisodeFromGuest, createEpisodeSubdocument,
+  getSession, initializeWorkspace, mutateDocument, restoreDocument, subscribeArchive, subscribeEpisodeCollection,
   subscribeEpisodeTasks, subscribeWorkspace, updateEpisodeSubdocument, updateEpisodeTask,
   uploadArtifact,
 } from './tntData.js';
@@ -20,10 +20,12 @@ const NAV = [
   ['guests', '게스트 파이프라인', Users, 'OPERATIONS'],
   ['schedule', '촬영 일정', CalendarDays, 'OPERATIONS'],
   ['resources', '장소 · 장비', MapPinned, 'OPERATIONS'],
+  ['bookings', '대관 · 예약', CalendarCheck2, 'OPERATIONS'],
   ['finance', '비용 · 정산', CircleDollarSign, 'MANAGEMENT'],
   ['partnerships', 'PPL · 협찬', Link2, 'MANAGEMENT'],
   ['meetings', '회의 · 피드백', MessageSquareText, 'MANAGEMENT'],
   ['sync', '동기화 · 감사', RefreshCw, 'MANAGEMENT'],
+  ['archive', '보관함', Archive, 'MANAGEMENT'],
   ['project', '프로젝트 문서', BookOpen, 'MANAGEMENT'],
 ];
 
@@ -144,11 +146,11 @@ function TaskPanel({ episode, tasks, isAdmin, onError }) {
 function EpisodeBasics({ episode, batches, isAdmin, onError }) {
   const [draft, setDraft] = useState(episode);
   useEffect(() => setDraft(episode), [episode]);
-  const save = async () => { try { await mutateDocument('episodes', episode.id, { title: draft.title, plannedUploadDate: draft.plannedUploadDate || null, guestCallTime: draft.guestCallTime || null, appleMusicPlaylistUrl: draft.appleMusicPlaylistUrl || null }, episode.version); } catch (error) { onError(error.message); } };
+  const save = async () => { try { await mutateDocument('episodes', episode.id, { title: draft.title, plannedUploadDate: draft.plannedUploadDate || null, guestCallTime: draft.guestCallTime || null, shootBatchId: draft.shootBatchId || null, appleMusicPlaylistUrl: draft.appleMusicPlaylistUrl || null }, episode.version); } catch (error) { onError(error.message); } };
   const saveSequence = async () => { try { await assignEpisodeSequence(episode, draft.sequence, draft.sequenceState); } catch (error) { onError(error.message); } };
   const batch = batches.find((item) => item.id === episode.shootBatchId);
   return <section className="detail-section"><div className="section-title"><Settings2 size={18} /><div><strong>기본 정보와 일정</strong><small>공동 촬영일은 촬영 배치에서 관리</small></div></div>
-    <div className="form-grid"><label className="wide">제목<input disabled={!isAdmin} value={draft.title || ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label><label>업로드일<input disabled={!isAdmin} type="date" value={draft.plannedUploadDate || ''} onChange={(e) => setDraft({ ...draft, plannedUploadDate: e.target.value })} /></label><label>게스트 콜타임<input disabled={!isAdmin} type="time" value={draft.guestCallTime || ''} onChange={(e) => setDraft({ ...draft, guestCallTime: e.target.value })} /></label><label>회차<input disabled={!isAdmin} type="number" min="0" value={draft.sequence ?? ''} onChange={(e) => setDraft({ ...draft, sequence: e.target.value })} /></label><label>회차 상태<select disabled={!isAdmin} value={draft.sequenceState || 'unassigned'} onChange={(e) => setDraft({ ...draft, sequenceState: e.target.value })}><option value="unassigned">미배정</option><option value="provisional">예정</option><option value="verified">확정</option></select></label><label className="wide">Apple Music 플레이리스트<input disabled={!isAdmin} type="url" value={draft.appleMusicPlaylistUrl || ''} onChange={(e) => setDraft({ ...draft, appleMusicPlaylistUrl: e.target.value })} placeholder="https://music.apple.com/..." /></label></div>
+    <div className="form-grid"><label className="wide">제목<input disabled={!isAdmin} value={draft.title || ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label><label>업로드일<input disabled={!isAdmin} type="date" value={draft.plannedUploadDate || ''} onChange={(e) => setDraft({ ...draft, plannedUploadDate: e.target.value })} /></label><label>게스트 콜타임<input disabled={!isAdmin} type="time" value={draft.guestCallTime || ''} onChange={(e) => setDraft({ ...draft, guestCallTime: e.target.value })} /></label><label>촬영 배치<select disabled={!isAdmin} value={draft.shootBatchId || ''} onChange={(e) => setDraft({ ...draft, shootBatchId: e.target.value })}><option value="">개별 촬영 / 미정</option>{batches.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label>회차<input disabled={!isAdmin} type="number" min="0" value={draft.sequence ?? ''} onChange={(e) => setDraft({ ...draft, sequence: e.target.value })} /></label><label>회차 상태<select disabled={!isAdmin} value={draft.sequenceState || 'unassigned'} onChange={(e) => setDraft({ ...draft, sequenceState: e.target.value })}><option value="unassigned">미배정</option><option value="provisional">예정</option><option value="verified">확정</option></select></label><label className="wide">Apple Music 플레이리스트<input disabled={!isAdmin} type="url" value={draft.appleMusicPlaylistUrl || ''} onChange={(e) => setDraft({ ...draft, appleMusicPlaylistUrl: e.target.value })} placeholder="https://music.apple.com/..." /></label></div>
     {batch && <div className="linked-record"><CalendarDays size={17} /><span><strong>{batch.label}</strong><small>{batch.shootDate ? formatDate(batch.shootDate) : `${batch.plannedMonth || ''} 날짜·시간 미정`}</small></span></div>}
     {isAdmin && <div className="button-row"><button className="primary-button" onClick={save}>기본 정보 저장</button><button className="secondary-button" onClick={saveSequence}>회차 적용</button></div>}
   </section>;
@@ -200,11 +202,11 @@ function DeliverablesPanel({ deliverables }) {
   </section>;
 }
 
-function EpisodeDetail({ episode, batches, inbox, episodeData, isAdmin, onError }) {
+function EpisodeDetail({ episode, batches, inbox, episodeData, isAdmin, onError, onArchive }) {
   const [tab, setTab] = useState('workflow');
   const derived = deriveEpisodeState(episode, episodeData.tasks);
   const tabs = [['workflow', '워크플로우'], ['basics', '일정'], ['questionnaire', '질문지'], ['playlist', '플레이리스트'], ['files', '파일'], ['deliverables', 'POST'], ['finance', '정산']];
-  return <article className="episode-detail"><header className="detail-header"><div><span className="eyebrow">{episode.sequenceLabel}</span><h2>{episode.guestName}</h2><p>{episode.title}</p></div><div className="detail-health"><HealthBadge value={derived.health} /><strong>{derived.progress}%</strong></div></header>
+  return <article className="episode-detail"><header className="detail-header"><div><span className="eyebrow">{episode.sequenceLabel}</span><h2>{episode.guestName}</h2><p>{episode.title}</p></div><div className="detail-health"><HealthBadge value={derived.health} /><strong>{derived.progress}%</strong>{isAdmin && <button className="archive-action" onClick={() => onArchive(episode)}><Archive size={14} /> 보관</button>}</div></header>
     {episode.cancellationReason === 'footage_lost' && <div className="critical-note"><AlertTriangle size={18} /><div><strong>촬영본 유실로 본편 제작 취소</strong><span>쇼츠 전환 회의 예정 · 업로드일 미정</span></div></div>}
     <nav className="detail-tabs">{tabs.map(([id, label]) => <button className={tab === id ? 'active' : ''} key={id} onClick={() => setTab(id)}>{label}</button>)}</nav>
     {tab === 'workflow' && <TaskPanel episode={episode} tasks={episodeData.tasks} isAdmin={isAdmin} onError={onError} />}
@@ -217,15 +219,15 @@ function EpisodeDetail({ episode, batches, inbox, episodeData, isAdmin, onError 
   </article>;
 }
 
-function EpisodesPage({ workspace, selectedId, onSelect, episodeData, isAdmin, onError }) {
+function EpisodesPage({ workspace, selectedId, onSelect, episodeData, isAdmin, onError, onArchive }) {
   const episode = workspace.episodes.find((item) => item.id === selectedId) || workspace.episodes[0];
   useEffect(() => { if (!selectedId && workspace.episodes[0]) onSelect(workspace.episodes[0].id); }, [selectedId, workspace.episodes, onSelect]);
   return <div className="page-stack"><PageHeading eyebrow="EPISODE OPERATIONS" title="에피소드" description="회차별 필수 작업과 제작 자료를 직접 관리합니다." />
-    <div className="master-detail"><EpisodeList episodes={[...workspace.episodes]} selectedId={episode?.id} onSelect={onSelect} />{episode ? <EpisodeDetail episode={episode} batches={workspace.shootBatches} inbox={workspace.questionnaireInbox} episodeData={episodeData} isAdmin={isAdmin} onError={onError} /> : <EmptyState title="에피소드가 없습니다" description="초기 데이터를 구성해주세요." />}</div>
+    <div className="master-detail"><EpisodeList episodes={[...workspace.episodes]} selectedId={episode?.id} onSelect={onSelect} />{episode ? <EpisodeDetail episode={episode} batches={workspace.shootBatches} inbox={workspace.questionnaireInbox} episodeData={episodeData} isAdmin={isAdmin} onError={onError} onArchive={onArchive} /> : <EmptyState title="에피소드가 없습니다" description="초기 데이터를 구성해주세요." />}</div>
   </div>;
 }
 
-function GuestsPage({ guests, isAdmin, onError, onOpenEpisode }) {
+function GuestsPage({ guests, isAdmin, onError, onOpenEpisode, onArchive }) {
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -236,21 +238,47 @@ function GuestsPage({ guests, isAdmin, onError, onOpenEpisode }) {
   return <div className="page-stack"><PageHeading eyebrow="CASTING CRM" title="게스트 파이프라인" description="회차가 없는 후보부터 공개 완료까지 섭외 이력을 보존합니다." action={isAdmin && <button className="primary-button" onClick={() => setAdding(true)}><Plus size={16} /> 게스트 추가</button>} />
     <div className="search-bar"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름, 상태, 메모 검색" /></div>
     {adding && <div className="inline-create"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="게스트 이름" /><button className="primary-button" onClick={addGuest}>추가</button><button className="icon-button" onClick={() => setAdding(false)}><X size={16} /></button></div>}
-    <div className="pipeline-board">{PIPELINE.map(([status, label]) => { const records = filtered.filter((guest) => guest.pipelineStatus === status); if (!records.length) return null; return <section key={status}><header><strong>{label}</strong><span>{records.length}</span></header><div>{records.map((guest) => <article key={guest.id}><div><strong>{guest.name}</strong><small>{guest.notes || '메모 없음'}</small></div><select disabled={!isAdmin} value={guest.pipelineStatus} onChange={(e) => changeStatus(guest, e.target.value)}>{PIPELINE.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select>{isAdmin && !['published', 'declined', 'cancelled'].includes(guest.pipelineStatus) && <button className="text-button" onClick={() => promote(guest)}>에피소드 생성</button>}{guest.dataQuality?.length > 0 && <span className="data-warning"><AlertTriangle size={13} /> {guest.dataQuality.length}</span>}</article>)}</div></section>; })}</div>
+    <div className="pipeline-board">{PIPELINE.map(([status, label]) => { const records = filtered.filter((guest) => guest.pipelineStatus === status); if (!records.length) return null; return <section key={status}><header><strong>{label}</strong><span>{records.length}</span></header><div>{records.map((guest) => <article key={guest.id}><div><strong>{guest.name}</strong><small>{guest.notes || '메모 없음'}</small></div><select disabled={!isAdmin} value={guest.pipelineStatus} onChange={(e) => changeStatus(guest, e.target.value)}>{PIPELINE.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select>{isAdmin && !['published', 'declined', 'cancelled'].includes(guest.pipelineStatus) && <button className="text-button" onClick={() => promote(guest)}>에피소드 생성</button>}{isAdmin && <button className="archive-icon" aria-label={`${guest.name} 보관`} onClick={() => onArchive(guest)}><Archive size={14} /></button>}{guest.dataQuality?.length > 0 && <span className="data-warning"><AlertTriangle size={13} /> {guest.dataQuality.length}</span>}</article>)}</div></section>; })}</div>
   </div>;
 }
 
-function SchedulePage({ batches, episodes, isAdmin, onError }) {
+function SchedulePage({ batches, episodes, isAdmin, onError, onArchive }) {
+  const [label, setLabel] = useState('');
   const save = async (batch, patch) => { try { await mutateDocument('shootBatches', batch.id, patch, batch.version); } catch (error) { onError(error.message); } };
+  const addBatch = async () => { if (!label.trim()) return; try { await createDocument('shootBatches', { label: label.trim(), plannedMonth: null, shootDate: null, studioStartTime: null, studioEndTime: null, articCallTime: null, guestOrder: [], guestIds: [], status: 'date_and_time_pending' }); setLabel(''); } catch (error) { onError(error.message); } };
   return <div className="page-stack"><PageHeading eyebrow="SHOOT CALENDAR" title="촬영 일정" description="하루에 여러 회차를 촬영하는 배치와 공통 콜타임을 관리합니다." />
-    {batches.length ? <div className="batch-grid">{batches.map((batch) => <article className="panel" key={batch.id}><div className="panel-heading"><div><span className="eyebrow">SHOOT BATCH</span><h3>{batch.label}</h3></div><span className="status-pill">{batch.status}</span></div><div className="form-grid"><label>촬영일<input disabled={!isAdmin} type="date" defaultValue={batch.shootDate || ''} onBlur={(e) => e.target.value !== (batch.shootDate || '') && save(batch, { shootDate: e.target.value || null, status: e.target.value ? 'scheduled' : 'date_and_time_pending' })} /></label><label>artic 집결<input disabled={!isAdmin} type="time" defaultValue={batch.articCallTime || ''} onBlur={(e) => save(batch, { articCallTime: e.target.value || null })} /></label><label>스튜디오 시작<input disabled={!isAdmin} type="time" defaultValue={batch.studioStartTime || ''} onBlur={(e) => save(batch, { studioStartTime: e.target.value || null })} /></label><label>스튜디오 종료<input disabled={!isAdmin} type="time" defaultValue={batch.studioEndTime || ''} onBlur={(e) => save(batch, { studioEndTime: e.target.value || null })} /></label></div><div className="batch-guests">{episodes.filter((episode) => episode.shootBatchId === batch.id).map((episode) => <span key={episode.id}>{episode.sequenceLabel} · {episode.guestName}<b>{episode.guestCallTime || '콜타임 미정'}</b></span>)}</div></article>)}</div> : <EmptyState title="촬영 배치가 없습니다" description="공동 촬영일이 생기면 배치를 생성합니다." />}
+    {isAdmin && <div className="inline-create"><input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="새 촬영 배치 이름" /><button className="primary-button" onClick={addBatch}><Plus size={15} /> 배치 추가</button></div>}
+    {batches.length ? <div className="batch-grid">{batches.map((batch) => <article className="panel" key={batch.id}><div className="panel-heading"><div><span className="eyebrow">SHOOT BATCH</span><h3>{batch.label}</h3></div><span className="batch-actions"><span className="status-pill">{batch.status}</span>{isAdmin && <button className="archive-icon" aria-label={`${batch.label} 보관`} onClick={() => onArchive(batch)}><Archive size={14} /></button>}</span></div><div className="form-grid"><label>촬영일<input disabled={!isAdmin} type="date" defaultValue={batch.shootDate || ''} onBlur={(e) => e.target.value !== (batch.shootDate || '') && save(batch, { shootDate: e.target.value || null, status: e.target.value ? 'scheduled' : 'date_and_time_pending' })} /></label><label>artic 집결<input disabled={!isAdmin} type="time" defaultValue={batch.articCallTime || ''} onBlur={(e) => save(batch, { articCallTime: e.target.value || null })} /></label><label>스튜디오 시작<input disabled={!isAdmin} type="time" defaultValue={batch.studioStartTime || ''} onBlur={(e) => save(batch, { studioStartTime: e.target.value || null })} /></label><label>스튜디오 종료<input disabled={!isAdmin} type="time" defaultValue={batch.studioEndTime || ''} onBlur={(e) => save(batch, { studioEndTime: e.target.value || null })} /></label></div><div className="batch-guests">{episodes.filter((episode) => episode.shootBatchId === batch.id).map((episode) => <span key={episode.id}>{episode.sequenceLabel} · {episode.guestName}<b>{episode.guestCallTime || '콜타임 미정'}</b></span>)}</div></article>)}</div> : <EmptyState title="촬영 배치가 없습니다" description="공동 촬영일이 생기면 배치를 생성합니다." />}
   </div>;
 }
 
-function SimpleRecordsPage({ kind, title, description, records, isAdmin, onError }) {
+function SimpleRecordsPage({ kind, title, description, records, isAdmin, onError, onArchive }) {
   const [draft, setDraft] = useState({ title: '', status: 'candidate', date: '', note: '' });
   const add = async () => { if (!draft.title.trim()) return; try { await createDocument(kind, draft); setDraft({ title: '', status: 'candidate', date: '', note: '' }); } catch (error) { onError(error.message); } };
-  return <div className="page-stack"><PageHeading eyebrow="PROJECT RECORDS" title={title} description={description} />{isAdmin && <div className="inline-form"><input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="이름" /><select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}><option value="candidate">후보</option><option value="planned">예정</option><option value="in_progress">진행 중</option><option value="confirmed">확정</option><option value="completed">완료</option></select><input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /><input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="메모" /><button onClick={add}><Plus size={16} /></button></div>}<div className="record-card-grid">{records.map((item) => <article className="panel" key={item.id}><span className="status-pill">{item.status || '기록'}</span><h3>{item.title}</h3><p>{item.note || item.agenda || '메모 없음'}</p><small>{formatDate(item.date || item.scheduledAt)}</small></article>)}</div></div>;
+  return <div className="page-stack"><PageHeading eyebrow="PROJECT RECORDS" title={title} description={description} />{isAdmin && <div className="inline-form"><input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="이름" /><select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}><option value="candidate">후보</option><option value="planned">예정</option><option value="in_progress">진행 중</option><option value="confirmed">확정</option><option value="completed">완료</option></select><input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /><input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="메모" /><button onClick={add}><Plus size={16} /></button></div>}<div className="record-card-grid">{records.map((item) => <article className="panel" key={item.id}><span className="status-pill">{item.status || '기록'}</span>{isAdmin && <button className="archive-icon card-archive" aria-label={`${item.title} 보관`} onClick={() => onArchive(item)}><Archive size={14} /></button>}<h3>{item.title}</h3><p>{item.note || item.agenda || '메모 없음'}</p><small>{formatDate(item.date || item.scheduledAt)}</small></article>)}</div></div>;
+}
+
+function ReservationsPage({ reservations, resources, episodes, batches, isAdmin, onError, onArchive }) {
+  const [draft, setDraft] = useState({ resourceId: '', type: 'studio', episodeId: '', shootBatchId: '', date: '', status: 'planned', cost: '', note: '' });
+  const resourceName = (id) => resources.find((item) => item.id === id)?.title || '자원 미지정';
+  const scopeName = (item) => episodes.find((episode) => episode.id === item.episodeId)?.guestName || batches.find((batch) => batch.id === item.shootBatchId)?.label || '연결 미정';
+  const add = async () => {
+    if (!draft.resourceId || (!draft.episodeId && !draft.shootBatchId)) { onError('예약 자원과 에피소드 또는 촬영 배치를 선택해주세요.'); return; }
+    try {
+      await createDocument('reservations', { ...draft, episodeId: draft.episodeId || null, shootBatchId: draft.shootBatchId || null, cost: draft.cost === '' ? null : Number(draft.cost), title: `${resourceName(draft.resourceId)} 예약` });
+      setDraft({ resourceId: '', type: 'studio', episodeId: '', shootBatchId: '', date: '', status: 'planned', cost: '', note: '' });
+    } catch (error) { onError(error.message); }
+  };
+  const changeStatus = async (item, status) => { try { await mutateDocument('reservations', item.id, { status }, item.version); } catch (error) { onError(error.message); } };
+  return <div className="page-stack"><PageHeading eyebrow="BOOKING CONTROL" title="대관 · 장비 예약" description="노브아 스튜디오와 촬영 장비의 예약 근거, 비용, 연결 회차를 관리합니다." />
+    {isAdmin && <section className="reservation-create"><div className="form-grid"><label>자원<select value={draft.resourceId} onChange={(e) => setDraft({ ...draft, resourceId: e.target.value })}><option value="">선택</option>{resources.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label><label>구분<select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}><option value="studio">스튜디오</option><option value="equipment">장비</option><option value="service">서비스</option></select></label><label>에피소드<select value={draft.episodeId} onChange={(e) => setDraft({ ...draft, episodeId: e.target.value, shootBatchId: e.target.value ? '' : draft.shootBatchId })}><option value="">선택 안 함</option>{episodes.map((item) => <option key={item.id} value={item.id}>{item.sequenceLabel} · {item.guestName}</option>)}</select></label><label>촬영 배치<select value={draft.shootBatchId} onChange={(e) => setDraft({ ...draft, shootBatchId: e.target.value, episodeId: e.target.value ? '' : draft.episodeId })}><option value="">선택 안 함</option>{batches.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label>예약일<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label>예상/확정 비용<input type="number" min="0" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: e.target.value })} placeholder="KRW" /></label><label className="wide">메모<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="예약 시간, 담당자, 예약번호 등" /></label></div><button className="primary-button" onClick={add}><Plus size={15} /> 예약 추가</button></section>}
+    {reservations.length ? <section className="reservation-list">{reservations.map((item) => <article key={item.id}><span className="reservation-type">{item.type === 'studio' ? 'STUDIO' : item.type === 'equipment' ? 'EQUIPMENT' : 'SERVICE'}</span><div><strong>{resourceName(item.resourceId)}</strong><small>{scopeName(item)} · {formatDate(item.date)}{item.cost != null ? ` · ${Number(item.cost).toLocaleString('ko-KR')}원` : ''}</small><p>{item.note || '예약 메모 없음'}</p></div><select disabled={!isAdmin} value={item.status || 'planned'} onChange={(e) => changeStatus(item, e.target.value)}><option value="planned">예약 예정</option><option value="requested">예약 요청</option><option value="confirmed">예약 확정</option><option value="completed">사용 완료</option><option value="cancelled">취소</option></select>{isAdmin && <button className="archive-icon" aria-label={`${resourceName(item.resourceId)} 예약 보관`} onClick={() => onArchive(item)}><Archive size={14} /></button>}</article>)}</section> : <EmptyState title="예약 기록이 없습니다" description="장소·장비를 등록한 뒤 촬영 회차나 배치에 연결하세요." />}
+  </div>;
+}
+
+function ArchivePage({ items, isAdmin, onRestore, onError }) {
+  const labels = { episodes: '에피소드', guestProspects: '게스트', shootBatches: '촬영 배치', meetings: '회의', resources: '자원', reservations: '예약', partnerships: '협찬' };
+  return <div className="page-stack"><PageHeading eyebrow="RECOVERY" title="보관함" description="삭제 대신 보관된 운영 데이터를 원래 컬렉션으로 안전하게 복구합니다." />{items.length ? <section className="archive-list">{items.map((item) => <article key={`${item.collection}-${item.id}`}><span className="status-pill">{labels[item.collection] || item.collection}</span><div><strong>{item.title || item.name || item.label || item.guestName}</strong><small>{formatDate(item.archivedAt, true)} · version {item.version}</small></div><button className="secondary-button" disabled={!isAdmin} onClick={() => onRestore(item).catch((error) => onError(error.message))}><RefreshCw size={14} /> 복구</button></article>)}</section> : <EmptyState title="보관된 항목이 없습니다" description="보관 항목은 hard delete되지 않고 이곳에 남습니다." />}</div>;
 }
 
 function NotificationDrawer({ items, onClose, onOpenEpisode }) {
@@ -293,6 +321,7 @@ function LegacyDataNotice({ data, onDismiss }) {
 export default function App() {
   const [view, setView] = useState('overview');
   const [workspace, setWorkspace] = useState(EMPTY);
+  const [archivedItems, setArchivedItems] = useState([]);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -313,11 +342,13 @@ export default function App() {
 
   useEffect(() => {
     let unsubscribe = () => {};
+    let unsubscribeArchive = () => {};
     getSession().then((value) => {
       setSession(value);
       unsubscribe = subscribeWorkspace((data) => { setWorkspace(data); setLoading(false); }, (cause) => { setError(cause.message); setLoading(false); });
+      unsubscribeArchive = subscribeArchive(setArchivedItems, (cause) => setError(cause.message));
     }).catch((cause) => { setError(cause.message); setLoading(false); });
-    return () => unsubscribe();
+    return () => { unsubscribe(); unsubscribeArchive(); };
   }, []);
 
   useEffect(() => {
@@ -333,6 +364,8 @@ export default function App() {
 
   const openEpisode = (id) => { setSelectedEpisodeId(id); setView('episodes'); setSidebarOpen(false); };
   const initialize = async () => { setInitializing(true); try { await initializeWorkspace(); } catch (cause) { setError(cause.message); } finally { setInitializing(false); } };
+  const archive = async (collection, item) => { if (!window.confirm(`${item.title || item.name || item.guestName || '항목'}을 보관하시겠습니까?`)) return; try { await archiveDocument(collection, item); if (collection === 'episodes' && selectedEpisodeId === item.id) setSelectedEpisodeId(null); } catch (cause) { setError(cause.message); } };
+  const restore = async (item) => restoreDocument(item.collection, item);
   const activeLabel = NAV.find(([id]) => id === view)?.[1];
   const canEdit = Boolean(session?.isAdmin && online);
   const derivedNotifications = useMemo(() => {
@@ -347,14 +380,16 @@ export default function App() {
   }, [workspace, taskCache]);
   const content = {
     overview: <Dashboard workspace={workspace} taskCache={taskCache} onOpenEpisode={openEpisode} />,
-    episodes: <EpisodesPage workspace={workspace} selectedId={selectedEpisodeId} onSelect={setSelectedEpisodeId} episodeData={episodeData} isAdmin={canEdit} onError={setError} />,
-    guests: <GuestsPage guests={workspace.guestProspects} isAdmin={canEdit} onError={setError} onOpenEpisode={openEpisode} />,
-    schedule: <SchedulePage batches={workspace.shootBatches} episodes={workspace.episodes} isAdmin={canEdit} onError={setError} />,
-    resources: <SimpleRecordsPage kind="resources" title="장소 · 장비" description="촬영 장소와 장비 준비 상태를 관리합니다." records={workspace.resources} isAdmin={canEdit} onError={setError} />,
+    episodes: <EpisodesPage workspace={workspace} selectedId={selectedEpisodeId} onSelect={setSelectedEpisodeId} episodeData={episodeData} isAdmin={canEdit} onError={setError} onArchive={(item) => archive('episodes', item)} />,
+    guests: <GuestsPage guests={workspace.guestProspects} isAdmin={canEdit} onError={setError} onOpenEpisode={openEpisode} onArchive={(item) => archive('guestProspects', item)} />,
+    schedule: <SchedulePage batches={workspace.shootBatches} episodes={workspace.episodes} isAdmin={canEdit} onError={setError} onArchive={(item) => archive('shootBatches', item)} />,
+    resources: <SimpleRecordsPage kind="resources" title="장소 · 장비" description="촬영 장소와 장비 준비 상태를 관리합니다." records={workspace.resources} isAdmin={canEdit} onError={setError} onArchive={(item) => archive('resources', item)} />,
+    bookings: <ReservationsPage reservations={workspace.reservations} resources={workspace.resources} episodes={workspace.episodes} batches={workspace.shootBatches} isAdmin={canEdit} onError={setError} onArchive={(item) => archive('reservations', item)} />,
     finance: <SettlementPanel />,
-    partnerships: <SimpleRecordsPage kind="partnerships" title="PPL · 협찬" description="제안, 협의, 확정 및 제작지원 수령 상태를 관리합니다." records={workspace.partnerships} isAdmin={canEdit} onError={setError} />,
-    meetings: <SimpleRecordsPage kind="meetings" title="회의 · 피드백" description="결정사항과 다음 촬영에 반영할 학습을 누적합니다." records={workspace.meetings} isAdmin={canEdit} onError={setError} />,
+    partnerships: <SimpleRecordsPage kind="partnerships" title="PPL · 협찬" description="제안, 협의, 확정 및 제작지원 수령 상태를 관리합니다." records={workspace.partnerships} isAdmin={canEdit} onError={setError} onArchive={(item) => archive('partnerships', item)} />,
+    meetings: <SimpleRecordsPage kind="meetings" title="회의 · 피드백" description="결정사항과 다음 촬영에 반영할 학습을 누적합니다." records={workspace.meetings} isAdmin={canEdit} onError={setError} onArchive={(item) => archive('meetings', item)} />,
     sync: <SyncPage workspace={workspace} isAdmin={canEdit} onError={setError} />,
+    archive: <ArchivePage items={archivedItems} isAdmin={canEdit} onRestore={restore} onError={setError} />,
     project: <ProjectPage />,
   }[view];
 
