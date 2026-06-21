@@ -46,10 +46,10 @@ For already published episodes, all mandatory upstream workflow phases may be im
 | Notion record | Legacy claim | Current interpretation |
 |---|---|---|
 | 조권 | EP.6, shoot 2026-05-30, upload 2026-06-06, `섭외 완료 + PPL` | Shoot took place, but the footage was lost and the full episode was cancelled. Retire the EP.6 claim, leave upload date empty, and track a Shorts conversion meeting as the only active work. |
-| 홍이삭 | EP.8, planned upload 2026-08-15, July coordination | Import as a provisional episode in `schedule_pending`; link to the shared 홍이삭·공원 shoot batch. Exact date, order, and call time remain empty. |
-| 공원 | EP.9, planned upload 2026-09-19, July coordination | Import as a provisional episode in `schedule_pending`; link to the same shoot batch. Exact date, order, and call time remain empty. |
+| 홍이삭 | Legacy EP.8 claim, planned upload 2026-08-15, July coordination | Assign EP.7 by the 2026-06-21 operating decision and import as a provisional episode in `schedule_pending`; link to the shared 홍이삭·공원 shoot batch. Exact date, order, and call time remain empty. |
+| 공원 | Legacy EP.9 claim, planned upload 2026-09-19, July coordination | Assign EP.8 by the 2026-06-21 operating decision and import as a provisional episode in `schedule_pending`; link to the same shoot batch. Exact date, order, and call time remain empty. |
 
-The stale 조권 EP.6 claim is historical only and must not reserve a sequence. The missing EP.7 assignment still needs to be resolved before later future episode numbers become canonical.
+The stale 조권 EP.6 claim is historical only and does not reserve a sequence. Hong Isaac and Gongwon occupy provisional EP.7 and EP.8 respectively; they remain provisional until production scheduling is confirmed.
 
 ## Guest Pipeline Baseline
 
@@ -159,8 +159,8 @@ In the actual Firestore documents this provenance may be grouped under a `migrat
 
 ## Implementation Sequence
 
-1. Confirm the typing tool JSON schema and locate representative generated files.
-2. Resolve the 강지원 release date and EP.7 identity; schedule and record the 조권 Shorts conversion meeting separately.
+1. Accept typing-tool artifacts as schema-free JSON and retain every edit as a downloadable version.
+2. Resolve the 강지원 release date; retain Hong Isaac as provisional EP.7 and Gongwon as provisional EP.8, and schedule the 조권 Shorts conversion meeting separately.
 3. Add Firestore rules and a typed TNT data service.
 4. Create the workflow template and episode progress/health derivation functions with unit tests.
 5. Build the episode matrix and episode detail CRUD against Firestore.

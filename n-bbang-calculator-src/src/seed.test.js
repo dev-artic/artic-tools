@@ -68,9 +68,11 @@ test('Jo Kwon does not claim an episode sequence and keeps Shorts work', () => {
   assert.equal(seed.tasks.filter((item) => item.episodeId === episode.id).every((item) => item.status === 'waived'), true);
 });
 
-test('EP.7 remains intentionally unassigned', () => {
+test('Hong Isaac and Gongwon are assigned provisional EP.7 and EP.8', () => {
   const seed = buildSeedData();
-  assert.equal(seed.episodes.some((item) => item.sequence === 7), false);
+  assert.equal(seed.episodes.find((item) => item.sequence === 7).guestName, '홍이삭');
+  assert.equal(seed.episodes.find((item) => item.sequence === 8).guestName, '공원');
+  assert.equal(seed.episodes.find((item) => item.sequence === 7).sequenceState, 'provisional');
   assert.equal(seed.episodes.find((item) => item.sequence === 8).sequenceState, 'provisional');
-  assert.equal(seed.episodes.find((item) => item.sequence === 9).sequenceState, 'provisional');
+  assert.equal(seed.episodes.some((item) => item.sequence === 9), false);
 });

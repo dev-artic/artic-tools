@@ -9,15 +9,16 @@ Enable Firestore, Cloud Storage, and Cloud Functions in project `artic-ptr-payta
 ```sh
 firebase deploy --only firestore:rules,firestore:indexes,storage
 firebase functions:secrets:set NOTION_TOKEN
-firebase functions:secrets:set TNT_GOOGLE_FORM_ID
 firebase deploy --only functions
 ```
+
+`TNT_GOOGLE_FORM_ID` is already stored in Secret Manager. Firebase Storage still needs to be initialized once in the console; select Production mode and finish bucket creation. No manual rule editing is required because the repository's `storage.rules` replaces the wizard defaults during deployment.
 
 The Functions runtime is Node.js 20 in `asia-northeast3`.
 
 ## Notion integration
 
-Create an internal Notion integration, share the `게스트 관리` data source with it, and store the token in Firebase Secret Manager as `NOTION_TOKEN`.
+Create an internal Notion integration named for TNT, grant it access only to the TASTING NOTE parent page and `게스트 관리` data source, and store the token in Firebase Secret Manager as `NOTION_TOKEN`. The integration belongs to the artic workspace, while this limited content access makes its effective scope TNT-only.
 
 The dashboard never syncs in the background. `tntPreviewNotionSync` returns field-level differences and `tntApplyNotionSync` applies only the operations explicitly approved by a TNT administrator. The formula-based episode number remains TNT-only.
 
@@ -53,7 +54,7 @@ Implemented and verified in the repository:
 External prerequisites still required before every integration can run in production:
 
 - Initialize Firebase Storage in the Firebase console.
-- Upgrade the Firebase project to Blaze so Cloud Functions can deploy.
-- Set `NOTION_TOKEN` and `TNT_GOOGLE_FORM_ID`, then deploy Functions.
-- Provide one representative JSON file from the on-set typing tool before enforcing a production schema validator.
-- Assign EP.7, or explicitly record that the sequence will remain vacant, before EP.8 and EP.9 become canonical.
+- Create the TNT Notion integration, set `NOTION_TOKEN`, and deploy Functions.
+- Enable Google Forms API and share the Form with `38387099281-compute@developer.gserviceaccount.com`.
+
+The typing artifact is intentionally schema-free. The dashboard checks only that the content is valid JSON, then supports upload, in-place text editing, versioned replacement, and download.

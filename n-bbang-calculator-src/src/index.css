@@ -417,8 +417,9 @@ input:focus, select:focus { border-color: color-mix(in srgb, var(--accent) 55%, 
 .upload-zone { display: grid; justify-items: center; gap: 5px; padding: 25px; color: var(--muted); border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 12px; background: var(--accent-soft); cursor: pointer; }
 .upload-zone strong { color: var(--accent); font-size: 11px; }.upload-zone small { font-size: 8px; }.upload-zone input { display: none; }
 .artifact-list { display: flex; flex-direction: column; margin-top: 12px; }
-.artifact-list a { display: flex; align-items: center; gap: 10px; padding: 11px 3px; color: var(--text); border-top: 1px solid var(--line); text-decoration: none; }
+.artifact-row { display: grid; grid-template-columns: 20px minmax(0,1fr) auto auto; align-items: center; gap: 10px; padding: 11px 3px; border-top: 1px solid var(--line); }.artifact-row > svg { color: var(--accent); }.artifact-row > a { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); font-size: 9px; font-weight: 750; text-decoration: none; }.artifact-row .secondary-button { padding: 7px 9px; font-size: 8px; }
 .artifact-list span { display: flex; flex: 1; flex-direction: column; gap: 3px; }.artifact-list strong { font-size: 10px; }.artifact-list small { color: var(--muted); font-size: 8px; }
+.json-editor { margin-top: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }.json-editor header, .json-editor footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; }.json-editor header { border-bottom: 1px solid var(--line); }.json-editor header > div { display: flex; flex-direction: column; gap: 3px; }.json-editor header strong { font-size: 10px; }.json-editor header small, .json-editor footer span { color: var(--muted); font-size: 8px; }.json-editor textarea { display: block; width: 100%; min-height: 320px; padding: 14px; resize: vertical; color: var(--text); border: 0; outline: none; background: color-mix(in srgb, var(--panel) 82%, transparent); font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; tab-size: 2; }.json-editor footer { border-top: 1px solid var(--line); }.json-editor footer .primary-button { padding: 8px 11px; font-size: 9px; }
 .inline-form, .inline-create { display: flex; gap: 8px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
 .inline-form input, .inline-form select, .inline-create input { min-width: 0; flex: 1; height: 36px; }
 .inline-form button { display: grid; place-items: center; width: 36px; border: 0; border-radius: 8px; color: #fff; background: var(--accent); }
@@ -473,6 +474,7 @@ input:focus, select:focus { border-color: color-mix(in srgb, var(--accent) 55%, 
   .archive-list article { grid-template-columns: 70px 1fr; }.archive-list article .secondary-button { grid-column: 2; }
   .reservation-list article { grid-template-columns: 70px 1fr; }.reservation-list article select, .reservation-list article .archive-icon { grid-column: 2; }
   .track-table > div { grid-template-columns: 24px 1fr; }.track-table select { grid-column: 2; }
+  .artifact-row { grid-template-columns: 20px minmax(0,1fr) auto; }.artifact-row .secondary-button { grid-column: 2 / -1; width: 100%; }.json-editor footer { align-items: stretch; flex-direction: column; }.json-editor footer .primary-button { width: 100%; }
   .inline-form { flex-wrap: wrap; }.inline-form input, .inline-form select { flex-basis: calc(50% - 8px); }
   .integrity-list { grid-template-columns: 1fr; }
   .hero-stats { display: none; }

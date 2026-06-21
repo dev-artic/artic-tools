@@ -47,10 +47,10 @@ export function buildSeedData() {
 
   episodes.push(
     {
-      id: 'future-hong-isaac', sequence: 8, sequenceLabel: 'EP.8 (예정)', sequenceState: 'provisional', guestId: 'notion-336ffc3c3af580ee956bed9945c04e04', guestName: '홍이삭', title: '제목 미정', lifecycleState: 'active', shootBatchId: 'shoot-batch-hong-gong-2026-07', guestCallTime: null, publishedAt: null, plannedUploadDate: '2026-08-15', version: 1, schemaVersion: 1, archivedAt: null, dataQuality: ['sequence_not_canonical', 'shoot_date_missing', 'shoot_time_missing'],
+      id: 'future-hong-isaac', sequence: 7, sequenceLabel: 'EP.7 (예정)', sequenceState: 'provisional', guestId: 'notion-336ffc3c3af580ee956bed9945c04e04', guestName: '홍이삭', title: '제목 미정', lifecycleState: 'active', shootBatchId: 'shoot-batch-hong-gong-2026-07', guestCallTime: null, publishedAt: null, plannedUploadDate: '2026-08-15', version: 1, schemaVersion: 1, archivedAt: null, dataQuality: ['shoot_date_missing', 'shoot_time_missing'],
     },
     {
-      id: 'future-gongwon', sequence: 9, sequenceLabel: 'EP.9 (예정)', sequenceState: 'provisional', guestId: 'notion-33bffc3c3af580928d78ceab7dc7f06a', guestName: '공원', title: '제목 미정', lifecycleState: 'active', shootBatchId: 'shoot-batch-hong-gong-2026-07', guestCallTime: null, publishedAt: null, plannedUploadDate: '2026-09-19', version: 1, schemaVersion: 1, archivedAt: null, dataQuality: ['sequence_not_canonical', 'shoot_date_missing', 'shoot_time_missing'],
+      id: 'future-gongwon', sequence: 8, sequenceLabel: 'EP.8 (예정)', sequenceState: 'provisional', guestId: 'notion-33bffc3c3af580928d78ceab7dc7f06a', guestName: '공원', title: '제목 미정', lifecycleState: 'active', shootBatchId: 'shoot-batch-hong-gong-2026-07', guestCallTime: null, publishedAt: null, plannedUploadDate: '2026-09-19', version: 1, schemaVersion: 1, archivedAt: null, dataQuality: ['shoot_date_missing', 'shoot_time_missing'],
     },
     {
       id: 'cancelled-jo-kwon', sequence: null, sequenceLabel: '회차 없음', sequenceState: 'unassigned', guestId: 'notion-336ffc3c3af580f4abc8edf05d9acfb3', guestName: '조권', title: '본편 제작 취소', lifecycleState: 'cancelled', shootBatchId: null, guestCallTime: null, publishedAt: null, plannedUploadDate: null, cancellationReason: 'footage_lost', version: 1, schemaVersion: 1, archivedAt: null, dataQuality: ['footage_lost'],

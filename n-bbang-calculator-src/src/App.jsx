@@ -9,7 +9,7 @@ import SettlementPanel from './SettlementPanel.jsx';
 import { PHASES, deriveEpisodeState, deriveNotionDisparities, parseTrackLines } from './workflow.js';
 import {
   archiveDocument, assignEpisodeSequence, callAdminFunction, createDocument, createEpisodeFromGuest, createEpisodeSubdocument,
-  getSession, initializeWorkspace, mutateDocument, resolveNotionDisparity, restoreDocument, subscribeArchive, subscribeEpisodeCollection,
+  getSession, initializeWorkspace, migrateWorkspace, mutateDocument, replaceJsonArtifact, resolveNotionDisparity, restoreDocument, subscribeArchive, subscribeEpisodeCollection,
   subscribeEpisodeTasks, subscribeWorkspace, updateEpisodeSubdocument, updateEpisodeTask,
   uploadArtifact,
 } from './tntData.js';
@@ -200,10 +200,21 @@ function PlaylistPanel({ episode, tracks, isAdmin, onError }) {
 
 function FilesPanel({ episode, artifacts, isAdmin, onError }) {
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [jsonText, setJsonText] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
   const upload = async (event) => { const file = event.target.files?.[0]; if (!file) return; setBusy(true); try { await uploadArtifact(episode.id, file, file.name.toLowerCase().endsWith('.json') ? 'typing-json' : 'attachment'); } catch (error) { onError(error.message); } finally { setBusy(false); event.target.value = ''; } };
+  const openEditor = async (artifact) => {
+    setEditBusy(true);
+    try { const response = await fetch(artifact.downloadUrl); if (!response.ok) throw new Error('JSON 파일을 불러오지 못했습니다.'); const parsed = JSON.parse(await response.text()); setJsonText(JSON.stringify(parsed, null, 2)); setEditing(artifact); }
+    catch (error) { onError(error.message === 'Unexpected end of JSON input' || error instanceof SyntaxError ? '업로드된 파일이 올바른 JSON이 아닙니다.' : error.message); }
+    finally { setEditBusy(false); }
+  };
+  const saveJson = async () => { if (!editing) return; setEditBusy(true); try { await replaceJsonArtifact(episode.id, editing, jsonText); setEditing(null); setJsonText(''); } catch (error) { onError(error.message); } finally { setEditBusy(false); } };
   return <section className="detail-section"><div className="section-title"><FolderUp size={18} /><div><strong>제작 파일</strong><small>타이핑 JSON은 원본 그대로 전달</small></div></div>
     {isAdmin && <label className="upload-zone"><FolderUp size={23} /><strong>{busy ? '업로드 중...' : '파일 업로드'}</strong><small>JSON·CSV·PDF·문서·이미지, 최대 25MB</small><input type="file" disabled={busy} onChange={upload} /></label>}
-    <div className="artifact-list">{artifacts.map((artifact) => <a key={artifact.id} href={artifact.downloadUrl} target="_blank" rel="noreferrer"><FileJson size={18} /><span><strong>{artifact.name}</strong><small>{artifact.category} · {Math.ceil((artifact.size || 0) / 1024)}KB</small></span><ExternalLink size={15} /></a>)}</div>
+    <div className="artifact-list">{artifacts.map((artifact) => <div className="artifact-row" key={artifact.id}><FileJson size={18} /><span><strong>{artifact.name}</strong><small>{artifact.category} · v{artifact.version || 1} · {Math.ceil((artifact.size || 0) / 1024)}KB</small></span><a href={artifact.downloadUrl} target="_blank" rel="noreferrer">다운로드 <ExternalLink size={13} /></a>{isAdmin && artifact.category === 'typing-json' && <button className="secondary-button" disabled={editBusy} onClick={() => openEditor(artifact)}>JSON 편집</button>}</div>)}</div>
+    {editing && <div className="json-editor"><header><div><strong>{editing.name}</strong><small>현재 v{editing.version || 1} · 저장 시 새 버전 생성</small></div><button className="icon-button" onClick={() => { setEditing(null); setJsonText(''); }}><X size={15} /></button></header><textarea spellCheck="false" value={jsonText} onChange={(event) => setJsonText(event.target.value)} /><footer><span>JSON 문법만 검증하며 데이터 구조는 변경하지 않습니다.</span><button className="primary-button" disabled={editBusy} onClick={saveJson}>{editBusy ? '저장 중...' : '새 버전 저장'}</button></footer></div>}
   </section>;
 }
 
@@ -349,7 +360,7 @@ function SyncPage({ workspace, isAdmin, onError }) {
     <div className="sync-grid"><section className="panel"><Cloud size={22} /><h3>Notion 검토형 양방향 동기화</h3><p>게스트 트래커의 지원 필드만 비교합니다. 양쪽이 바뀐 값은 자동 적용하지 않습니다.</p><button className="secondary-button" disabled={!isAdmin || busy} onClick={runNotion}><RefreshCw size={16} /> {busy === 'notion' ? '비교 중...' : '차이 미리보기'}</button></section><section className="panel"><FileText size={22} /><h3>Google Form 응답 가져오기</h3><p>아티스트명, 17개 선곡, 음료 요청을 가져오며 response ID로 중복을 방지합니다.</p><button className="secondary-button" disabled={!isAdmin || busy} onClick={runGoogle}><RefreshCw size={16} /> {busy === 'google' ? '가져오는 중...' : '응답 동기화'}</button></section></div>
     {preview && <section className="panel"><div className="panel-heading"><h3>차이 {preview.differences.length}건</h3><button className="icon-button" onClick={() => setPreview(null)}><X size={16} /></button></div><div className="diff-list">{preview.differences.map((difference, index) => <article key={`${difference.guestId || 'new'}-${index}`}><div><strong>{difference.remote?.name || difference.local?.name}</strong><small>{difference.type} · {(difference.fields || []).join(', ')}</small></div><span>{difference.type !== 'tnt_only' && <button onClick={() => apply(difference, 'import')}>Notion → TNT</button>}{difference.type !== 'notion_only' && <button onClick={() => apply(difference, 'export')}>TNT → Notion</button>}</span></article>)}</div></section>}
     {workspace.questionnaireInbox.some((item) => item.matchStatus !== 'matched') && <section className="panel"><div className="panel-heading"><h3>질문지 연결 검토</h3><span>{workspace.questionnaireInbox.filter((item) => item.matchStatus !== 'matched').length}건</span></div><div className="response-review-list">{workspace.questionnaireInbox.filter((item) => item.matchStatus !== 'matched').map((response) => <article key={response.id}><div><strong>{response.artistName || '아티스트명 없음'}</strong><small>{formatDate(response.submittedAt, true)} · {response.matchStatus}</small></div><select disabled={!isAdmin} value={response.episodeId || ''} onChange={(e) => linkResponse(response, e.target.value)}><option value="">에피소드 선택</option>{workspace.episodes.map((episode) => <option value={episode.id} key={episode.id}>{episode.sequenceLabel} · {episode.guestName}</option>)}</select></article>)}</div></section>}
-    <section className="panel"><div className="panel-heading"><h3>데이터 정합성</h3><span>{workspace.syncConflicts.filter((item) => item.status !== 'resolved').length} active · {workspace.syncConflicts.filter((item) => item.status === 'resolved').length} resolved</span></div><div className="integrity-list"><span>질문지 미연결 응답 <b>{workspace.questionnaireInbox.filter((item) => item.matchStatus === 'unmatched').length}</b></span><span>회차 충돌 게스트 <b>{workspace.guestProspects.filter((item) => item.dataQuality?.some((flag) => flag.includes('conflict'))).length}</b></span><span>EP.7 <b>미배정 유지</b></span></div></section>
+    <section className="panel"><div className="panel-heading"><h3>데이터 정합성</h3><span>{workspace.syncConflicts.filter((item) => item.status !== 'resolved').length} active · {workspace.syncConflicts.filter((item) => item.status === 'resolved').length} resolved</span></div><div className="integrity-list"><span>질문지 미연결 응답 <b>{workspace.questionnaireInbox.filter((item) => item.matchStatus === 'unmatched').length}</b></span><span>회차 충돌 게스트 <b>{workspace.guestProspects.filter((item) => item.dataQuality?.some((flag) => flag.includes('conflict'))).length}</b></span><span>예정 회차 <b>EP.7 홍이삭 · EP.8 공원</b></span></div></section>
   </div>;
 }
 
@@ -409,8 +420,9 @@ export default function App() {
   useEffect(() => {
     let unsubscribe = () => {};
     let unsubscribeArchive = () => {};
-    getSession().then((value) => {
+    getSession().then(async (value) => {
       setSession(value);
+      if (value.isAdmin) { try { await migrateWorkspace(); } catch (cause) { setError(`데이터 마이그레이션 확인 필요: ${cause.message}`); } }
       unsubscribe = subscribeWorkspace((data) => { setWorkspace(data); setLoading(false); }, (cause) => { setError(cause.message); setLoading(false); });
       unsubscribeArchive = subscribeArchive(setArchivedItems, (cause) => setError(cause.message));
     }).catch((cause) => { setError(cause.message); setLoading(false); });

@@ -130,7 +130,7 @@
       "name": "홍이삭",
       "pipelineStatus": "confirmed",
       "notionStatus": "섭외 완료 + PPL",
-      "episodeAssignment": { "sequence": 8, "state": "provisional" },
+      "episodeAssignment": { "sequence": 7, "state": "provisional" },
       "plannedShootDate": null,
       "plannedUploadDate": "2026-08-15",
       "commercialType": "ppl",
@@ -138,22 +138,22 @@
       "guestCallTime": null,
       "notes": "공원과 같은 날 연속 촬영 예정. 7월 계획만 있으며 정확한 날짜, 촬영 순서, 콜타임은 미정.",
       "sourceUrl": "https://app.notion.com/p/336ffc3c3af580ee956bed9945c04e04",
-      "dataQuality": ["shoot_date_missing", "shoot_time_missing", "sequence_not_canonical"]
+      "dataQuality": ["shoot_date_missing", "shoot_time_missing"]
     },
     {
       "id": "notion-33bffc3c3af580928d78ceab7dc7f06a",
       "name": "공원",
       "pipelineStatus": "confirmed",
       "notionStatus": "섭외 완료 + PPL",
-      "episodeAssignment": { "sequence": 9, "state": "provisional" },
+      "episodeAssignment": { "sequence": 8, "state": "provisional" },
       "plannedShootDate": null,
       "plannedUploadDate": "2026-09-19",
       "commercialType": "ppl",
       "shootBatchId": "shoot-batch-hong-gong-2026-07",
       "guestCallTime": null,
-      "notes": "홍이삭과 같은 날 연속 촬영 예정. 7월 계획만 있으며 정확한 날짜, 촬영 순서, 콜타임은 미정. Notion 비고에는 9회차 추진으로 기록됨.",
+      "notes": "홍이삭과 같은 날 연속 촬영 예정. 7월 계획만 있으며 정확한 날짜, 촬영 순서, 콜타임은 미정. TNT 운영 기준 EP.8로 확정.",
       "sourceUrl": "https://app.notion.com/p/33bffc3c3af580928d78ceab7dc7f06a",
-      "dataQuality": ["shoot_date_missing", "shoot_time_missing", "sequence_not_canonical"]
+      "dataQuality": ["shoot_date_missing", "shoot_time_missing"]
     },
     {
       "id": "notion-328ffc3c3af580c8ab1dfb9d6a1e07e8",
