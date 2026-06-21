@@ -51,10 +51,11 @@ Implemented and verified in the repository:
 - Notion preview/apply functions and Google Form response import functions with unit coverage
 - Responsive sidebar, mobile drawer, episode matrix, and source-discrepancy review UI
 
-External prerequisites still required before every integration can run in production:
+Production setup completed on 2026-06-21:
 
-- Initialize Firebase Storage in the Firebase console.
-- Create the TNT Notion integration, set `NOTION_TOKEN`, and deploy Functions.
-- Enable Google Forms API and share the Form with `38387099281-compute@developer.gserviceaccount.com`.
+- Firebase Storage initialized and repository rules deployed.
+- TNT-only Notion connection created, scoped to the TASTING NOTE root and guest tracker, and stored as `NOTION_TOKEN`.
+- Google Forms API enabled, the Form shared with `38387099281-compute@developer.gserviceaccount.com`, and `TNT_GOOGLE_FORM_ID` registered.
+- All three TNT sync Functions deployed to `asia-northeast3`.
 
 The typing artifact is intentionally schema-free. The dashboard checks only that the content is valid JSON, then supports upload, in-place text editing, versioned replacement, and download.

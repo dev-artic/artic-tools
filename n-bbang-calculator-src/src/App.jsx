@@ -351,9 +351,9 @@ function NotificationDrawer({ items, onClose, onOpenEpisode }) {
 function SyncPage({ workspace, isAdmin, onError }) {
   const [busy, setBusy] = useState('');
   const [preview, setPreview] = useState(null);
-  const runNotion = async () => { setBusy('notion'); try { setPreview(await callAdminFunction('tntPreviewNotionSync')); } catch (error) { onError(error.message); } finally { setBusy(''); } };
-  const apply = async (difference, direction) => { setBusy('apply'); try { const values = direction === 'import' ? difference.remote : difference.local; await callAdminFunction('tntApplyNotionSync', { operations: [{ direction, guestId: difference.guestId || null, values }] }); setPreview(null); } catch (error) { onError(error.message); } finally { setBusy(''); } };
-  const runGoogle = async () => { setBusy('google'); try { const result = await callAdminFunction('tntSyncGoogleFormResponses'); alert(`새 응답 ${result.imported}건을 가져왔습니다.`); } catch (error) { onError(error.message); } finally { setBusy(''); } };
+  const runNotion = async () => { setBusy('notion'); onError(''); try { setPreview(await callAdminFunction('tntPreviewNotionSync')); } catch (error) { onError(error.message); } finally { setBusy(''); } };
+  const apply = async (difference, direction) => { setBusy('apply'); onError(''); try { const values = direction === 'import' ? difference.remote : difference.local; await callAdminFunction('tntApplyNotionSync', { operations: [{ direction, guestId: difference.guestId || null, values }] }); setPreview(null); } catch (error) { onError(error.message); } finally { setBusy(''); } };
+  const runGoogle = async () => { setBusy('google'); onError(''); try { const result = await callAdminFunction('tntSyncGoogleFormResponses'); alert(`새 응답 ${result.imported}건을 가져왔습니다.`); } catch (error) { onError(error.message); } finally { setBusy(''); } };
   const linkResponse = async (response, episodeId) => { const episode = workspace.episodes.find((item) => item.id === episodeId); if (!episode) return; try { await mutateDocument('questionnaireInbox', response.id, { episodeId, guestId: episode.guestId, matchStatus: 'matched' }, response.version); } catch (error) { onError(error.message); } };
   return <div className="page-stack"><PageHeading eyebrow="SYNC & INTEGRITY" title="동기화 · 감사" description="외부 변경은 미리보기와 관리자 승인을 거쳐 반영합니다." />
     {!isAdmin && <div className="readonly-notice"><ShieldCheck size={17} /> 동기화는 TNT 관리자만 실행할 수 있습니다.</div>}
