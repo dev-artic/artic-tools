@@ -40,3 +40,20 @@ Open TNT through the authenticated portal as a TNT administrator and choose `초
 - Versioned workflow tasks, the 조권 Shorts deliverable, and its unscheduled planning meeting
 
 Existing browser `localStorage` prototype data is not imported automatically.
+
+## Readiness checklist
+
+Implemented and verified in the repository:
+
+- Firestore member-read/admin-write rules, append-only activity, soft archive, and conflict-resolution records
+- Idempotent audited seed, episode workflow, guest pipeline, shoot batches, reservations, questionnaire review, playlist QA, finance, files, and post tracking
+- Notion preview/apply functions and Google Form response import functions with unit coverage
+- Responsive sidebar, mobile drawer, episode matrix, and source-discrepancy review UI
+
+External prerequisites still required before every integration can run in production:
+
+- Initialize Firebase Storage in the Firebase console.
+- Upgrade the Firebase project to Blaze so Cloud Functions can deploy.
+- Set `NOTION_TOKEN` and `TNT_GOOGLE_FORM_ID`, then deploy Functions.
+- Provide one representative JSON file from the on-set typing tool before enforcing a production schema validator.
+- Assign EP.7, or explicitly record that the sequence will remain vacant, before EP.8 and EP.9 become canonical.
