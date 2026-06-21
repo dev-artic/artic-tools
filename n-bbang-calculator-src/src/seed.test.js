@@ -5,13 +5,35 @@ import { toFirebaseData } from './tntData.js';
 
 test('Firebase bridge rebuilds plain objects in the parent realm', () => {
   function ParentObject() {}
+  function ParentArray() {
+    const array = [];
+    Object.setPrototypeOf(array, ParentArray.prototype);
+    return array;
+  }
+  ParentArray.prototype = Object.create(Array.prototype);
   const sentinel = Object.create({ fieldValue: true });
   const source = { nested: { value: 1 }, list: [{ value: 2 }], sentinel };
-  const result = toFirebaseData(source, ParentObject);
+  const result = toFirebaseData(source, ParentObject, ParentArray);
   assert.equal(Object.getPrototypeOf(result), ParentObject.prototype);
   assert.equal(Object.getPrototypeOf(result.nested), ParentObject.prototype);
+  assert.equal(Object.getPrototypeOf(result.list), ParentArray.prototype);
   assert.equal(Object.getPrototypeOf(result.list[0]), ParentObject.prototype);
   assert.equal(result.sentinel, sentinel);
+});
+
+test('Firebase bridge converts every array in the audited seed', () => {
+  function ParentObject() {}
+  function ParentArray() {
+    const array = [];
+    Object.setPrototypeOf(array, ParentArray.prototype);
+    return array;
+  }
+  ParentArray.prototype = Object.create(Array.prototype);
+  const seed = toFirebaseData(buildSeedData(), ParentObject, ParentArray);
+  assert.equal(Object.getPrototypeOf(seed.guests), ParentArray.prototype);
+  assert.equal(Object.getPrototypeOf(seed.guests[0].dataQuality), ParentArray.prototype);
+  assert.equal(Object.getPrototypeOf(seed.shootBatches[0].guestIds), ParentArray.prototype);
+  assert.equal(Object.getPrototypeOf(seed.shootBatches[0].guestOrder), ParentArray.prototype);
 });
 
 test('seed contains the audited migration baseline', () => {

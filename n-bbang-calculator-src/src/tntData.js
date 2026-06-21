@@ -31,13 +31,17 @@ function serverTimestamp() {
   return window.parent.firebase.firestore.FieldValue.serverTimestamp();
 }
 
-export function toFirebaseData(value, ParentObject = window.parent.Object) {
-  if (Array.isArray(value)) return value.map((item) => toFirebaseData(item, ParentObject));
+export function toFirebaseData(value, ParentObject = window.parent.Object, ParentArray = window.parent.Array) {
+  if (Array.isArray(value)) {
+    const bridged = new ParentArray();
+    value.forEach((item) => bridged.push(toFirebaseData(item, ParentObject, ParentArray)));
+    return bridged;
+  }
   if (!value || typeof value !== 'object') return value;
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return value;
   const bridged = new ParentObject();
-  Object.entries(value).forEach(([key, item]) => { bridged[key] = toFirebaseData(item, ParentObject); });
+  Object.entries(value).forEach(([key, item]) => { bridged[key] = toFirebaseData(item, ParentObject, ParentArray); });
   return bridged;
 }
 
