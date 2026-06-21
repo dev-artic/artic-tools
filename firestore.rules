@@ -58,6 +58,39 @@ service cloud.firestore {
       allow create, update, delete: if isProjectAdmin('ptr');
     }
 
+    match /projects/{projectId} {
+      allow read: if projectId == 'tnt' && hasProject('tnt');
+      allow create, update: if projectId == 'tnt' && isProjectAdmin('tnt');
+      allow delete: if false;
+
+      match /activity/{activityId} {
+        allow read: if projectId == 'tnt' && hasProject('tnt');
+        allow create: if projectId == 'tnt' && isProjectAdmin('tnt');
+        allow update, delete: if false;
+      }
+
+      match /{collectionId}/{documentId} {
+        allow read: if projectId == 'tnt' && hasProject('tnt');
+        allow create, update: if projectId == 'tnt'
+          && collectionId != 'activity'
+          && isProjectAdmin('tnt');
+        allow delete: if false;
+
+        match /{nestedDocument=**} {
+          allow read: if projectId == 'tnt' && hasProject('tnt');
+          allow create, update: if projectId == 'tnt'
+            && collectionId != 'activity'
+            && isProjectAdmin('tnt');
+          allow delete: if false;
+        }
+      }
+    }
+
+    match /users/{userId}/tntNotificationState/{notificationId} {
+      allow read, create, update: if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

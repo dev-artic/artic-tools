@@ -1,521 +1,368 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Archive,
-  Banknote,
-  BookOpen,
-  CalendarDays,
-  ChevronRight,
-  Clapperboard,
-  ExternalLink,
-  FileText,
-  HeartHandshake,
-  LayoutDashboard,
-  MapPinned,
-  Menu,
-  MessageSquareText,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Search,
-  Sun,
-  Trash2,
-  Users,
-  Wrench,
-  X
+  AlertTriangle, Archive, Bell, BookOpen, CalendarDays, CheckCircle2, ChevronRight,
+  CircleDollarSign, Clapperboard, Cloud, ExternalLink, FileJson, FileText, FolderUp,
+  LayoutDashboard, Link2, ListChecks, MapPinned, Menu, MessageSquareText, PanelLeftClose,
+  PanelLeftOpen, Plus, RefreshCw, Search, Settings2, ShieldCheck, Users, X,
 } from 'lucide-react';
 import SettlementPanel from './SettlementPanel.jsx';
+import { PHASES, deriveEpisodeState, parseTrackLines } from './workflow.js';
+import {
+  assignEpisodeSequence, callAdminFunction, createDocument, createEpisodeFromGuest, createEpisodeSubdocument,
+  getSession, initializeWorkspace, mutateDocument, subscribeEpisodeCollection,
+  subscribeEpisodeTasks, subscribeWorkspace, updateEpisodeSubdocument, updateEpisodeTask,
+  uploadArtifact,
+} from './tntData.js';
 
-const STORAGE_KEY = 'artic-tnt-project-manager-v1';
-
-const NAV_ITEMS = [
-  { id: 'overview', label: '대시보드', icon: LayoutDashboard, group: 'PROJECT' },
-  { id: 'project', label: '프로젝트 기획', icon: BookOpen, group: 'PROJECT' },
-  { id: 'guests', label: '게스트 섭외', icon: Users, group: 'OPERATIONS' },
-  { id: 'episodes', label: '회차 제작', icon: Clapperboard, group: 'OPERATIONS' },
-  { id: 'production', label: '촬영 준비', icon: Wrench, group: 'OPERATIONS' },
-  { id: 'resources', label: '장소 · 장비', icon: MapPinned, group: 'OPERATIONS' },
-  { id: 'settlement', label: '비용 · 정산', icon: Banknote, group: 'MANAGEMENT' },
-  { id: 'meetings', label: '회의 · 피드백', icon: MessageSquareText, group: 'MANAGEMENT' },
-  { id: 'partnerships', label: 'PPL · 협찬', icon: HeartHandshake, group: 'MANAGEMENT' }
+const NAV = [
+  ['overview', '대시보드', LayoutDashboard, 'PROJECT'],
+  ['episodes', '에피소드', Clapperboard, 'PROJECT'],
+  ['guests', '게스트 파이프라인', Users, 'OPERATIONS'],
+  ['schedule', '촬영 일정', CalendarDays, 'OPERATIONS'],
+  ['resources', '장소 · 장비', MapPinned, 'OPERATIONS'],
+  ['finance', '비용 · 정산', CircleDollarSign, 'MANAGEMENT'],
+  ['partnerships', 'PPL · 협찬', Link2, 'MANAGEMENT'],
+  ['meetings', '회의 · 피드백', MessageSquareText, 'MANAGEMENT'],
+  ['sync', '동기화 · 감사', RefreshCw, 'MANAGEMENT'],
+  ['project', '프로젝트 문서', BookOpen, 'MANAGEMENT'],
 ];
 
-const EPISODE_STAGES = [
-  { id: 'planning', label: '기획', color: 'slate' },
-  { id: 'casting', label: '섭외', color: 'violet' },
-  { id: 'preproduction', label: '촬영 준비', color: 'amber' },
-  { id: 'production', label: '촬영', color: 'blue' },
-  { id: 'editing', label: '편집', color: 'cyan' },
-  { id: 'published', label: '발행', color: 'emerald' }
+const PIPELINE = [
+  ['confirmed', '섭외 확정'], ['scheduling', '일정 조율'], ['awaiting_response', '답변 대기'],
+  ['outreach_sent', '제안 발송'], ['contact_planned', '컨택 예정'], ['candidate', '후보'],
+  ['repurposing', '파생 콘텐츠'], ['published', '공개 완료'], ['declined', '거절'], ['cancelled', '취소'],
 ];
 
-const GUEST_STATUSES = [
-  '컨택 전',
-  '컨택 예정',
-  '출연 문의',
-  '발송 완료',
-  '확인 및 답변 대기중',
-  '촬영 일정 조율중',
-  '섭외 완료',
-  '섭외 완료 + PPL',
-  '촬영 완료',
-  '섭외 거절',
-  '유가 출연 거절',
-  '섭외 취소'
-];
+const HEALTH = {
+  conflict: ['충돌', 'danger'], blocked: ['차단', 'danger'], overdue: ['지연', 'warning'],
+  at_risk: ['임박', 'warning'], on_track: ['정상', 'info'], complete: ['완료', 'success'], cancelled: ['본편 취소', 'muted'],
+};
 
-const WORKFLOW = [
-  '출연 의사와 10~14일 촬영 후보 기간 확인',
-  '사전 질문지 전달 및 응답 회수',
-  '촬영 장소와 기본 3개 앵글 확정',
-  '장비, 대관료, 출연료 예산 확인',
-  '촬영본 백업과 편집 담당자 인계',
-  '제목, 썸네일, 업로드 일정 확정'
-];
+const EMPTY = { episodes: [], guestProspects: [], shootBatches: [], meetings: [], resources: [], reservations: [], partnerships: [], notifications: [], syncConflicts: [], questionnaireInbox: [] };
 
-const NOTION_LINKS = [
-  {
-    label: 'TASTING NOTE 홈',
-    description: '기획안, 회의와 운영 문서',
-    href: 'https://app.notion.com/p/26dffc3c3af58095bb20fd89297d34a0'
-  },
-  {
-    label: '게스트 섭외 트래커',
-    description: '기존 섭외 이력과 연락 기록',
-    href: 'https://app.notion.com/p/2ceffc3c3af580ef8ad2f30504dc8aea'
-  },
-  {
-    label: '섭외 후 준비 프로세스',
-    description: '질문지와 촬영 전 요청사항',
-    href: 'https://app.notion.com/p/2f6ffc3c3af5806daf2ee60e92b2383d'
-  }
-];
-
-const PROJECT_DOCUMENTS = [
-  { type: '기획', title: 'TASTING NOTE 기획안', status: '문서', description: '프로젝트 정의, 질문 구조, 연출 방향과 공개 일정', href: 'https://app.notion.com/p/31affc3c3af58078b79dca263dbf3e55' },
-  { type: '가이드', title: '게스트 참여 가이드라인', status: '진행 중', description: '90분 촬영 흐름과 아티스트 사전 준비 안내', href: 'https://app.notion.com/p/2c0ffc3c3af5804fbed2e0f5f726209c' },
-  { type: '프로세스', title: '섭외 전 메일 · DM', status: '완료', description: '섭외 대상 논의와 채널별 발송 템플릿', href: 'https://app.notion.com/p/304ffc3c3af5805db01cddfde25ce78f' },
-  { type: '프로세스', title: '섭외 후 촬영 준비', status: '문서', description: '사전 질문지와 게스트 요청사항 관리', href: 'https://app.notion.com/p/2f6ffc3c3af5806daf2ee60e92b2383d' },
-  { type: '촬영 양식', title: '아티스트 작성 양식', status: '문서', description: '촬영일에 사용하는 17개 질문과 기록 양식', href: 'https://app.notion.com/p/2f6ffc3c3af58043a041c43bc4c43a77' }
-];
-
-const MEETING_DOCUMENTS = [
-  { title: 'EP.1 사전 회의', status: '완료', date: '2026-01-24', href: 'https://app.notion.com/p/2f2ffc3c3af5805f8011fb154c9f9065', note: '장비, 앵글, 질문, 준비물' },
-  { title: 'EP.1 촬영 피드백', status: '완료', date: '2026-01-28', href: 'https://app.notion.com/p/2f6ffc3c3af580db99e3d10546c3262e', note: '조명, 앵글, 오디오, 백업' },
-  { title: '정산 · 장소 · 연출 피드백', status: '시작 전', date: '2026-03-05', href: 'https://app.notion.com/p/318ffc3c3af5809fb960e9713fa5c2e1', note: '회당 부담, 장소 조건, 연출 문구' },
-  { title: 'EP.4 이후 장비 세팅', status: '시작 전', date: '2026-04-04', href: 'https://app.notion.com/p/338ffc3c3af5804d993dfc3f8e7d64d2', note: '차기 장비 세팅 문서' }
-];
-
-const QUESTIONS = [
-  '플레이리스트의 첫 곡에는 어떤 음악이 들어가야 하는가?', '나는 누구인가?', '주변에서 별로라고 하는데 나만 좋아하는 곡',
-  '내 취향은 아니지만 듣게 되는 곡', '나만 혼자 몰래 숨어 듣던 음악', '저작권료를 더 받았으면 하는 음악',
-  '새로운 것을 시작할 때의 기분', '내가 한때 열중했던 것', '요즘 내가 빠져있는 것', '내가 좋아하는 것들',
-  '내 음악의 시작점', '내 음악의 지향점', '인생에 불변의 진리가 있다면', '나에게 행복이란',
-  '작은 후회가 있다면', '앞으로 하고 싶은 것', '맺으며'
-];
-
-const EMPTY_STATE = { episodes: [], guests: [], checklist: {}, resources: [], meetings: [], partnerships: [] };
-
-function getInitialTheme() {
-  const saved = localStorage.getItem('artic-theme');
-  if (saved) return saved;
-  const hour = new Date().getHours();
-  return hour >= 7 && hour < 19 ? 'light' : 'dark';
-}
-
-function loadWorkspace() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved && typeof saved === 'object' ? { ...EMPTY_STATE, ...saved } : EMPTY_STATE;
-  } catch {
-    return EMPTY_STATE;
-  }
-}
-
-function formatDate(value) {
+function formatDate(value, withTime = false) {
   if (!value) return '미정';
-  return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric' }).format(
-    new Date(`${value}T00:00:00`)
-  );
+  const date = value?.toDate ? value.toDate() : new Date(String(value).length === 10 ? `${value}T00:00:00+09:00` : value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('ko-KR', withTime ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
 }
 
-function StatusBadge({ stage }) {
-  const item = EPISODE_STAGES.find((candidate) => candidate.id === stage) || EPISODE_STAGES[0];
-  return <span className={`status-badge status-${item.color}`}>{item.label}</span>;
+function ErrorBanner({ error, onClose }) {
+  if (!error) return null;
+  return <div className="app-error"><AlertTriangle size={17} /><span>{error}</span><button onClick={onClose}><X size={16} /></button></div>;
 }
 
-function EmptyPanel({ icon: Icon, title, description, action }) {
-  return (
-    <div className="empty-panel">
-      <span className="empty-icon"><Icon size={22} /></span>
-      <strong>{title}</strong>
-      <p>{description}</p>
-      {action}
-    </div>
-  );
+function HealthBadge({ value }) {
+  const [label, tone] = HEALTH[value] || HEALTH.on_track;
+  return <span className={`health-badge ${tone}`}>{label}</span>;
 }
 
-function Overview({ workspace, onNavigate }) {
-  const activeEpisodes = workspace.episodes.filter((item) => item.stage !== 'published').length;
-  const confirmedGuests = workspace.guests.filter((item) => item.status.includes('섭외 완료')).length;
-  const completedChecks = Object.values(workspace.checklist).filter(Boolean).length;
+function PageHeading({ eyebrow, title, description, action }) {
+  return <section className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2><p>{description}</p></div>{action}</section>;
+}
 
-  return (
-    <div className="page-stack">
-      <section className="hero-card">
-        <div>
-          <span className="eyebrow">TASTING NOTE OPERATIONS</span>
-          <h2>한 편의 노트를 완성하는 모든 과정</h2>
-          <p>게스트 섭외부터 촬영, 편집, 정산과 발행까지 TNT 제작 흐름을 한곳에서 관리합니다.</p>
-        </div>
-        <button className="primary-button" onClick={() => onNavigate('episodes')}>
-          에피소드 시작 <ChevronRight size={17} />
-        </button>
-      </section>
+function EmptyState({ title, description }) {
+  return <div className="empty-panel"><Archive size={24} /><strong>{title}</strong><p>{description}</p></div>;
+}
 
-      <section className="metric-grid">
-        <article className="metric-card"><Clapperboard /><span>진행 에피소드</span><strong>{activeEpisodes}</strong></article>
-        <article className="metric-card"><Users /><span>섭외 확정</span><strong>{confirmedGuests}</strong></article>
-        <article className="metric-card"><CalendarDays /><span>운영 체크</span><strong>{completedChecks}/{WORKFLOW.length}</strong></article>
-        <article className="metric-card"><Archive /><span>발행 완료</span><strong>{workspace.episodes.length - activeEpisodes}</strong></article>
-      </section>
+function useEpisodeData(episodeId, onError) {
+  const [tasks, setTasks] = useState([]);
+  const [playlistTracks, setPlaylistTracks] = useState([]);
+  const [artifacts, setArtifacts] = useState([]);
+  const [financialEntries, setFinancialEntries] = useState([]);
+  const [deliverables, setDeliverables] = useState([]);
+  useEffect(() => {
+    setTasks([]); setPlaylistTracks([]); setArtifacts([]); setFinancialEntries([]); setDeliverables([]);
+    if (!episodeId) return undefined;
+    const unsubs = [
+      subscribeEpisodeTasks(episodeId, setTasks, onError),
+      subscribeEpisodeCollection(episodeId, 'playlistTracks', setPlaylistTracks, onError),
+      subscribeEpisodeCollection(episodeId, 'artifacts', setArtifacts, onError),
+      subscribeEpisodeCollection(episodeId, 'financialEntries', setFinancialEntries, onError),
+      subscribeEpisodeCollection(episodeId, 'deliverables', setDeliverables, onError),
+    ];
+    return () => unsubs.forEach((unsubscribe) => unsubscribe());
+  }, [episodeId, onError]);
+  return { tasks, playlistTracks, artifacts, financialEntries, deliverables };
+}
 
-      <div className="overview-grid">
-        <section className="panel">
-          <div className="panel-heading">
-            <div><span className="eyebrow">PRODUCTION LINE</span><h3>제작 워크플로우</h3></div>
-          </div>
-          <div className="stage-track">
-            {EPISODE_STAGES.map((stage, index) => (
-              <div className="stage-item" key={stage.id}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <strong>{stage.label}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-heading">
-            <div><span className="eyebrow">NOTION SOURCE</span><h3>기존 운영 문서</h3></div>
-          </div>
-          <div className="link-list">
-            {NOTION_LINKS.map((link) => (
-              <a key={link.href} href={link.href} target="_blank" rel="noreferrer">
-                <span><strong>{link.label}</strong><small>{link.description}</small></span>
-                <ExternalLink size={15} />
-              </a>
-            ))}
-          </div>
-        </section>
+function Dashboard({ workspace, taskCache, onOpenEpisode }) {
+  const rows = workspace.episodes.map((episode) => ({ episode, derived: deriveEpisodeState(episode, taskCache[episode.id] || []) }))
+    .sort((a, b) => {
+      const priority = { conflict: 0, blocked: 1, overdue: 2, at_risk: 3, on_track: 4, complete: 5 };
+      return priority[a.derived.health] - priority[b.derived.health] || (a.episode.sequence ?? 999) - (b.episode.sequence ?? 999);
+    });
+  const active = rows.filter(({ episode }) => !['published', 'cancelled'].includes(episode.lifecycleState));
+  const warnings = rows.filter(({ derived }) => ['conflict', 'blocked', 'overdue', 'at_risk'].includes(derived.health));
+  return <div className="page-stack">
+    <section className="hero-card compact-hero"><div><span className="eyebrow">TASTING NOTE OPERATIONS</span><h2>제작 현황을 한눈에</h2><p>섭외부터 POST까지, 실제 완료 조건을 기준으로 다음 작업과 위험 신호를 계산합니다.</p></div><div className="hero-stats"><strong>{active.length}</strong><span>진행 회차</span></div></section>
+    <section className="metric-grid">
+      <article className="metric-card"><Clapperboard /><span>전체 제작 단위</span><strong>{rows.length}</strong></article>
+      <article className="metric-card"><Users /><span>활성 게스트</span><strong>{workspace.guestProspects.filter((g) => !['published', 'declined', 'cancelled'].includes(g.pipelineStatus)).length}</strong></article>
+      <article className="metric-card"><AlertTriangle /><span>확인 필요</span><strong>{warnings.length}</strong></article>
+      <article className="metric-card"><CheckCircle2 /><span>공개 완료</span><strong>{rows.filter(({ episode }) => episode.lifecycleState === 'published').length}</strong></article>
+    </section>
+    <section className="panel matrix-panel">
+      <div className="panel-heading"><div><span className="eyebrow">EPISODE MATRIX</span><h3>에피소드 진행 매트릭스</h3></div><span className="muted-copy">단계는 필수 작업에서 자동 계산</span></div>
+      <div className="episode-matrix">
+        <div className="matrix-head"><span>회차 / 게스트</span>{PHASES.map((phase) => <span key={phase.id}>{phase.label}</span>)}<span>다음 작업</span><span>상태</span></div>
+        {rows.map(({ episode, derived }) => {
+          const tasks = taskCache[episode.id] || [];
+          return <button className="matrix-row" key={episode.id} onClick={() => onOpenEpisode(episode.id)}>
+            <span className="matrix-title"><strong>{episode.sequenceLabel}</strong><small>{episode.guestName}</small></span>
+            {PHASES.map((phase) => {
+              const phaseTasks = tasks.filter((task) => task.phase === phase.id);
+              const done = phaseTasks.length && phaseTasks.every((task) => ['done', 'waived'].includes(task.status));
+              const blocked = phaseTasks.some((task) => task.status === 'blocked');
+              return <span key={phase.id} className={`phase-cell ${done ? 'done' : ''} ${blocked ? 'blocked' : ''}`} title={phase.label}>{done ? '✓' : blocked ? '!' : '·'}</span>;
+            })}
+            <span className="next-task">{derived.nextTask?.title || '완료'}<small>{derived.progress}%</small></span><HealthBadge value={derived.health} />
+          </button>;
+        })}
       </div>
-    </div>
-  );
+    </section>
+  </div>;
+}
+
+function EpisodeList({ episodes, selectedId, onSelect }) {
+  return <aside className="record-list">
+    {episodes.sort((a, b) => (a.sequence ?? 999) - (b.sequence ?? 999)).map((episode) => <button key={episode.id} className={selectedId === episode.id ? 'active' : ''} onClick={() => onSelect(episode.id)}><span><strong>{episode.sequenceLabel}</strong><small>{episode.guestName}</small></span><ChevronRight size={16} /></button>)}
+  </aside>;
+}
+
+function TaskPanel({ episode, tasks, isAdmin, onError }) {
+  const change = async (task, status) => {
+    const waiverReason = status === 'waived' ? window.prompt('필수 작업 면제 사유를 입력해주세요.') : null;
+    if (status === 'waived' && !waiverReason?.trim()) return;
+    try { await updateEpisodeTask(episode.id, task, { status, waiverReason: waiverReason || null, completedAt: status === 'done' ? new Date().toISOString() : null }); } catch (error) { onError(error.message); }
+  };
+  return <section className="detail-section"><div className="section-title"><ListChecks size={18} /><div><strong>제작 워크플로우</strong><small>필수 작업 완료율과 현재 단계</small></div></div>
+    <div className="phase-groups">{PHASES.map((phase) => <div className="phase-group" key={phase.id}><h4>{phase.label}</h4>{tasks.filter((task) => task.phase === phase.id).map((task) => <div className="task-row" key={task.id}><span className={`task-dot ${task.status}`} /><div><strong>{task.title}</strong><small>{task.waiverReason ? `면제: ${task.waiverReason}` : task.dueAt ? `기한 ${formatDate(task.dueAt)}` : '기한 미정'}</small></div><select disabled={!isAdmin} value={task.status} onChange={(event) => change(task, event.target.value)}><option value="todo">대기</option><option value="in_progress">진행 중</option><option value="blocked">차단</option><option value="done">완료</option><option value="waived">사유 면제</option></select></div>)}</div>)}</div>
+  </section>;
+}
+
+function EpisodeBasics({ episode, batches, isAdmin, onError }) {
+  const [draft, setDraft] = useState(episode);
+  useEffect(() => setDraft(episode), [episode]);
+  const save = async () => { try { await mutateDocument('episodes', episode.id, { title: draft.title, plannedUploadDate: draft.plannedUploadDate || null, guestCallTime: draft.guestCallTime || null, appleMusicPlaylistUrl: draft.appleMusicPlaylistUrl || null }, episode.version); } catch (error) { onError(error.message); } };
+  const saveSequence = async () => { try { await assignEpisodeSequence(episode, draft.sequence, draft.sequenceState); } catch (error) { onError(error.message); } };
+  const batch = batches.find((item) => item.id === episode.shootBatchId);
+  return <section className="detail-section"><div className="section-title"><Settings2 size={18} /><div><strong>기본 정보와 일정</strong><small>공동 촬영일은 촬영 배치에서 관리</small></div></div>
+    <div className="form-grid"><label className="wide">제목<input disabled={!isAdmin} value={draft.title || ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label><label>업로드일<input disabled={!isAdmin} type="date" value={draft.plannedUploadDate || ''} onChange={(e) => setDraft({ ...draft, plannedUploadDate: e.target.value })} /></label><label>게스트 콜타임<input disabled={!isAdmin} type="time" value={draft.guestCallTime || ''} onChange={(e) => setDraft({ ...draft, guestCallTime: e.target.value })} /></label><label>회차<input disabled={!isAdmin} type="number" min="0" value={draft.sequence ?? ''} onChange={(e) => setDraft({ ...draft, sequence: e.target.value })} /></label><label>회차 상태<select disabled={!isAdmin} value={draft.sequenceState || 'unassigned'} onChange={(e) => setDraft({ ...draft, sequenceState: e.target.value })}><option value="unassigned">미배정</option><option value="provisional">예정</option><option value="verified">확정</option></select></label><label className="wide">Apple Music 플레이리스트<input disabled={!isAdmin} type="url" value={draft.appleMusicPlaylistUrl || ''} onChange={(e) => setDraft({ ...draft, appleMusicPlaylistUrl: e.target.value })} placeholder="https://music.apple.com/..." /></label></div>
+    {batch && <div className="linked-record"><CalendarDays size={17} /><span><strong>{batch.label}</strong><small>{batch.shootDate ? formatDate(batch.shootDate) : `${batch.plannedMonth || ''} 날짜·시간 미정`}</small></span></div>}
+    {isAdmin && <div className="button-row"><button className="primary-button" onClick={save}>기본 정보 저장</button><button className="secondary-button" onClick={saveSequence}>회차 적용</button></div>}
+  </section>;
+}
+
+function QuestionnairePanel({ episode, inbox }) {
+  const response = inbox.find((item) => item.episodeId === episode.id);
+  return <section className="detail-section"><div className="section-title"><FileText size={18} /><div><strong>사전 질문지</strong><small>Google Form 17개 선곡과 현장 요청</small></div></div>
+    <a className="linked-record action" href="https://docs.google.com/forms/d/e/1FAIpQLSd4hZ6mfPYFkEw1WGUagoFeEPXRVz_WJlux5Wqu4iyUQREPYg/viewform?usp=header" target="_blank" rel="noreferrer"><Link2 size={17} /><span><strong>게스트 질문지 열기</strong><small>아티스트에게 전달하는 고정 Form</small></span><ExternalLink size={15} /></a>
+    {response ? <div className="response-card"><CheckCircle2 size={19} /><div><strong>{response.artistName} 응답 수령</strong><small>{formatDate(response.submittedAt, true)} · 답변 {response.answers?.length || 0}개</small></div></div> : <div className="inline-empty">연결된 응답이 없습니다. 동기화 화면에서 Google Form 응답을 가져오세요.</div>}
+  </section>;
+}
+
+function PlaylistPanel({ episode, tracks, isAdmin, onError }) {
+  const [raw, setRaw] = useState('');
+  const addTracks = async () => {
+    const parsed = parseTrackLines(raw).slice(0, Math.max(0, 17 - tracks.length));
+    if (!parsed.length) return;
+    try { for (const track of parsed.slice(0, 17)) await createEpisodeSubdocument(episode.id, 'playlistTracks', track); setRaw(''); } catch (error) { onError(error.message); }
+  };
+  const update = async (track, patch) => { try { await updateEpisodeSubdocument(episode.id, 'playlistTracks', track, patch); } catch (error) { onError(error.message); } };
+  return <section className="detail-section"><div className="section-title"><Link2 size={18} /><div><strong>플레이리스트 QA</strong><small>{tracks.length}/17곡 등록</small></div></div>
+    {isAdmin && <div className="bulk-track-input"><textarea value={raw} onChange={(e) => setRaw(e.target.value)} placeholder={'아티스트 - 곡 제목\n아티스트 - 곡 제목'} /><button className="secondary-button" onClick={addTracks}>트랙 가져오기</button></div>}
+    <div className="track-table">{tracks.sort((a, b) => a.questionNumber - b.questionNumber).map((track) => <div key={track.id}><span>{String(track.questionNumber).padStart(2, '0')}</span><div><strong>{track.title}</strong><small>{track.artist || track.rawAnswer}</small></div><select disabled={!isAdmin} value={track.matchStatus} onChange={(e) => update(track, { matchStatus: e.target.value })}><option value="pending">검증 대기</option><option value="matched">일치</option><option value="mismatch">불일치</option><option value="exception">예외 승인</option></select><select disabled={!isAdmin} value={track.purchaseStatus} onChange={(e) => update(track, { purchaseStatus: e.target.value })}><option value="not_reviewed">구매 검토</option><option value="not_required">구매 불필요</option><option value="to_buy">구매 필요</option><option value="purchased">구매 완료</option></select></div>)}</div>
+  </section>;
+}
+
+function FilesPanel({ episode, artifacts, isAdmin, onError }) {
+  const [busy, setBusy] = useState(false);
+  const upload = async (event) => { const file = event.target.files?.[0]; if (!file) return; setBusy(true); try { await uploadArtifact(episode.id, file, file.name.toLowerCase().endsWith('.json') ? 'typing-json' : 'attachment'); } catch (error) { onError(error.message); } finally { setBusy(false); event.target.value = ''; } };
+  return <section className="detail-section"><div className="section-title"><FolderUp size={18} /><div><strong>제작 파일</strong><small>타이핑 JSON은 원본 그대로 전달</small></div></div>
+    {isAdmin && <label className="upload-zone"><FolderUp size={23} /><strong>{busy ? '업로드 중...' : '파일 업로드'}</strong><small>JSON·CSV·PDF·문서·이미지, 최대 25MB</small><input type="file" disabled={busy} onChange={upload} /></label>}
+    <div className="artifact-list">{artifacts.map((artifact) => <a key={artifact.id} href={artifact.downloadUrl} target="_blank" rel="noreferrer"><FileJson size={18} /><span><strong>{artifact.name}</strong><small>{artifact.category} · {Math.ceil((artifact.size || 0) / 1024)}KB</small></span><ExternalLink size={15} /></a>)}</div>
+  </section>;
+}
+
+function FinancePanel({ episode, entries, isAdmin, onError }) {
+  const [draft, setDraft] = useState({ type: 'expense', title: '', amount: '' });
+  const add = async () => { if (!draft.title || !draft.amount) return; try { await createEpisodeSubdocument(episode.id, 'financialEntries', { ...draft, amount: Number(draft.amount), status: 'pending', currency: 'KRW' }); setDraft({ type: 'expense', title: '', amount: '' }); } catch (error) { onError(error.message); } };
+  return <section className="detail-section"><div className="section-title"><CircleDollarSign size={18} /><div><strong>회차 정산</strong><small>출연료·제작지원·비용을 분리 기록</small></div></div>
+    {isAdmin && <div className="inline-form"><select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}><option value="expense">제작 비용</option><option value="appearance_fee_out">출연료 지급</option><option value="production_support_in">제작지원 수령</option></select><input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="내역" /><input inputMode="numeric" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value.replace(/\D/g, '') })} placeholder="금액" /><button onClick={add}><Plus size={16} /></button></div>}
+    <div className="finance-list">{entries.map((entry) => <div key={entry.id}><span>{entry.type}</span><strong>{entry.title}</strong><b>{Number(entry.amount).toLocaleString()}원</b><small>{entry.status}</small></div>)}</div>
+  </section>;
+}
+
+function DeliverablesPanel({ deliverables }) {
+  return <section className="detail-section"><div className="section-title"><Clapperboard size={18} /><div><strong>POST · 파생 콘텐츠</strong><small>본편과 쇼츠·릴스의 산출물을 분리 관리</small></div></div>
+    {deliverables.length ? <div className="deliverable-list">{deliverables.map((item) => <article key={item.id}><span className="status-pill">{item.type}</span><div><strong>{item.title}</strong><small>{item.status} · 업로드 {formatDate(item.uploadDate)}</small></div></article>)}</div> : <div className="inline-empty">등록된 파생 콘텐츠가 없습니다.</div>}
+  </section>;
+}
+
+function EpisodeDetail({ episode, batches, inbox, episodeData, isAdmin, onError }) {
+  const [tab, setTab] = useState('workflow');
+  const derived = deriveEpisodeState(episode, episodeData.tasks);
+  const tabs = [['workflow', '워크플로우'], ['basics', '일정'], ['questionnaire', '질문지'], ['playlist', '플레이리스트'], ['files', '파일'], ['deliverables', 'POST'], ['finance', '정산']];
+  return <article className="episode-detail"><header className="detail-header"><div><span className="eyebrow">{episode.sequenceLabel}</span><h2>{episode.guestName}</h2><p>{episode.title}</p></div><div className="detail-health"><HealthBadge value={derived.health} /><strong>{derived.progress}%</strong></div></header>
+    {episode.cancellationReason === 'footage_lost' && <div className="critical-note"><AlertTriangle size={18} /><div><strong>촬영본 유실로 본편 제작 취소</strong><span>쇼츠 전환 회의 예정 · 업로드일 미정</span></div></div>}
+    <nav className="detail-tabs">{tabs.map(([id, label]) => <button className={tab === id ? 'active' : ''} key={id} onClick={() => setTab(id)}>{label}</button>)}</nav>
+    {tab === 'workflow' && <TaskPanel episode={episode} tasks={episodeData.tasks} isAdmin={isAdmin} onError={onError} />}
+    {tab === 'basics' && <EpisodeBasics episode={episode} batches={batches} isAdmin={isAdmin} onError={onError} />}
+    {tab === 'questionnaire' && <QuestionnairePanel episode={episode} inbox={inbox} />}
+    {tab === 'playlist' && <PlaylistPanel episode={episode} tracks={episodeData.playlistTracks} isAdmin={isAdmin} onError={onError} />}
+    {tab === 'files' && <FilesPanel episode={episode} artifacts={episodeData.artifacts} isAdmin={isAdmin} onError={onError} />}
+    {tab === 'deliverables' && <DeliverablesPanel deliverables={episodeData.deliverables} />}
+    {tab === 'finance' && <FinancePanel episode={episode} entries={episodeData.financialEntries} isAdmin={isAdmin} onError={onError} />}
+  </article>;
+}
+
+function EpisodesPage({ workspace, selectedId, onSelect, episodeData, isAdmin, onError }) {
+  const episode = workspace.episodes.find((item) => item.id === selectedId) || workspace.episodes[0];
+  useEffect(() => { if (!selectedId && workspace.episodes[0]) onSelect(workspace.episodes[0].id); }, [selectedId, workspace.episodes, onSelect]);
+  return <div className="page-stack"><PageHeading eyebrow="EPISODE OPERATIONS" title="에피소드" description="회차별 필수 작업과 제작 자료를 직접 관리합니다." />
+    <div className="master-detail"><EpisodeList episodes={[...workspace.episodes]} selectedId={episode?.id} onSelect={onSelect} />{episode ? <EpisodeDetail episode={episode} batches={workspace.shootBatches} inbox={workspace.questionnaireInbox} episodeData={episodeData} isAdmin={isAdmin} onError={onError} /> : <EmptyState title="에피소드가 없습니다" description="초기 데이터를 구성해주세요." />}</div>
+  </div>;
+}
+
+function GuestsPage({ guests, isAdmin, onError, onOpenEpisode }) {
+  const [query, setQuery] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const filtered = guests.filter((guest) => `${guest.name} ${guest.pipelineStatus} ${guest.notes || ''}`.toLowerCase().includes(query.toLowerCase()));
+  const changeStatus = async (guest, pipelineStatus) => { try { await mutateDocument('guestProspects', guest.id, { pipelineStatus }, guest.version); } catch (error) { onError(error.message); } };
+  const addGuest = async () => { if (!name.trim()) return; try { await createDocument('guestProspects', { name: name.trim(), pipelineStatus: 'candidate', notionStatus: '컨택 전', episodeAssignment: { sequence: null, state: 'unassigned' }, aliases: [], ownerIds: [], nextContactAt: null, commercialType: 'undecided', notes: '', sourceUrl: null, dataQuality: [] }); setName(''); setAdding(false); } catch (error) { onError(error.message); } };
+  const promote = async (guest) => { try { const id = await createEpisodeFromGuest(guest); onOpenEpisode(id); } catch (error) { onError(error.message); } };
+  return <div className="page-stack"><PageHeading eyebrow="CASTING CRM" title="게스트 파이프라인" description="회차가 없는 후보부터 공개 완료까지 섭외 이력을 보존합니다." action={isAdmin && <button className="primary-button" onClick={() => setAdding(true)}><Plus size={16} /> 게스트 추가</button>} />
+    <div className="search-bar"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름, 상태, 메모 검색" /></div>
+    {adding && <div className="inline-create"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="게스트 이름" /><button className="primary-button" onClick={addGuest}>추가</button><button className="icon-button" onClick={() => setAdding(false)}><X size={16} /></button></div>}
+    <div className="pipeline-board">{PIPELINE.map(([status, label]) => { const records = filtered.filter((guest) => guest.pipelineStatus === status); if (!records.length) return null; return <section key={status}><header><strong>{label}</strong><span>{records.length}</span></header><div>{records.map((guest) => <article key={guest.id}><div><strong>{guest.name}</strong><small>{guest.notes || '메모 없음'}</small></div><select disabled={!isAdmin} value={guest.pipelineStatus} onChange={(e) => changeStatus(guest, e.target.value)}>{PIPELINE.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select>{isAdmin && !['published', 'declined', 'cancelled'].includes(guest.pipelineStatus) && <button className="text-button" onClick={() => promote(guest)}>에피소드 생성</button>}{guest.dataQuality?.length > 0 && <span className="data-warning"><AlertTriangle size={13} /> {guest.dataQuality.length}</span>}</article>)}</div></section>; })}</div>
+  </div>;
+}
+
+function SchedulePage({ batches, episodes, isAdmin, onError }) {
+  const save = async (batch, patch) => { try { await mutateDocument('shootBatches', batch.id, patch, batch.version); } catch (error) { onError(error.message); } };
+  return <div className="page-stack"><PageHeading eyebrow="SHOOT CALENDAR" title="촬영 일정" description="하루에 여러 회차를 촬영하는 배치와 공통 콜타임을 관리합니다." />
+    {batches.length ? <div className="batch-grid">{batches.map((batch) => <article className="panel" key={batch.id}><div className="panel-heading"><div><span className="eyebrow">SHOOT BATCH</span><h3>{batch.label}</h3></div><span className="status-pill">{batch.status}</span></div><div className="form-grid"><label>촬영일<input disabled={!isAdmin} type="date" defaultValue={batch.shootDate || ''} onBlur={(e) => e.target.value !== (batch.shootDate || '') && save(batch, { shootDate: e.target.value || null, status: e.target.value ? 'scheduled' : 'date_and_time_pending' })} /></label><label>artic 집결<input disabled={!isAdmin} type="time" defaultValue={batch.articCallTime || ''} onBlur={(e) => save(batch, { articCallTime: e.target.value || null })} /></label><label>스튜디오 시작<input disabled={!isAdmin} type="time" defaultValue={batch.studioStartTime || ''} onBlur={(e) => save(batch, { studioStartTime: e.target.value || null })} /></label><label>스튜디오 종료<input disabled={!isAdmin} type="time" defaultValue={batch.studioEndTime || ''} onBlur={(e) => save(batch, { studioEndTime: e.target.value || null })} /></label></div><div className="batch-guests">{episodes.filter((episode) => episode.shootBatchId === batch.id).map((episode) => <span key={episode.id}>{episode.sequenceLabel} · {episode.guestName}<b>{episode.guestCallTime || '콜타임 미정'}</b></span>)}</div></article>)}</div> : <EmptyState title="촬영 배치가 없습니다" description="공동 촬영일이 생기면 배치를 생성합니다." />}
+  </div>;
+}
+
+function SimpleRecordsPage({ kind, title, description, records, isAdmin, onError }) {
+  const [draft, setDraft] = useState({ title: '', status: 'candidate', date: '', note: '' });
+  const add = async () => { if (!draft.title.trim()) return; try { await createDocument(kind, draft); setDraft({ title: '', status: 'candidate', date: '', note: '' }); } catch (error) { onError(error.message); } };
+  return <div className="page-stack"><PageHeading eyebrow="PROJECT RECORDS" title={title} description={description} />{isAdmin && <div className="inline-form"><input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="이름" /><select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}><option value="candidate">후보</option><option value="planned">예정</option><option value="in_progress">진행 중</option><option value="confirmed">확정</option><option value="completed">완료</option></select><input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /><input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="메모" /><button onClick={add}><Plus size={16} /></button></div>}<div className="record-card-grid">{records.map((item) => <article className="panel" key={item.id}><span className="status-pill">{item.status || '기록'}</span><h3>{item.title}</h3><p>{item.note || item.agenda || '메모 없음'}</p><small>{formatDate(item.date || item.scheduledAt)}</small></article>)}</div></div>;
+}
+
+function NotificationDrawer({ items, onClose, onOpenEpisode }) {
+  return <aside className="notification-drawer"><header><div><span className="eyebrow">INBOX</span><h3>운영 알림</h3></div><button className="icon-button" aria-label="알림 닫기" onClick={onClose}><X size={16} /></button></header><div>{items.length ? items.map((item) => <button key={item.id} onClick={() => item.episodeId && onOpenEpisode(item.episodeId)}><AlertTriangle size={16} /><span><strong>{item.title}</strong><small>{item.description}</small></span></button>) : <div className="inline-empty">새 알림이 없습니다.</div>}</div></aside>;
+}
+
+function SyncPage({ workspace, isAdmin, onError }) {
+  const [busy, setBusy] = useState('');
+  const [preview, setPreview] = useState(null);
+  const runNotion = async () => { setBusy('notion'); try { setPreview(await callAdminFunction('tntPreviewNotionSync')); } catch (error) { onError(error.message); } finally { setBusy(''); } };
+  const apply = async (difference, direction) => { setBusy('apply'); try { const values = direction === 'import' ? difference.remote : difference.local; await callAdminFunction('tntApplyNotionSync', { operations: [{ direction, guestId: difference.guestId || null, values }] }); setPreview(null); } catch (error) { onError(error.message); } finally { setBusy(''); } };
+  const runGoogle = async () => { setBusy('google'); try { const result = await callAdminFunction('tntSyncGoogleFormResponses'); alert(`새 응답 ${result.imported}건을 가져왔습니다.`); } catch (error) { onError(error.message); } finally { setBusy(''); } };
+  const linkResponse = async (response, episodeId) => { const episode = workspace.episodes.find((item) => item.id === episodeId); if (!episode) return; try { await mutateDocument('questionnaireInbox', response.id, { episodeId, guestId: episode.guestId, matchStatus: 'matched' }, response.version); } catch (error) { onError(error.message); } };
+  return <div className="page-stack"><PageHeading eyebrow="SYNC & INTEGRITY" title="동기화 · 감사" description="외부 변경은 미리보기와 관리자 승인을 거쳐 반영합니다." />
+    {!isAdmin && <div className="readonly-notice"><ShieldCheck size={17} /> 동기화는 TNT 관리자만 실행할 수 있습니다.</div>}
+    <div className="sync-grid"><section className="panel"><Cloud size={22} /><h3>Notion 검토형 양방향 동기화</h3><p>게스트 트래커의 지원 필드만 비교합니다. 양쪽이 바뀐 값은 자동 적용하지 않습니다.</p><button className="secondary-button" disabled={!isAdmin || busy} onClick={runNotion}><RefreshCw size={16} /> {busy === 'notion' ? '비교 중...' : '차이 미리보기'}</button></section><section className="panel"><FileText size={22} /><h3>Google Form 응답 가져오기</h3><p>아티스트명, 17개 선곡, 음료 요청을 가져오며 response ID로 중복을 방지합니다.</p><button className="secondary-button" disabled={!isAdmin || busy} onClick={runGoogle}><RefreshCw size={16} /> {busy === 'google' ? '가져오는 중...' : '응답 동기화'}</button></section></div>
+    {preview && <section className="panel"><div className="panel-heading"><h3>차이 {preview.differences.length}건</h3><button className="icon-button" onClick={() => setPreview(null)}><X size={16} /></button></div><div className="diff-list">{preview.differences.map((difference, index) => <article key={`${difference.guestId || 'new'}-${index}`}><div><strong>{difference.remote?.name || difference.local?.name}</strong><small>{difference.type} · {(difference.fields || []).join(', ')}</small></div><span>{difference.type !== 'tnt_only' && <button onClick={() => apply(difference, 'import')}>Notion → TNT</button>}{difference.type !== 'notion_only' && <button onClick={() => apply(difference, 'export')}>TNT → Notion</button>}</span></article>)}</div></section>}
+    {workspace.questionnaireInbox.some((item) => item.matchStatus !== 'matched') && <section className="panel"><div className="panel-heading"><h3>질문지 연결 검토</h3><span>{workspace.questionnaireInbox.filter((item) => item.matchStatus !== 'matched').length}건</span></div><div className="response-review-list">{workspace.questionnaireInbox.filter((item) => item.matchStatus !== 'matched').map((response) => <article key={response.id}><div><strong>{response.artistName || '아티스트명 없음'}</strong><small>{formatDate(response.submittedAt, true)} · {response.matchStatus}</small></div><select disabled={!isAdmin} value={response.episodeId || ''} onChange={(e) => linkResponse(response, e.target.value)}><option value="">에피소드 선택</option>{workspace.episodes.map((episode) => <option value={episode.id} key={episode.id}>{episode.sequenceLabel} · {episode.guestName}</option>)}</select></article>)}</div></section>}
+    <section className="panel"><div className="panel-heading"><h3>데이터 정합성</h3><span>{workspace.syncConflicts.length} conflicts</span></div><div className="integrity-list"><span>질문지 미연결 응답 <b>{workspace.questionnaireInbox.filter((item) => item.matchStatus === 'unmatched').length}</b></span><span>회차 충돌 게스트 <b>{workspace.guestProspects.filter((item) => item.dataQuality?.some((flag) => flag.includes('conflict'))).length}</b></span><span>EP.7 <b>미배정 유지</b></span></div></section>
+  </div>;
 }
 
 function ProjectPage() {
-  return (
-    <div className="page-stack">
-      <section className="page-heading">
-        <div><span className="eyebrow">PROJECT WIKI</span><h2>프로젝트 기획</h2><p>TASTING NOTE의 기준 문서와 반복 운영 프로세스를 관리합니다.</p></div>
-        <a className="primary-button" href="https://app.notion.com/p/26dffc3c3af58095bb20fd89297d34a0" target="_blank" rel="noreferrer">Notion 원본 <ExternalLink size={16} /></a>
-      </section>
-      <section className="project-brief">
-        <div><span className="eyebrow">FORMAT</span><strong>말 대신 선곡으로 답하는<br />플레이리스트형 인터뷰</strong></div>
-        <dl><div><dt>러닝타임</dt><dd>60분 내외</dd></div><div><dt>질문</dt><dd>17개</dd></div><div><dt>업로드</dt><dd>월 1회</dd></div><div><dt>기본 촬영</dt><dd>3개 앵글</dd></div></dl>
-      </section>
-      <section className="document-grid">
-        {PROJECT_DOCUMENTS.map((document) => (
-          <a className="document-card" href={document.href} target="_blank" rel="noreferrer" key={document.href}>
-            <div className="document-card-top"><span>{document.type}</span><ExternalLink size={15} /></div>
-            <FileText size={21} />
-            <h3>{document.title}</h3>
-            <p>{document.description}</p>
-            <small>{document.status}</small>
-          </a>
-        ))}
-      </section>
-    </div>
-  );
+  const docs = [
+    ['TASTING NOTE 홈', 'https://app.notion.com/p/26dffc3c3af58095bb20fd89297d34a0'],
+    ['게스트 섭외 트래커', 'https://app.notion.com/p/2ceffc3c3af580ef8ad2f30504dc8aea'],
+    ['사전 질문지', 'https://docs.google.com/forms/d/e/1FAIpQLSd4hZ6mfPYFkEw1WGUagoFeEPXRVz_WJlux5Wqu4iyUQREPYg/viewform?usp=header'],
+    ['공개 에피소드', 'https://artic.live/projects/tasting-note/'],
+  ];
+  return <div className="page-stack"><PageHeading eyebrow="PROJECT SOURCES" title="프로젝트 문서" description="이관 기간 동안 기준 문서와 공개 자료를 함께 확인합니다." /><div className="document-grid">{docs.map(([title, href]) => <a className="document-card" key={href} href={href} target="_blank" rel="noreferrer"><FileText size={23} /><h3>{title}</h3><p>원본 자료 열기</p><ExternalLink size={15} /></a>)}</div></div>;
 }
 
-function ProductionPage({ checklist, onToggleCheck }) {
-  return (
-    <div className="page-stack">
-      <section className="page-heading"><div><span className="eyebrow">PRODUCTION PLAYBOOK</span><h2>촬영 준비</h2><p>섭외 확정부터 촬영본 인계까지 반복되는 제작 절차입니다.</p></div></section>
-      <div className="production-grid">
-        <section className="panel">
-          <div className="panel-heading"><div><span className="eyebrow">RUN OF SHOW</span><h3>회차 공통 체크리스트</h3></div><span className="progress-label">{Object.values(checklist).filter(Boolean).length}/{WORKFLOW.length}</span></div>
-          <div className="check-list single-column">
-            {WORKFLOW.map((item, index) => <label key={item} className={checklist[index] ? 'checked' : ''}><input type="checkbox" checked={Boolean(checklist[index])} onChange={() => onToggleCheck(index)} /><span>{item}</span></label>)}
-          </div>
-          <div className="source-note"><ExternalLink size={14} /><span>섭외 후 준비, 장소 운영, EP.1 사전 회의 문서를 기준으로 구성</span></div>
-        </section>
-        <section className="panel question-panel">
-          <div className="panel-heading"><div><span className="eyebrow">ARTIST NOTE</span><h3>촬영일 질문 양식</h3></div><a href="https://app.notion.com/p/2f6ffc3c3af58043a041c43bc4c43a77" target="_blank" rel="noreferrer"><ExternalLink size={15} /></a></div>
-          <div className="question-list">{QUESTIONS.map((question, index) => <div key={question}><span>{String(index + 1).padStart(2, '0')}</span><p>{question}</p></div>)}</div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function TrackerPage({ kind, title, eyebrow, description, records, onAdd, onUpdate, onDelete }) {
-  const configs = {
-    resources: { types: ['촬영 장소', '카메라', '렌즈', '오디오', '조명', '기타 장비'], statuses: ['후보', '확인 중', '예약 완료', '사용 완료'], source: 'https://app.notion.com/p/2fcffc3c3af580eaa676f20dcf88042d' },
-    partnerships: { types: ['PPL', '공간 협찬', '장비 협찬', '콘텐츠 제휴'], statuses: ['리드', '제안 준비', '제안 발송', '협의 중', '확정', '종료'], source: 'https://app.notion.com/p/312e76b3d4ed4831bd026663eb02dd5d' }
-  };
-  const config = configs[kind];
-  const [isAdding, setIsAdding] = useState(false);
-  const [draft, setDraft] = useState({ title: '', type: config.types[0], status: config.statuses[0], owner: '', date: '', note: '' });
-  const submit = (event) => {
-    event.preventDefault();
-    if (!draft.title.trim()) return;
-    onAdd(draft);
-    setDraft({ title: '', type: config.types[0], status: config.statuses[0], owner: '', date: '', note: '' });
-    setIsAdding(false);
-  };
-  return (
-    <div className="page-stack">
-      <section className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2><p>{description}</p></div><button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 항목 추가</button></section>
-      <div className="source-strip"><span><BookOpen size={15} /> Notion 기준 문서와 병행 운영 중</span><a href={config.source} target="_blank" rel="noreferrer">원본 열기 <ExternalLink size={14} /></a></div>
-      {isAdding && <form className="editor-card" onSubmit={submit}><div className="editor-title"><strong>관리 항목 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div><div className="form-grid"><label className="wide">이름<input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label><label>구분<select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>{config.types.map((type) => <option key={type}>{type}</option>)}</select></label><label>상태<select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>{config.statuses.map((status) => <option key={status}>{status}</option>)}</select></label><label>담당자<input value={draft.owner} onChange={(e) => setDraft({ ...draft, owner: e.target.value })} /></label><label>일정<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="wide">메모<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></label></div><button className="primary-button" type="submit">추가하기</button></form>}
-      {records.length === 0 ? <EmptyPanel icon={kind === 'resources' ? MapPinned : HeartHandshake} title="등록된 관리 항목이 없습니다" description="기존 Notion 데이터는 아직 이관하지 않았습니다. 신규 항목부터 이 관리페이지에 등록합니다." /> : <section className="tracker-grid">{records.map((record) => <article className="tracker-card" key={record.id}><div className="card-top"><span className="tracker-type">{record.type}</span><button className="icon-button danger" onClick={() => onDelete(record.id)}><Trash2 size={15} /></button></div><h3>{record.title}</h3><p>{record.note || '메모 없음'}</p><div className="tracker-meta"><span>{record.owner || '담당자 미정'}</span><span>{formatDate(record.date)}</span></div><select value={record.status} onChange={(e) => onUpdate(record.id, { status: e.target.value })}>{config.statuses.map((status) => <option key={status}>{status}</option>)}</select></article>)}</section>}
-    </div>
-  );
-}
-
-function MeetingsPage({ meetings, onAdd, onUpdate, onDelete }) {
-  const combined = [...MEETING_DOCUMENTS.map((item) => ({ ...item, fixed: true, id: item.href })), ...meetings];
-  const [isAdding, setIsAdding] = useState(false);
-  const [draft, setDraft] = useState({ title: '', status: '시작 전', date: '', note: '' });
-  const submit = (event) => { event.preventDefault(); if (!draft.title.trim()) return; onAdd(draft); setDraft({ title: '', status: '시작 전', date: '', note: '' }); setIsAdding(false); };
-  return (
-    <div className="page-stack">
-      <section className="page-heading"><div><span className="eyebrow">MEETINGS & LEARNINGS</span><h2>회의 · 피드백</h2><p>회차별 의사결정과 다음 촬영에 반영할 학습을 누적합니다.</p></div><button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 회의 추가</button></section>
-      {isAdding && <form className="editor-card" onSubmit={submit}><div className="editor-title"><strong>회의 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div><div className="form-grid"><label className="wide">회의 제목<input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label><label>상태<select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}><option>시작 전</option><option>진행 중</option><option>완료</option><option>문서</option></select></label><label>일정<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></label><label className="wide">안건 · 메모<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></label></div><button className="primary-button" type="submit">추가하기</button></form>}
-      <section className="meeting-list">{combined.map((meeting) => <article key={meeting.id}><span className="meeting-date">{formatDate(meeting.date)}</span><div><strong>{meeting.title}</strong><p>{meeting.note || '안건 없음'}</p></div><span className="meeting-status">{meeting.status}</span>{meeting.fixed ? <a href={meeting.href} target="_blank" rel="noreferrer"><ExternalLink size={15} /></a> : <><select value={meeting.status} onChange={(e) => onUpdate(meeting.id, { status: e.target.value })}><option>시작 전</option><option>진행 중</option><option>완료</option><option>문서</option></select><button className="icon-button danger" onClick={() => onDelete(meeting.id)}><Trash2 size={15} /></button></>}</article>)}</section>
-    </div>
-  );
-}
-
-function Episodes({ episodes, checklist, onAdd, onUpdate, onDelete, onToggleCheck }) {
-  const [isAdding, setIsAdding] = useState(false);
-  const [draft, setDraft] = useState({ title: '', owner: '', stage: 'planning', shootDate: '', publishDate: '' });
-
-  const submit = (event) => {
-    event.preventDefault();
-    if (!draft.title.trim()) return;
-    onAdd(draft);
-    setDraft({ title: '', owner: '', stage: 'planning', shootDate: '', publishDate: '' });
-    setIsAdding(false);
-  };
-
-  return (
-    <div className="page-stack">
-      <section className="page-heading">
-        <div><span className="eyebrow">EPISODE BOARD</span><h2>에피소드</h2><p>각 회차의 현재 단계와 핵심 일정을 관리합니다.</p></div>
-        <button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 새 에피소드</button>
-      </section>
-
-      {isAdding && (
-        <form className="editor-card" onSubmit={submit}>
-          <div className="editor-title"><strong>에피소드 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div>
-          <div className="form-grid">
-            <label className="wide">에피소드/게스트 이름<input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="예: EP.07 | Artist" /></label>
-            <label>담당자<input value={draft.owner} onChange={(e) => setDraft({ ...draft, owner: e.target.value })} placeholder="이름" /></label>
-            <label>단계<select value={draft.stage} onChange={(e) => setDraft({ ...draft, stage: e.target.value })}>{EPISODE_STAGES.map((stage) => <option value={stage.id} key={stage.id}>{stage.label}</option>)}</select></label>
-            <label>촬영일<input type="date" value={draft.shootDate} onChange={(e) => setDraft({ ...draft, shootDate: e.target.value })} /></label>
-            <label>업로드일<input type="date" value={draft.publishDate} onChange={(e) => setDraft({ ...draft, publishDate: e.target.value })} /></label>
-          </div>
-          <button className="primary-button" type="submit">추가하기</button>
-        </form>
-      )}
-
-      {episodes.length === 0 ? (
-        <EmptyPanel icon={Clapperboard} title="아직 등록된 에피소드가 없습니다" description="실제 게스트 정보는 자동으로 가져오지 않았습니다. 새 회차부터 안전하게 등록해보세요." action={<button className="text-button" onClick={() => setIsAdding(true)}>첫 에피소드 만들기</button>} />
-      ) : (
-        <section className="episode-grid">
-          {episodes.map((episode) => (
-            <article className="episode-card" key={episode.id}>
-              <div className="card-top"><StatusBadge stage={episode.stage} /><button className="icon-button danger" onClick={() => onDelete(episode.id)} title="삭제"><Trash2 size={16} /></button></div>
-              <h3>{episode.title}</h3>
-              <p>{episode.owner || '담당자 미정'}</p>
-              <div className="date-row"><span>촬영 <strong>{formatDate(episode.shootDate)}</strong></span><span>발행 <strong>{formatDate(episode.publishDate)}</strong></span></div>
-              <select value={episode.stage} onChange={(e) => onUpdate(episode.id, { stage: e.target.value })}>{EPISODE_STAGES.map((stage) => <option value={stage.id} key={stage.id}>{stage.label}</option>)}</select>
-            </article>
-          ))}
-        </section>
-      )}
-
-      <section className="panel">
-        <div className="panel-heading"><div><span className="eyebrow">REPEATABLE CHECKLIST</span><h3>회차 공통 준비 항목</h3></div></div>
-        <div className="check-list">
-          {WORKFLOW.map((item, index) => (
-            <label key={item} className={checklist[index] ? 'checked' : ''}>
-              <input type="checkbox" checked={Boolean(checklist[index])} onChange={() => onToggleCheck(index)} />
-              <span>{item}</span>
-            </label>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function Guests({ guests, onAdd, onUpdate, onDelete }) {
-  const [query, setQuery] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-  const [draft, setDraft] = useState({ name: '', status: '컨택 전', owner: '', contact: '', note: '' });
-  const filtered = guests.filter((guest) => `${guest.name} ${guest.owner} ${guest.status}`.toLowerCase().includes(query.toLowerCase()));
-
-  const submit = (event) => {
-    event.preventDefault();
-    if (!draft.name.trim()) return;
-    onAdd(draft);
-    setDraft({ name: '', status: '컨택 전', owner: '', contact: '', note: '' });
-    setIsAdding(false);
-  };
-
-  return (
-    <div className="page-stack">
-      <section className="page-heading">
-        <div><span className="eyebrow">GUEST PIPELINE</span><h2>게스트 섭외</h2><p>Notion의 기존 상태 체계를 유지해 연락부터 촬영 완료까지 추적합니다.</p></div>
-        <button className="primary-button" onClick={() => setIsAdding(true)}><Plus size={17} /> 게스트 추가</button>
-      </section>
-
-      {isAdding && (
-        <form className="editor-card" onSubmit={submit}>
-          <div className="editor-title"><strong>게스트 추가</strong><button type="button" onClick={() => setIsAdding(false)}><X size={18} /></button></div>
-          <div className="form-grid">
-            <label>이름<input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
-            <label>담당자<input value={draft.owner} onChange={(e) => setDraft({ ...draft, owner: e.target.value })} /></label>
-            <label>상태<select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>{GUEST_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
-            <label>연락처<input value={draft.contact} onChange={(e) => setDraft({ ...draft, contact: e.target.value })} placeholder="이메일 또는 연락 채널" /></label>
-            <label className="wide">메모<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></label>
-          </div>
-          <button className="primary-button" type="submit">추가하기</button>
-        </form>
-      )}
-
-      <div className="toolbar">
-        <label className="search-field"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름, 담당자, 상태 검색" /></label>
-        <span>{filtered.length}명</span>
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyPanel icon={Users} title={guests.length ? '검색 결과가 없습니다' : '게스트 파이프라인이 비어 있습니다'} description="Notion 데이터는 아직 이전하지 않았습니다. 신규 섭외 건부터 이곳에서 시작할 수 있습니다." />
-      ) : (
-        <section className="guest-table-wrap">
-          <table className="guest-table">
-            <thead><tr><th>게스트</th><th>상태</th><th>담당자</th><th>연락처</th><th></th></tr></thead>
-            <tbody>
-              {filtered.map((guest) => (
-                <tr key={guest.id}>
-                  <td><strong>{guest.name}</strong><small>{guest.note || '메모 없음'}</small></td>
-                  <td><select value={guest.status} onChange={(e) => onUpdate(guest.id, { status: e.target.value })}>{GUEST_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td>
-                  <td>{guest.owner || '미정'}</td>
-                  <td>{guest.contact || '-'}</td>
-                  <td><button className="icon-button danger" onClick={() => onDelete(guest.id)}><Trash2 size={16} /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-    </div>
-  );
+function LegacyDataNotice({ data, onDismiss }) {
+  if (!data) return null;
+  const counts = ['episodes', 'guests', 'resources', 'meetings', 'partnerships'].map((key) => `${key} ${(data[key] || []).length}`).join(' · ');
+  const download = () => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'tnt-localstorage-backup.json'; link.click(); URL.revokeObjectURL(url); };
+  return <div className="legacy-notice"><Archive size={18} /><div><strong>이전 브라우저 데이터가 발견됐습니다</strong><small>{counts} · Firestore에 자동 반영하지 않습니다.</small></div><button onClick={download}>백업 다운로드</button><button className="icon-button" onClick={onDismiss}><X size={15} /></button></div>;
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState('overview');
-  const [workspace, setWorkspace] = useState(loadWorkspace);
+  const [view, setView] = useState('overview');
+  const [workspace, setWorkspace] = useState(EMPTY);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
-  const [theme, setTheme] = useState(getInitialTheme);
-  const isEmbedded = window !== window.top;
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState(null);
+  const [taskCache, setTaskCache] = useState({});
+  const [initializing, setInitializing] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [online, setOnline] = useState(navigator.onLine);
+  const [legacyData, setLegacyData] = useState(() => {
+    if (localStorage.getItem('artic-tnt-legacy-dismissed') === 'true') return null;
+    try { return JSON.parse(localStorage.getItem('artic-tnt-project-manager-v1') || 'null'); } catch { return null; }
+  });
+  const embedded = window !== window.top;
+  const onError = useMemo(() => (message) => setError(message), []);
+  const episodeData = useEpisodeData(selectedEpisodeId, onError);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
-  }, [workspace]);
-
-  useEffect(() => {
-    const applyTheme = (nextTheme) => {
-      setTheme(nextTheme);
-      document.documentElement.classList.toggle('dark', nextTheme === 'dark');
-      document.body.classList.toggle('light-theme', nextTheme === 'light');
-    };
-    applyTheme(theme);
-    const receiveMessage = (event) => {
-      if (event.data?.type === 'SET_THEME') applyTheme(event.data.theme);
-      if (event.data?.type === 'TOGGLE_SIDEBAR') setSidebarOpen((open) => !open);
-    };
-    window.addEventListener('message', receiveMessage);
-    return () => window.removeEventListener('message', receiveMessage);
+    let unsubscribe = () => {};
+    getSession().then((value) => {
+      setSession(value);
+      unsubscribe = subscribeWorkspace((data) => { setWorkspace(data); setLoading(false); }, (cause) => { setError(cause.message); setLoading(false); });
+    }).catch((cause) => { setError(cause.message); setLoading(false); });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (isEmbedded) window.parent.postMessage({ type: 'SIDEBAR_STATE', active: sidebarOpen }, '*');
-  }, [isEmbedded, sidebarOpen]);
-
-  useEffect(() => {
-    const syncViewport = () => {
-      setViewportWidth(window.innerWidth);
-      if (window.innerWidth > 1200) setSidebarOpen(false);
-    };
-    window.addEventListener('resize', syncViewport);
-    return () => window.removeEventListener('resize', syncViewport);
+    const sync = () => setOnline(navigator.onLine);
+    window.addEventListener('online', sync); window.addEventListener('offline', sync);
+    return () => { window.removeEventListener('online', sync); window.removeEventListener('offline', sync); };
   }, []);
 
-  const activeLabel = useMemo(() => NAV_ITEMS.find((item) => item.id === activeView)?.label, [activeView]);
-  const sidebarExpanded = viewportWidth > 1200 ? !sidebarCollapsed : sidebarOpen;
-  const navigate = (view) => { setActiveView(view); if (window.innerWidth <= 1200) setSidebarOpen(false); };
-  const toggleSidebar = () => {
-    if (window.innerWidth > 1200) setSidebarCollapsed((collapsed) => !collapsed);
-    else setSidebarOpen((open) => !open);
-  };
-  const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    localStorage.setItem('artic-theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-    document.body.classList.toggle('light-theme', next === 'light');
-  };
-  const addRecord = (collection, record) => setWorkspace((current) => ({ ...current, [collection]: [...current[collection], { ...record, id: crypto.randomUUID() }] }));
-  const updateRecord = (collection, id, patch) => setWorkspace((current) => ({ ...current, [collection]: current[collection].map((item) => item.id === id ? { ...item, ...patch } : item) }));
-  const deleteRecord = (collection, id) => setWorkspace((current) => ({ ...current, [collection]: current[collection].filter((item) => item.id !== id) }));
+  useEffect(() => {
+    const unsubs = workspace.episodes.map((episode) => subscribeEpisodeTasks(episode.id, (tasks) => setTaskCache((current) => ({ ...current, [episode.id]: tasks })), () => {}));
+    return () => unsubs.forEach((unsubscribe) => unsubscribe());
+  }, [workspace.episodes.map((episode) => episode.id).join('|')]);
 
-  return (
-    <div className={`workspace-shell ${isEmbedded ? 'embedded' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      <aside className="workspace-sidebar">
-        <button className="project-mark" onClick={() => navigate('overview')}>
-          <span>TN</span><div className="sidebar-label"><strong>Tasting Note</strong><small>Project Manager</small></div>
-        </button>
-        <div className="sidebar-toggle-wrap"><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={sidebarExpanded ? '메뉴 축소' : '메뉴 확대'} aria-expanded={sidebarExpanded}>{sidebarExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}<span className="sidebar-label">{sidebarExpanded ? (viewportWidth > 1200 ? '메뉴 축소' : '메뉴 닫기') : '메뉴 확대'}</span></button></div>
-        <nav>
-          {['PROJECT', 'OPERATIONS', 'MANAGEMENT'].map((group) => <div className="nav-group" key={group}><span className="nav-group-label sidebar-label">{group}</span>{NAV_ITEMS.filter((item) => item.group === group).map(({ id, label, icon: Icon }) => <button key={id} className={activeView === id ? 'active' : ''} onClick={() => navigate(id)} title={label}><Icon size={18} /><span className="sidebar-label">{label}</span></button>)}</div>)}
-        </nav>
-        <div className="sidebar-note"><span className="sync-dot" /><span className="sidebar-label">Notion 병행 운영<small>Firestore 연결 전</small></span></div>
-      </aside>
+  const openEpisode = (id) => { setSelectedEpisodeId(id); setView('episodes'); setSidebarOpen(false); };
+  const initialize = async () => { setInitializing(true); try { await initializeWorkspace(); } catch (cause) { setError(cause.message); } finally { setInitializing(false); } };
+  const activeLabel = NAV.find(([id]) => id === view)?.[1];
+  const canEdit = Boolean(session?.isAdmin && online);
+  const derivedNotifications = useMemo(() => {
+    const items = [];
+    workspace.episodes.forEach((episode) => {
+      const state = deriveEpisodeState(episode, taskCache[episode.id] || []);
+      if (['conflict', 'blocked', 'overdue', 'at_risk'].includes(state.health)) items.push({ id: `episode-${episode.id}-${state.health}`, episodeId: episode.id, title: `${episode.sequenceLabel} ${episode.guestName}`, description: state.health === 'conflict' ? '출처 간 데이터 충돌을 확인하세요.' : state.nextTask?.title || HEALTH[state.health]?.[0] });
+    });
+    workspace.questionnaireInbox.filter((item) => item.matchStatus === 'unmatched').forEach((item) => items.push({ id: `form-${item.id}`, title: `${item.artistName || '이름 없음'} 질문지`, description: '게스트 또는 에피소드에 연결되지 않았습니다.' }));
+    workspace.guestProspects.filter((guest) => guest.dataQuality?.includes('follow_up_overdue')).forEach((guest) => items.push({ id: `guest-${guest.id}`, title: `${guest.name} 후속 연락`, description: '기존 후속 연락 시점이 지났습니다.' }));
+    return items;
+  }, [workspace, taskCache]);
+  const content = {
+    overview: <Dashboard workspace={workspace} taskCache={taskCache} onOpenEpisode={openEpisode} />,
+    episodes: <EpisodesPage workspace={workspace} selectedId={selectedEpisodeId} onSelect={setSelectedEpisodeId} episodeData={episodeData} isAdmin={canEdit} onError={setError} />,
+    guests: <GuestsPage guests={workspace.guestProspects} isAdmin={canEdit} onError={setError} onOpenEpisode={openEpisode} />,
+    schedule: <SchedulePage batches={workspace.shootBatches} episodes={workspace.episodes} isAdmin={canEdit} onError={setError} />,
+    resources: <SimpleRecordsPage kind="resources" title="장소 · 장비" description="촬영 장소와 장비 준비 상태를 관리합니다." records={workspace.resources} isAdmin={canEdit} onError={setError} />,
+    finance: <SettlementPanel />,
+    partnerships: <SimpleRecordsPage kind="partnerships" title="PPL · 협찬" description="제안, 협의, 확정 및 제작지원 수령 상태를 관리합니다." records={workspace.partnerships} isAdmin={canEdit} onError={setError} />,
+    meetings: <SimpleRecordsPage kind="meetings" title="회의 · 피드백" description="결정사항과 다음 촬영에 반영할 학습을 누적합니다." records={workspace.meetings} isAdmin={canEdit} onError={setError} />,
+    sync: <SyncPage workspace={workspace} isAdmin={canEdit} onError={setError} />,
+    project: <ProjectPage />,
+  }[view];
 
-      {sidebarOpen && <button className="mobile-scrim" aria-label="메뉴 닫기" onClick={() => setSidebarOpen(false)} />}
+  if (loading) return <div className="app-loading"><RefreshCw className="spin" /><strong>TNT 데이터를 불러오는 중</strong></div>;
 
-      <main className="workspace-main">
-        {!isEmbedded && <header className="workspace-header"><button className="mobile-menu" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button><div><span className="header-path">TNT /</span><strong>{activeLabel}</strong></div><div className="header-actions"><a href="https://app.notion.com/p/26dffc3c3af58095bb20fd89297d34a0" target="_blank" rel="noreferrer" title="Notion 원본 열기"><ExternalLink size={17} /></a><button onClick={toggleTheme} title="테마 변경">{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}</button></div></header>}
-
-        <div className="workspace-content">
-          {activeView === 'overview' && <Overview workspace={workspace} onNavigate={navigate} />}
-          {activeView === 'project' && <ProjectPage />}
-          {activeView === 'episodes' && <Episodes episodes={workspace.episodes} checklist={workspace.checklist} onAdd={(record) => addRecord('episodes', record)} onUpdate={(id, patch) => updateRecord('episodes', id, patch)} onDelete={(id) => deleteRecord('episodes', id)} onToggleCheck={(index) => setWorkspace((current) => ({ ...current, checklist: { ...current.checklist, [index]: !current.checklist[index] } }))} />}
-          {activeView === 'guests' && <Guests guests={workspace.guests} onAdd={(record) => addRecord('guests', record)} onUpdate={(id, patch) => updateRecord('guests', id, patch)} onDelete={(id) => deleteRecord('guests', id)} />}
-          {activeView === 'production' && <ProductionPage checklist={workspace.checklist} onToggleCheck={(index) => setWorkspace((current) => ({ ...current, checklist: { ...current.checklist, [index]: !current.checklist[index] } }))} />}
-          {activeView === 'resources' && <TrackerPage kind="resources" title="장소 · 장비" eyebrow="PRODUCTION RESOURCES" description="촬영 장소 후보, 예약 상태와 회차별 장비 준비를 관리합니다." records={workspace.resources} onAdd={(record) => addRecord('resources', record)} onUpdate={(id, patch) => updateRecord('resources', id, patch)} onDelete={(id) => deleteRecord('resources', id)} />}
-          {activeView === 'settlement' && <SettlementPanel />}
-          {activeView === 'meetings' && <MeetingsPage meetings={workspace.meetings} onAdd={(record) => addRecord('meetings', record)} onUpdate={(id, patch) => updateRecord('meetings', id, patch)} onDelete={(id) => deleteRecord('meetings', id)} />}
-          {activeView === 'partnerships' && <TrackerPage kind="partnerships" title="PPL · 협찬" eyebrow="PARTNERSHIPS" description="브랜드 제안, 협찬 패키지와 회차별 노출 협의를 추적합니다." records={workspace.partnerships} onAdd={(record) => addRecord('partnerships', record)} onUpdate={(id, patch) => updateRecord('partnerships', id, patch)} onDelete={(id) => deleteRecord('partnerships', id)} />}
-        </div>
-      </main>
-    </div>
-  );
+  return <div className={`workspace-shell ${embedded ? 'embedded' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'sidebar-open' : ''}`}>
+    <aside className="workspace-sidebar"><button className="project-mark" onClick={() => setView('overview')}><span>TN</span><div className="sidebar-label"><strong>Tasting Note</strong><small>Project Manager</small></div></button><div className="sidebar-toggle-wrap"><button className="sidebar-toggle" onClick={() => window.innerWidth > 1200 ? setSidebarCollapsed(!sidebarCollapsed) : setSidebarOpen(!sidebarOpen)}>{sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}<span className="sidebar-label">메뉴 {sidebarCollapsed ? '확대' : '축소'}</span></button></div><nav>{['PROJECT', 'OPERATIONS', 'MANAGEMENT'].map((group) => <div className="nav-group" key={group}><span className="nav-group-label sidebar-label">{group}</span>{NAV.filter(([, , , itemGroup]) => itemGroup === group).map(([id, label, Icon]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setSidebarOpen(false); }}><Icon size={18} /><span className="sidebar-label">{label}</span></button>)}</div>)}</nav><div className="sidebar-note"><span className={`sync-dot ${session?.isAdmin ? 'admin' : ''}`} /><span className="sidebar-label">{session?.isAdmin ? '관리자 편집 모드' : '멤버 읽기 모드'}<small>Firestore 실시간 연결</small></span></div></aside>
+    {sidebarOpen && <button className="mobile-scrim" onClick={() => setSidebarOpen(false)} aria-label="메뉴 닫기" />}
+    <main className="workspace-main">{!embedded && <header className="workspace-header"><button className="mobile-menu" aria-label="메뉴 열기" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button><div><span className="header-path">TNT /</span><strong>{activeLabel}</strong></div><div className="header-actions"><button className={derivedNotifications.length ? 'has-alerts' : ''} title="알림" aria-label="알림" onClick={() => setNotificationsOpen(!notificationsOpen)}><Bell size={17} />{derivedNotifications.length > 0 && <b>{derivedNotifications.length}</b>}</button></div></header>}{embedded && <button className={`embedded-alert ${derivedNotifications.length ? 'has-alerts' : ''}`} title="운영 알림" aria-label="운영 알림" onClick={() => setNotificationsOpen(!notificationsOpen)}><Bell size={17} />{derivedNotifications.length > 0 && <b>{derivedNotifications.length}</b>}</button>}{notificationsOpen && <NotificationDrawer items={derivedNotifications} onClose={() => setNotificationsOpen(false)} onOpenEpisode={(id) => { openEpisode(id); setNotificationsOpen(false); }} />}<div className="workspace-content">{!online && <div className="offline-notice"><Cloud size={16} /> 오프라인 상태입니다. 데이터 조회는 유지되지만 모든 쓰기 작업이 잠겼습니다.</div>}<LegacyDataNotice data={legacyData} onDismiss={() => { localStorage.setItem('artic-tnt-legacy-dismissed', 'true'); setLegacyData(null); }} /><ErrorBanner error={error} onClose={() => setError('')} />{workspace.episodes.length === 0 && session?.isAdmin ? <section className="setup-card"><ShieldCheck size={28} /><h2>TNT 운영 데이터 초기화</h2><p>검증된 게스트 27명, 공개 7편, 향후 회차와 워크플로우를 Firestore에 구성합니다.</p><button className="primary-button" disabled={initializing || !online} onClick={initialize}>{initializing ? '구성 중...' : '초기 데이터 구성'}</button></section> : content}</div></main>
+  </div>;
 }

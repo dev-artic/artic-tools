@@ -50,6 +50,8 @@
   let currentProfile = readCachedProfile();
   let auth;
   let db;
+  let storage;
+  let functions;
   let readyPromise;
 
   function readCachedProfile() {
@@ -75,6 +77,8 @@
     const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
     auth = app.auth();
     db = app.firestore();
+    storage = typeof app.storage === 'function' ? app.storage() : null;
+    functions = typeof app.functions === 'function' ? app.functions('asia-northeast3') : null;
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
     readyPromise = new Promise(resolve => {
@@ -284,6 +288,8 @@
   window.ArticAuth = {
     auth: () => auth,
     db: () => db,
+    storage: () => storage,
+    functions: () => functions,
     directory: TEAM_DIRECTORY.map(({ email, ...member }) => member),
     ready: () => readyPromise,
     signIn,
