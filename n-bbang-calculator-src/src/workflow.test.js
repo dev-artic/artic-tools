@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTasks, deriveEpisodeState, parseTrackLines } from './workflow.js';
+import { createTasks, deriveEpisodeState, deriveNotionDisparities, parseTrackLines } from './workflow.js';
 
 test('published legacy episode is complete', () => {
   const tasks = createTasks('episode', { completed: true });
@@ -25,4 +25,18 @@ test('track parser preserves order and artist-title split', () => {
     { questionNumber: 1, artist: 'Radiohead', title: 'Weird Fishes' },
     { questionNumber: 2, artist: 'Björk', title: 'Joga' },
   ]);
+});
+
+test('Notion disparities include only concrete source differences', () => {
+  const episode = { sequence: 1, publishedAt: '2026-02-11', lifecycleState: 'published' };
+  const guest = { sourceUrl: 'https://app.notion.com/p/example', plannedUploadDate: '2026-01-21', episodeAssignment: { sequence: 1 }, notionStatus: '촬영 완료', dataQuality: ['planned_upload_differs_from_public'] };
+  assert.deepEqual(deriveNotionDisparities(episode, guest).map((item) => item.key), ['uploadDate']);
+});
+
+test('stale Notion status exposes the current content disposition', () => {
+  const episode = { sequence: null, lifecycleState: 'cancelled', cancellationReason: 'footage_lost' };
+  const guest = { sourceUrl: 'https://app.notion.com/p/example', episodeAssignment: { sequence: null }, notionStatus: '섭외 완료 + PPL', dataQuality: ['notion_status_stale'] };
+  const [status] = deriveNotionDisparities(episode, guest);
+  assert.equal(status.key, 'status');
+  assert.equal(status.tntValue, '본편 취소 · 쇼츠 전환');
 });

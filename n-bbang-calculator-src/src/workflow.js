@@ -80,6 +80,23 @@ export function deriveEpisodeState(episode, tasks = [], now = new Date()) {
   };
 }
 
+export function deriveNotionDisparities(episode, guest, shootBatch = null) {
+  if (!guest?.sourceUrl?.includes('notion.com')) return [];
+  const disparities = [];
+  const add = (key, label, notionValue, tntValue, reason) => {
+    if (notionValue == null || notionValue === '' || tntValue == null || tntValue === '' || String(notionValue) === String(tntValue)) return;
+    disparities.push({ key, label, notionValue, tntValue, reason, sourceUrl: guest.sourceUrl });
+  };
+  add('uploadDate', '업로드일', guest.plannedUploadDate, episode.publishedAt || episode.plannedUploadDate, episode.publishedAt ? 'Notion 예정일과 실제 공개일이 다릅니다.' : 'Notion 예정일과 TNT 운영일이 다릅니다.');
+  add('sequence', '회차', guest.episodeAssignment?.sequence, episode.sequence, 'Notion 회차와 TNT 회차가 다릅니다.');
+  add('shootDate', '촬영일', guest.plannedShootDate, shootBatch?.shootDate, 'Notion 촬영일과 촬영 배치일이 다릅니다.');
+  if (guest.dataQuality?.includes('notion_status_stale')) {
+    const currentStatus = episode.lifecycleState === 'cancelled' ? (episode.cancellationReason === 'footage_lost' ? '본편 취소 · 쇼츠 전환' : '제작 취소') : episode.lifecycleState === 'published' ? '공개 완료' : '제작 진행 중';
+    add('status', '진행 상태', guest.notionStatus, currentStatus, 'Notion 상태가 현재 제작 처분을 반영하지 않습니다.');
+  }
+  return disparities;
+}
+
 export function parseTrackLines(value) {
   return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line, index) => {
     const [artist = '', ...titleParts] = line.split(/\s[-–—]\s/);
