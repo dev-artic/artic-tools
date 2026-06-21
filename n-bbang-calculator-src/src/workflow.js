@@ -80,12 +80,18 @@ export function deriveEpisodeState(episode, tasks = [], now = new Date()) {
   };
 }
 
-export function deriveNotionDisparities(episode, guest, shootBatch = null) {
+export function disparityFingerprint(episodeId, key, notionValue, tntValue) {
+  return JSON.stringify([episodeId, key, notionValue ?? null, tntValue ?? null]);
+}
+
+export function deriveNotionDisparities(episode, guest, shootBatch = null, resolutions = []) {
   if (!guest?.sourceUrl?.includes('notion.com')) return [];
   const disparities = [];
   const add = (key, label, notionValue, tntValue, reason) => {
     if (notionValue == null || notionValue === '' || tntValue == null || tntValue === '' || String(notionValue) === String(tntValue)) return;
-    disparities.push({ key, label, notionValue, tntValue, reason, sourceUrl: guest.sourceUrl });
+    const fingerprint = disparityFingerprint(episode.id, key, notionValue, tntValue);
+    if (resolutions.some((item) => item.status === 'resolved' && item.fingerprint === fingerprint)) return;
+    disparities.push({ key, label, notionValue, tntValue, reason, sourceUrl: guest.sourceUrl, fingerprint });
   };
   add('uploadDate', '업로드일', guest.plannedUploadDate, episode.publishedAt || episode.plannedUploadDate, episode.publishedAt ? 'Notion 예정일과 실제 공개일이 다릅니다.' : 'Notion 예정일과 TNT 운영일이 다릅니다.');
   add('sequence', '회차', guest.episodeAssignment?.sequence, episode.sequence, 'Notion 회차와 TNT 회차가 다릅니다.');

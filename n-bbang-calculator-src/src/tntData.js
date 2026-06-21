@@ -149,6 +149,36 @@ export async function createDocument(collection, data) {
   return ref.id;
 }
 
+export async function resolveNotionDisparity(episode, guest, disparity, chosenSource, resolutionReason) {
+  const { profile, isAdmin, authBridge } = await getSession();
+  if (!isAdmin) throw new Error('TNT 관리자만 데이터 괴리를 해결할 수 있습니다.');
+  if (!['notion', 'tnt'].includes(chosenSource)) throw new Error('기준 출처를 선택해주세요.');
+  if (String(resolutionReason || '').trim().length < 3) throw new Error('해결 사유를 3자 이상 입력해주세요.');
+  const db = authBridge.db();
+  const root = projectRef(db);
+  const conflictId = `${episode.id}-${disparity.key}`.replace(/[^a-zA-Z0-9_-]/g, '-');
+  const ref = root.collection('syncConflicts').doc(conflictId);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const version = snapshot.exists ? (snapshot.data().version || 0) + 1 : 1;
+    const payload = {
+      id: conflictId, provider: 'notion', entityType: 'episode', episodeId: episode.id, guestId: guest.id,
+      field: disparity.key, label: disparity.label, notionValue: disparity.notionValue, tntValue: disparity.tntValue,
+      fingerprint: disparity.fingerprint, chosenSource, chosenValue: chosenSource === 'notion' ? disparity.notionValue : disparity.tntValue,
+      resolutionReason: String(resolutionReason).trim(), status: 'resolved', sourceUrl: disparity.sourceUrl,
+      resolvedAt: serverTimestamp(), resolvedBy: profile.uid, archivedAt: null, version, schemaVersion: 1,
+      updatedAt: serverTimestamp(), updatedBy: profile.uid,
+    };
+    if (!snapshot.exists) { payload.createdAt = serverTimestamp(); payload.createdBy = profile.uid; }
+    transaction.set(ref, toFirebaseData(payload), toFirebaseData({ merge: true }));
+    transaction.set(root.collection('activity').doc(), toFirebaseData({
+      entityType: 'syncConflict', entityId: conflictId, episodeId: episode.id, guestId: guest.id,
+      action: 'resolve_notion_disparity', field: disparity.key, fingerprint: disparity.fingerprint,
+      chosenSource, resolutionReason: String(resolutionReason).trim(), actorId: profile.uid, createdAt: serverTimestamp(),
+    }));
+  });
+}
+
 export async function archiveDocument(collection, item) {
   const { profile, isAdmin, authBridge } = await getSession();
   if (!isAdmin) throw new Error('TNT 관리자만 항목을 보관할 수 있습니다.');

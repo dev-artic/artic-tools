@@ -9,7 +9,7 @@ import SettlementPanel from './SettlementPanel.jsx';
 import { PHASES, deriveEpisodeState, deriveNotionDisparities, parseTrackLines } from './workflow.js';
 import {
   archiveDocument, assignEpisodeSequence, callAdminFunction, createDocument, createEpisodeFromGuest, createEpisodeSubdocument,
-  getSession, initializeWorkspace, mutateDocument, restoreDocument, subscribeArchive, subscribeEpisodeCollection,
+  getSession, initializeWorkspace, mutateDocument, resolveNotionDisparity, restoreDocument, subscribeArchive, subscribeEpisodeCollection,
   subscribeEpisodeTasks, subscribeWorkspace, updateEpisodeSubdocument, updateEpisodeTask,
   uploadArtifact,
 } from './tntData.js';
@@ -92,7 +92,8 @@ function Dashboard({ workspace, taskCache, onOpenEpisode }) {
   const rows = workspace.episodes.map((episode) => {
     const guest = workspace.guestProspects.find((item) => item.id === episode.guestId);
     const batch = workspace.shootBatches.find((item) => item.id === episode.shootBatchId);
-    const hasNotionConflict = deriveNotionDisparities(episode, guest, batch).length > 0;
+    const resolutions = workspace.syncConflicts.filter((item) => item.episodeId === episode.id);
+    const hasNotionConflict = deriveNotionDisparities(episode, guest, batch, resolutions).length > 0;
     const healthEpisode = hasNotionConflict ? { ...episode, dataQuality: [...(episode.dataQuality || []), 'notion_discrepancy_conflict'] } : episode;
     return { episode, derived: deriveEpisodeState(healthEpisode, taskCache[episode.id] || []) };
   })
@@ -208,16 +209,30 @@ function DeliverablesPanel({ deliverables }) {
   </section>;
 }
 
-function NotionDiscrepancyPanel({ disparities }) {
-  if (!disparities.length) return null;
+function NotionDiscrepancyPanel({ episode, guest, disparities, resolutions, isAdmin, onError }) {
+  const [drafts, setDrafts] = useState({});
+  const [busy, setBusy] = useState('');
+  if (!disparities.length && !resolutions.length) return null;
   const displayValue = (item, value) => ['uploadDate', 'shootDate'].includes(item.key) ? formatDate(value) : String(value);
-  return <section className="notion-discrepancy"><header><div><AlertTriangle size={17} /><span><strong>Notion 데이터 괴리</strong><small>자동 덮어쓰기하지 않은 값입니다. 기준 출처를 확인해주세요.</small></span></div><a href={disparities[0].sourceUrl} target="_blank" rel="noreferrer">Notion 원문 <ExternalLink size={13} /></a></header><div className="discrepancy-table">{disparities.map((item) => <article key={item.key}><strong>{item.label}</strong><div><span>NOTION</span><b>{displayValue(item, item.notionValue)}</b></div><ChevronRight size={15} /><div><span>TNT · 검증 기준</span><b>{displayValue(item, item.tntValue)}</b></div><small>{item.reason}</small></article>)}</div></section>;
+  const updateDraft = (key, patch) => setDrafts((current) => ({ ...current, [key]: { chosenSource: '', reason: '', ...current[key], ...patch } }));
+  const resolve = async (item) => {
+    const draft = drafts[item.key] || {};
+    setBusy(item.key);
+    try { await resolveNotionDisparity(episode, guest, item, draft.chosenSource, draft.reason); }
+    catch (error) { onError(error.message); }
+    finally { setBusy(''); }
+  };
+  const sourceUrl = disparities[0]?.sourceUrl || resolutions[0]?.sourceUrl;
+  return <section className={`notion-discrepancy ${disparities.length ? '' : 'resolved'}`}><header><div>{disparities.length ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}<span><strong>{disparities.length ? 'Notion 데이터 괴리' : 'Notion 괴리 해결 완료'}</strong><small>{disparities.length ? '자동 덮어쓰기하지 않은 값입니다. 기준 출처를 확인해주세요.' : '관리자 결정과 해결 사유가 감사 이력에 보존됩니다.'}</small></span></div>{sourceUrl && <a href={sourceUrl} target="_blank" rel="noreferrer">Notion 원문 <ExternalLink size={13} /></a>}</header>
+    {disparities.length > 0 && <div className="discrepancy-table">{disparities.map((item) => <article key={item.key}><strong>{item.label}</strong><div><span>NOTION</span><b>{displayValue(item, item.notionValue)}</b></div><ChevronRight size={15} /><div><span>TNT · 검증 기준</span><b>{displayValue(item, item.tntValue)}</b></div><small>{item.reason}</small>{isAdmin && <div className="resolution-controls"><select aria-label={`${item.label} 기준 출처`} value={drafts[item.key]?.chosenSource || ''} onChange={(event) => updateDraft(item.key, { chosenSource: event.target.value })}><option value="">기준 출처 선택</option><option value="tnt">TNT 기준 유지</option><option value="notion">Notion 기준 승인</option></select><input aria-label={`${item.label} 해결 사유`} value={drafts[item.key]?.reason || ''} onChange={(event) => updateDraft(item.key, { reason: event.target.value })} placeholder="결정 근거 또는 확인한 담당자" /><button className="secondary-button" disabled={busy === item.key || !drafts[item.key]?.chosenSource || (drafts[item.key]?.reason || '').trim().length < 3} onClick={() => resolve(item)}>{busy === item.key ? '기록 중...' : '해결 기록'}</button></div>}</article>)}</div>}
+    {resolutions.length > 0 && <div className="resolution-history"><strong>해결 이력</strong>{resolutions.map((item) => <article key={item.id}><CheckCircle2 size={14} /><div><b>{item.label || item.field} · {item.chosenSource === 'notion' ? 'Notion 기준' : 'TNT 기준'}</b><small>{item.resolutionReason} · {formatDate(item.resolvedAt, true)}</small></div></article>)}</div>}
+  </section>;
 }
 
-function EpisodeDetail({ episode, guest, batches, inbox, episodeData, isAdmin, onError, onArchive }) {
+function EpisodeDetail({ episode, guest, batches, inbox, resolutions, episodeData, isAdmin, onError, onArchive }) {
   const [tab, setTab] = useState('workflow');
   const batch = batches.find((item) => item.id === episode.shootBatchId);
-  const disparities = deriveNotionDisparities(episode, guest, batch);
+  const disparities = deriveNotionDisparities(episode, guest, batch, resolutions);
   const healthEpisode = disparities.length ? { ...episode, dataQuality: [...(episode.dataQuality || []), 'notion_discrepancy_conflict'] } : episode;
   const derived = deriveEpisodeState(healthEpisode, episodeData.tasks);
   const tabs = [['workflow', '워크플로우'], ['basics', '일정'], ['questionnaire', '질문지'], ['playlist', '플레이리스트'], ['files', '파일'], ['deliverables', 'POST'], ['finance', '정산']];
@@ -231,7 +246,7 @@ function EpisodeDetail({ episode, guest, batches, inbox, episodeData, isAdmin, o
     {tab === 'files' && <FilesPanel episode={episode} artifacts={episodeData.artifacts} isAdmin={isAdmin} onError={onError} />}
     {tab === 'deliverables' && <DeliverablesPanel deliverables={episodeData.deliverables} />}
     {tab === 'finance' && <FinancePanel episode={episode} entries={episodeData.financialEntries} isAdmin={isAdmin} onError={onError} />}
-    <NotionDiscrepancyPanel disparities={disparities} />
+    <NotionDiscrepancyPanel episode={episode} guest={guest} disparities={disparities} resolutions={resolutions} isAdmin={isAdmin} onError={onError} />
   </article>;
 }
 
@@ -239,7 +254,7 @@ function EpisodesPage({ workspace, selectedId, onSelect, episodeData, isAdmin, o
   const episode = workspace.episodes.find((item) => item.id === selectedId) || workspace.episodes[0];
   useEffect(() => { if (!selectedId && workspace.episodes[0]) onSelect(workspace.episodes[0].id); }, [selectedId, workspace.episodes, onSelect]);
   return <div className="page-stack"><PageHeading eyebrow="EPISODE OPERATIONS" title="에피소드" description="회차별 필수 작업과 제작 자료를 직접 관리합니다." />
-    <div className="master-detail"><EpisodeList episodes={[...workspace.episodes]} selectedId={episode?.id} onSelect={onSelect} />{episode ? <EpisodeDetail episode={episode} guest={workspace.guestProspects.find((item) => item.id === episode.guestId)} batches={workspace.shootBatches} inbox={workspace.questionnaireInbox} episodeData={episodeData} isAdmin={isAdmin} onError={onError} onArchive={onArchive} /> : <EmptyState title="에피소드가 없습니다" description="초기 데이터를 구성해주세요." />}</div>
+    <div className="master-detail"><EpisodeList episodes={[...workspace.episodes]} selectedId={episode?.id} onSelect={onSelect} />{episode ? <EpisodeDetail episode={episode} guest={workspace.guestProspects.find((item) => item.id === episode.guestId)} batches={workspace.shootBatches} inbox={workspace.questionnaireInbox} resolutions={workspace.syncConflicts.filter((item) => item.episodeId === episode.id && item.status === 'resolved')} episodeData={episodeData} isAdmin={isAdmin} onError={onError} onArchive={onArchive} /> : <EmptyState title="에피소드가 없습니다" description="초기 데이터를 구성해주세요." />}</div>
   </div>;
 }
 
@@ -313,7 +328,7 @@ function SyncPage({ workspace, isAdmin, onError }) {
     <div className="sync-grid"><section className="panel"><Cloud size={22} /><h3>Notion 검토형 양방향 동기화</h3><p>게스트 트래커의 지원 필드만 비교합니다. 양쪽이 바뀐 값은 자동 적용하지 않습니다.</p><button className="secondary-button" disabled={!isAdmin || busy} onClick={runNotion}><RefreshCw size={16} /> {busy === 'notion' ? '비교 중...' : '차이 미리보기'}</button></section><section className="panel"><FileText size={22} /><h3>Google Form 응답 가져오기</h3><p>아티스트명, 17개 선곡, 음료 요청을 가져오며 response ID로 중복을 방지합니다.</p><button className="secondary-button" disabled={!isAdmin || busy} onClick={runGoogle}><RefreshCw size={16} /> {busy === 'google' ? '가져오는 중...' : '응답 동기화'}</button></section></div>
     {preview && <section className="panel"><div className="panel-heading"><h3>차이 {preview.differences.length}건</h3><button className="icon-button" onClick={() => setPreview(null)}><X size={16} /></button></div><div className="diff-list">{preview.differences.map((difference, index) => <article key={`${difference.guestId || 'new'}-${index}`}><div><strong>{difference.remote?.name || difference.local?.name}</strong><small>{difference.type} · {(difference.fields || []).join(', ')}</small></div><span>{difference.type !== 'tnt_only' && <button onClick={() => apply(difference, 'import')}>Notion → TNT</button>}{difference.type !== 'notion_only' && <button onClick={() => apply(difference, 'export')}>TNT → Notion</button>}</span></article>)}</div></section>}
     {workspace.questionnaireInbox.some((item) => item.matchStatus !== 'matched') && <section className="panel"><div className="panel-heading"><h3>질문지 연결 검토</h3><span>{workspace.questionnaireInbox.filter((item) => item.matchStatus !== 'matched').length}건</span></div><div className="response-review-list">{workspace.questionnaireInbox.filter((item) => item.matchStatus !== 'matched').map((response) => <article key={response.id}><div><strong>{response.artistName || '아티스트명 없음'}</strong><small>{formatDate(response.submittedAt, true)} · {response.matchStatus}</small></div><select disabled={!isAdmin} value={response.episodeId || ''} onChange={(e) => linkResponse(response, e.target.value)}><option value="">에피소드 선택</option>{workspace.episodes.map((episode) => <option value={episode.id} key={episode.id}>{episode.sequenceLabel} · {episode.guestName}</option>)}</select></article>)}</div></section>}
-    <section className="panel"><div className="panel-heading"><h3>데이터 정합성</h3><span>{workspace.syncConflicts.length} conflicts</span></div><div className="integrity-list"><span>질문지 미연결 응답 <b>{workspace.questionnaireInbox.filter((item) => item.matchStatus === 'unmatched').length}</b></span><span>회차 충돌 게스트 <b>{workspace.guestProspects.filter((item) => item.dataQuality?.some((flag) => flag.includes('conflict'))).length}</b></span><span>EP.7 <b>미배정 유지</b></span></div></section>
+    <section className="panel"><div className="panel-heading"><h3>데이터 정합성</h3><span>{workspace.syncConflicts.filter((item) => item.status !== 'resolved').length} active · {workspace.syncConflicts.filter((item) => item.status === 'resolved').length} resolved</span></div><div className="integrity-list"><span>질문지 미연결 응답 <b>{workspace.questionnaireInbox.filter((item) => item.matchStatus === 'unmatched').length}</b></span><span>회차 충돌 게스트 <b>{workspace.guestProspects.filter((item) => item.dataQuality?.some((flag) => flag.includes('conflict'))).length}</b></span><span>EP.7 <b>미배정 유지</b></span></div></section>
   </div>;
 }
 

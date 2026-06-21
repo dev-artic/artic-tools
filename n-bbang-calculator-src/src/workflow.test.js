@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTasks, deriveEpisodeState, deriveNotionDisparities, parseTrackLines } from './workflow.js';
+import { createTasks, deriveEpisodeState, deriveNotionDisparities, disparityFingerprint, parseTrackLines } from './workflow.js';
 
 test('published legacy episode is complete', () => {
   const tasks = createTasks('episode', { completed: true });
@@ -39,4 +39,12 @@ test('stale Notion status exposes the current content disposition', () => {
   const [status] = deriveNotionDisparities(episode, guest);
   assert.equal(status.key, 'status');
   assert.equal(status.tntValue, '본편 취소 · 쇼츠 전환');
+});
+
+test('a resolution hides only the exact disparity fingerprint', () => {
+  const episode = { id: 'ep-1', sequence: 1, publishedAt: '2026-02-11', lifecycleState: 'published' };
+  const guest = { sourceUrl: 'https://app.notion.com/p/example', plannedUploadDate: '2026-01-21', episodeAssignment: { sequence: 1 }, dataQuality: [] };
+  const resolution = { status: 'resolved', fingerprint: disparityFingerprint('ep-1', 'uploadDate', '2026-01-21', '2026-02-11') };
+  assert.equal(deriveNotionDisparities(episode, guest, null, [resolution]).length, 0);
+  assert.equal(deriveNotionDisparities({ ...episode, publishedAt: '2026-02-12' }, guest, null, [resolution]).length, 1);
 });

@@ -55,6 +55,13 @@ test('hard deletes are denied for operational records', async () => {
   await assertFails(adminContext.firestore().doc('projects/tnt/episodes/example').delete());
 });
 
+test('only administrators record conflict resolutions and records cannot be deleted', async () => {
+  const adminResolution = adminContext.firestore().doc('projects/tnt/syncConflicts/example-uploadDate');
+  await assertSucceeds(adminResolution.set({ episodeId: 'example', field: 'uploadDate', status: 'resolved', chosenSource: 'tnt', archivedAt: null, version: 1 }));
+  await assertFails(memberContext.firestore().doc('projects/tnt/syncConflicts/member-attempt').set({ status: 'resolved' }));
+  await assertFails(adminResolution.delete());
+});
+
 test('Storage permits admin JSON upload and member download only', async () => {
   const adminRef = adminContext.storage().ref('tnt/episodes/example/typing-json/example.json');
   await assertSucceeds(adminRef.putString('{"ok":true}', 'raw', { contentType: 'application/json' }));
